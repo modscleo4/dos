@@ -1,3 +1,9 @@
+#build dir
+build/
+disk.img
+
+.idea/
+
 # Prerequisites
 *.d
 
