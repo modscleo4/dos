@@ -1,6 +1,8 @@
 #ifndef STDIO_H
 #define STDIO_H
 
+#include <stdarg.h>
+
 #define EOF (-1)
 
 #ifndef NULL
@@ -34,5 +36,9 @@ int getchar();
 int putchar(char);
 
 int puts(const char *);
+
+int printf(const char *, ...);
+
+int scanf(const char *, ...);
 
 #endif //STDIO_H

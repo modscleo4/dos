@@ -1,26 +1,46 @@
 #ifndef FLOPPY_H
 #define FLOPPY_H
 
-#include <stdio.h>
-#include <stdlib.h>
+#include "../bits.h"
 #include "fat.h"
+#include "../cpu/irq.h"
+#include "../modules/timer.h"
+
+#define DISK_PARAMETER_ADDRESS 0x000FEFC7
 
 typedef struct chs {
-    int cylinder;
-    int head;
-    int sector;
+    unsigned char cylinder;
+    unsigned char head;
+    unsigned char sector;
 } chs;
 
+typedef struct {
+    unsigned char steprate_headunload;
+    unsigned char headload_ndma;
+    unsigned char motor_delay_off; /*specified in clock ticks*/
+    unsigned char bytes_per_sector;
+    unsigned char sectors_per_track;
+    unsigned char gap_length;
+    unsigned char data_length; /*used only when bytes per sector == 0*/
+    unsigned char format_gap_length;
+    unsigned char filler;
+    unsigned char head_settle_time; /*specified in milliseconds*/
+    unsigned char motor_start_time; /*specified in 1/8 seconds*/
+}__attribute__ ((packed)) floppy_parameters;
+
+#define FLOPPY_PRIMARY_BASE     0x03F0
+#define FLOPPY_SECONDARY_BASE   0x0370
+
 enum FloppyRegisters {
-    STATUS_REGISTER_A = 0x3F0, // read-only
-    STATUS_REGISTER_B = 0x3F1, // read-only
-    DIGITAL_OUTPUT_REGISTER = 0x3F2,
-    TAPE_DRIVE_REGISTER = 0x3F3,
-    MAIN_STATUS_REGISTER = 0x3F4, // read-only
-    DATARATE_SELECT_REGISTER = 0x3F4, // write-only
-    DATA_FIFO = 0x3F5,
-    DIGITAL_INPUT_REGISTER = 0x3F7, // read-only
-    CONFIGURATION_CONTROL_REGISTER = 0x3F7  // write-only
+    STATUS_REGISTER_A = 0x000, // read-only
+    STATUS_REGISTER_B = 0x001, // read-only
+    DIGITAL_OUTPUT_REGISTER = 0x002,
+    TAPE_DRIVE_REGISTER = 0x003,
+    MAIN_STATUS_REGISTER = 0x004, // read-only
+    DATARATE_SELECT_REGISTER = 0x004, // write-only
+    DATA_FIFO = 0x005,
+    DIGITAL_INPUT_REGISTER = 0x007, // read-only
+    CONFIGURATION_CONTROL_REGISTER = 0x007  // write-only
 };
 
 enum FloppyCommands {
@@ -47,14 +67,58 @@ enum FloppyCommands {
     SCAN_HIGH_OR_EQUAL = 29
 };
 
-void initfloppy();
+static const char *drive_types[6] = {
+    "No floppy drive.",
+    "360KB 5.25in floppy",
+    "1.2MB 5.25in floppy",
+    "720KB 3.5in floppy",
+    "1.44MB 3.5in floppy",
+    "2.88MB 3.5in floppy"
+};
+
+typedef enum {
+    floppy_direction_read = 1,
+    floppy_direction_write = 2
+} floppy_direction;
+
+void buffer2struct(unsigned char *, bios_params *);
+
+void init_floppy();
+
+void detect_floppy_types();
 
 void loadfat();
 
-chs lba2chs(long int lba);
+void lba2chs(unsigned long int, chs *, floppy_parameters);
 
-int floppy_read();
+int floppy_recv_byte(unsigned int);
 
-int floppy_write();
+int floppy_send_byte(unsigned int, unsigned char);
+
+void floppy_check_interrupt(unsigned int, int *, int *);
+
+int floppy_calibrate(unsigned int);
+
+int ResetFloppy(unsigned int);
+
+int floppy_seek(unsigned int, unsigned char, unsigned char);
+
+void floppy_motor_on(unsigned int);
+
+void floppy_motor_off(unsigned int);
+
+void floppy_handler(registers *);
+
+static void floppy_dma_init(floppy_direction, unsigned char *);
+
+int floppy_do_sector(unsigned int, unsigned long int, unsigned char *, floppy_direction);
+
+int floppy_sector_read(unsigned int, unsigned long int, unsigned char *);
+
+int floppy_sector_write(unsigned int, unsigned long int, unsigned char *);
+
+int floppy_search_file(const char *, fat_entry *);
+
+int floppy_load_file(const char *);
 
 #endif //FLOPPY_H

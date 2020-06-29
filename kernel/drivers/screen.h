@@ -2,6 +2,7 @@
 #define SCREEN_H
 
 #include <string.h>
+#include "../bits.h"
 
 #define VIDEO_ADDRESS 0xB8000
 #define MAX_ROWS 25
@@ -31,7 +32,7 @@ enum ScrrenRegisters {
     DATA = 0x3D5
 };
 
-void initvideo();
+void init_video();
 
 void gotoxy(int, int);
 

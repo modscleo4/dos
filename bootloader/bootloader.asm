@@ -9,7 +9,6 @@
 KERNEL_OFFSET equ 0x1000
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
-VIDEO_MEMORY equ 0xB8000
 
 section .text
 global boot
@@ -25,7 +24,7 @@ bios_param:
     param_sectors_per_cluster db 0x01; Sectors per Cluster
     param_reserved_sectors dw 0x0001; Reserved Sectors
     param_number_of_fat db 0x02; Number of file allocation tables
-    param_root_entries dw 0x00E0; Root Entries
+    param_rootdir_entries dw 0x00E0; Root Directory Entries
     param_small_sectors dw 0x0B40; Small Sectors
     param_media_type db 0xF0; Media Type
     param_sectors_per_fat dw 0x0009; Sectors per file allocation table
@@ -66,9 +65,6 @@ boot:
 
     call switch_to_pm
 
-    cli
-    hlt
-
 getxy:
     push dx
 
@@ -101,14 +97,32 @@ puts:
     .done:
         ret
 
+memdump:
+    .loop:
+        lodsb
+        cmp cx, 0
+        je .done
+
+        dec cx
+        call putchar
+        jmp .loop
+
+    .done:
+        ret
+
 disk_load:
     push dx
 
+    mov DRIVE_NUM, [boot_drive]
+    mov ah, 0x00
+    int 0x13
+
     mov ah, 0x02
-    mov al, dh
-    mov HEAD_NUM, 1
+    mov DRIVE_NUM, [boot_drive]
+    mov NUM_OF_SECTORS, dh
     mov TRACK_NUM, 1
-    mov SECTOR_NUM, 17
+    mov HEAD_NUM, 0
+    mov SECTOR_NUM, 6
 
     int 0x13
     jc disk_error
@@ -160,8 +174,7 @@ load_kernel:
 
     ; We will assume that the Kernel is the first file in the disk
     mov bx, KERNEL_OFFSET
-    mov dh, 19
-    mov DRIVE_NUM, [boot_drive]
+    mov dh, 50
     call disk_load
 
     ret
@@ -195,7 +208,7 @@ init_pm:
 
 begin_pm:
     pop ax
-    mov edx, [boot_drive]
+    mov dh, [boot_drive]
 
     shl edx, 16
 

@@ -79,5 +79,4 @@ size_t wcstombs(char *, const wchar_t *, size_t);
 
 int wctomb(char *, wchar_t);
 
-
 #endif //STDLIB_H

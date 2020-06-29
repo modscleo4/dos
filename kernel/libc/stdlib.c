@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "../drivers/floppy.h"
 
 float atof(const char *str) {
     return 0.0F;
@@ -91,6 +92,8 @@ char *getenv(const char *name) {
 }
 
 int system(const char *command) {
+    floppy_load_file(command);
+
     return 0;
 }
 
@@ -108,8 +111,8 @@ int abs(int n) {
 
 div_t div(int numer, int denom) {
     return (div_t) {
-            0,
-            0
+        0,
+        0
     };
 }
 
@@ -119,8 +122,8 @@ long int labs(long int n) {
 
 ldiv_t ldiv(long int numer, long int denom) {
     return (ldiv_t) {
-            0,
-            0
+        0,
+        0
     };
 }
 
