@@ -1,12 +1,10 @@
 #include "floppy.h"
+#include "../kernel.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 unsigned int boot_drive = 0;
-unsigned int drive1 = 0;
-unsigned int drive2 = 0;
+unsigned int drives[2] = {0, 0};
 bios_params params;
 floppy_parameters floppy;
 int floppy_motor_state[2] = {0, 0}; /* 0: OFF, 1: ON; 2: WAIT */
@@ -14,31 +12,32 @@ int floppy_motor_state[2] = {0, 0}; /* 0: OFF, 1: ON; 2: WAIT */
 int irq6_c = 0;
 
 void buffer2struct(unsigned char *buffer, bios_params *p) {
-    memcpy(&buffer[11], p, sizeof(bios_params));
+    memcpy(p, &buffer[11], sizeof(bios_params));
 }
 
 void init_floppy() {
     unsigned int edx = 0;
     asm("mov %%edx, %0;"
-    : "=r" (edx));
-    boot_drive = edx >> 16;
+        : "=r"(edx));
+    boot_drive = edx >> 16U;
 
-    memcpy((unsigned char *) DISK_PARAMETER_ADDRESS, &floppy, sizeof(floppy_parameters));
+    memcpy(&floppy, (unsigned char *)DISK_PARAMETER_ADDRESS, sizeof(floppy_parameters));
     irq_install_handler(6, floppy_handler);
 
     detect_floppy_types();
     printf("Boot drive is #%d\n", boot_drive);
+    printf("  Head settle time: %d\n", floppy.head_settle_time);
 }
 
 void detect_floppy_types() {
     outb(0x70, 0x10);
     unsigned char c = inb(0x71);
 
-    drive1 = c >> 4;
-    drive2 = c & 0xF;
+    drives[0] = c >> 4U;
+    drives[1] = c & 0xFU;
 
-    printf("Floppy 0: %s\n", drive_types[drive1]);
-    printf("Floppy 1: %s\n", drive_types[drive2]);
+    printf("Floppy 0: %s\n", drive_types[drives[0]]);
+    printf("Floppy 1: %s\n", drive_types[drives[1]]);
 }
 
 void loadfat() {
@@ -49,33 +48,12 @@ void loadfat() {
     buffer2struct(buffer, &params);
     char volume_label[12];
     char filesystem[9];
-    memset(volume_label, 0, 12);
-    memset(filesystem, 0, 9);
-    memcpy(params.volume_label, volume_label, 11);
-    memcpy(params.filesystem, filesystem, 9);
+    strncpy(volume_label, params.volume_label, 11);
+    strncpy(filesystem, params.filesystem, 8);
 
     printf("Volume label is %s\n", volume_label);
     printf("File system is %s\n", filesystem);
     printf("Serial number is %X\n", params.serial_number);
-
-    puts("\nReading Root Directory\n");
-    int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
-    int files = 0;
-
-    int i;
-    for (i = 0; i < params.rootdir_entries * sizeof(fat_entry); i += sizeof(fat_entry)) {
-        if (i % 512 == 0) {
-            floppy_sector_read(boot_drive, rootdir_sector++, buffer);
-        }
-
-        if (buffer[i % 512] == '\0') {
-            continue;
-        }
-
-        files++;
-    }
-
-    printf("%d file(s) on disk\n", files);
 }
 
 void lba2chs(unsigned long int lba, chs *c, floppy_parameters fparams) {
@@ -85,7 +63,7 @@ void lba2chs(unsigned long int lba, chs *c, floppy_parameters fparams) {
 }
 
 void wait_irq6() {
-    while (irq6_c <= 0);
+    while (irq6_c <= 0) {}
     irq6_c--;
 }
 
@@ -95,7 +73,7 @@ int floppy_recv_byte(unsigned int drive) {
     int i;
     for (i = 0; i < 600; i++) {
         timer_wait(1);
-        if (0x80 & inb(base + MAIN_STATUS_REGISTER)) {
+        if (0x80U & inb(base + MAIN_STATUS_REGISTER)) {
             return inb(base + DATA_FIFO);
         }
     }
@@ -109,7 +87,7 @@ int floppy_send_byte(unsigned int drive, unsigned char b) {
     int i;
     for (i = 0; i < 600; i++) {
         timer_wait(1);
-        if (0x80 & inb(base + MAIN_STATUS_REGISTER)) {
+        if (0x80U & inb(base + MAIN_STATUS_REGISTER)) {
             outb(base + DATA_FIFO, b);
             return 0;
         }
@@ -243,8 +221,8 @@ static void floppy_dma_init(floppy_direction direction, unsigned char *buffer) {
         unsigned long int l;
     } addr, count;
 
-    addr.l = (unsigned long int) buffer;
-    count.l = (unsigned long int) 511;
+    addr.l = (unsigned long int)buffer;
+    count.l = (unsigned long int)511;
 
     if ((addr.l >> 24) || (count.l >> 16) || (((addr.l & 0xffff) + count.l) >> 16)) {
         puts("floppy_dma_init: buffer problem\n");
@@ -437,45 +415,103 @@ int floppy_sector_write(unsigned int drive, unsigned long int lba, unsigned char
 int floppy_search_file(const char *filename, fat_entry *f) {
     unsigned char buffer[512];
 
+    int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
+
     int i;
     for (i = 0; i < params.rootdir_entries * sizeof(fat_entry); i += sizeof(fat_entry)) {
-        if (buffer[i % 512] == '\0') {
+        if (i % 512 == 0) {
+            floppy_sector_read(boot_drive, rootdir_sector++, buffer);
+        }
+
+        if (buffer[i % 512] == 0) {
             continue;
         }
 
-        buffer2fatentry(buffer, f);
+        buffer2fatentry(&buffer[i % 512], f);
 
         char fname[9];
-        memset(fname, 0, 9);
-        memcpy(f->name, fname, 8);
-        if (strcmp(fname, filename) != 0) {
-            continue;
-        }
+        strncpy(fname, f->name, 8);
+        fname[8] = 0;
 
-        return 0;
+        if (strcmp(fname, filename) == 0) {
+            return 0;
+        }
     }
 
     return -1;
 }
 
-int floppy_load_file(const char *filename) {
+void *floppy_load_file(const char *filename) {
     fat_entry f;
     if (floppy_search_file(filename, &f)) {
-        return -1;
+        return NULL;
     }
 
-    unsigned int cluster = f.cluster;
+    void *addr = malloc(f.size);
+    if (addr == NULL) {
+        return NULL;
+    }
+
+    unsigned short int cluster = f.cluster;
+    unsigned int first_fat_sector = params.reserved_sectors;
+
+    unsigned int cl = 0;
+    unsigned int last_fat_sector = 0;
+
+    unsigned char fat_buffer[2048];
+
+    unsigned int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
+
     while (cluster < 0xFF8) {
-        unsigned int first_fat_sector = params.reserved_sectors;
         unsigned int fat_offset = cluster + (cluster / 2);
-        unsigned int fat_sector = first_fat_sector + (fat_offset / params.sectors_per_cluster);
-        unsigned int ent_offset = fat_offset % params.sectors_per_cluster;
+        unsigned int fat_sector = first_fat_sector + (fat_offset / params.bytes_per_sector);
+        unsigned int ent_offset = fat_offset % params.bytes_per_sector;
 
-        unsigned char buffer[512];
-        floppy_sector_read(boot_drive, fat_sector, buffer);
+        unsigned int sector = (cluster - 2) * params.sectors_per_cluster + rootdir_sector + (params.rootdir_entries * sizeof(fat_entry) / params.bytes_per_sector);
 
-        cluster = fat_next_cluster(cluster, buffer, ent_offset);
+        unsigned char buffer[2048];
+
+        if (!last_fat_sector || last_fat_sector != fat_sector) {
+            floppy_sector_read(boot_drive, fat_sector, fat_buffer);
+        }
+
+        floppy_sector_read(boot_drive, sector, buffer);
+
+        memcpy(addr + cl, buffer, params.bytes_per_sector);
+        cl += params.bytes_per_sector;
+
+        last_fat_sector = fat_sector;
+        cluster = fat_next_cluster(cluster, fat_buffer, ent_offset);
     }
 
-    return -1;
+    return addr;
+}
+
+void listfiles() {
+    printf("Files on disk: \n");
+
+    fat_entry *f;
+    unsigned char buffer[512];
+
+    int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
+
+    int i;
+    for (i = 0; i < params.rootdir_entries * sizeof(fat_entry); i += sizeof(fat_entry)) {
+        if (i % 512 == 0) {
+            floppy_sector_read(boot_drive, rootdir_sector++, buffer);
+        }
+
+        if (buffer[i % 512] == 0) {
+            continue;
+        }
+
+        buffer2fatentry(&buffer[i % 512], f);
+
+        char fname[9];
+        strncpy(fname, f->name, 8);
+        printf("  Name: %s.%s\n", fname, f->ext);
+        printf("    Size: %d\n", f->size);
+        printf("    Cluster: %d\n", f->cluster);
+        printf("\n");
+    }
 }

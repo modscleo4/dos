@@ -2,6 +2,7 @@
 #define SCREEN_H
 
 #include <string.h>
+
 #include "../bits.h"
 
 #define VIDEO_ADDRESS 0xB8000

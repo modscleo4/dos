@@ -6,20 +6,20 @@ void init_video() {
     char x = 0;
     char y = 0;
     asm("mov %%dl, %0;"
-    : "=r" (x));
+        : "=r"(x));
 
     asm("mov %%dh, %0;"
-    : "=r" (y));
+        : "=r"(y));
 
     gotoxy(x, y);
 }
 
 void handle_scroll() {
-    volatile char *video_memory = (volatile char *) VIDEO_ADDRESS;
+    volatile char *video_memory = (volatile char *)VIDEO_ADDRESS;
 
     int i;
     for (i = 1; i < MAX_ROWS; i++) {
-        memcpy((void *) (2 * MAX_COLS * i + VIDEO_ADDRESS), (void *) (2 * MAX_COLS * (i - 1) + VIDEO_ADDRESS),
+        memcpy((void *)(2 * MAX_COLS * (i - 1) + VIDEO_ADDRESS), (void *)(2 * MAX_COLS * i + VIDEO_ADDRESS),
                MAX_COLS * 2);
     }
 
@@ -38,13 +38,13 @@ void gotoxy(int x, int y) {
     curr_cursor_pos = 2 * (y * MAX_COLS + x);
 
     outb(CONTROL, 0x0F);
-    outb(DATA, (unsigned char) (curr_cursor_pos / 2 & 0xFF));
+    outb(DATA, (unsigned char)(curr_cursor_pos / 2 & 0xFF));
     outb(CONTROL, 0x0E);
-    outb(DATA, (unsigned char) ((curr_cursor_pos / 2 >> 8) & 0xFF));
+    outb(DATA, (unsigned char)((curr_cursor_pos / 2 >> 8) & 0xFF));
 }
 
 int screen_write(char c) {
-    volatile char *video_memory = (volatile char *) VIDEO_ADDRESS;
+    volatile char *video_memory = (volatile char *)VIDEO_ADDRESS;
 
     switch (c) {
         case '\b':
@@ -81,9 +81,9 @@ int screen_write(char c) {
     video_memory[curr_cursor_pos] = c;
     curr_cursor_pos += 2;
     outb(CONTROL, 0x0F);
-    outb(DATA, (unsigned char) (curr_cursor_pos / 2 & 0xFF));
+    outb(DATA, (unsigned char)(curr_cursor_pos / 2 & 0xFF));
     outb(CONTROL, 0x0E);
-    outb(DATA, (unsigned char) ((curr_cursor_pos / 2 >> 8) & 0xFF));
+    outb(DATA, (unsigned char)((curr_cursor_pos / 2 >> 8) & 0xFF));
 
     return 0;
 }

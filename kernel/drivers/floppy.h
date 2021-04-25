@@ -2,9 +2,10 @@
 #define FLOPPY_H
 
 #include "../bits.h"
-#include "fat.h"
 #include "../cpu/irq.h"
 #include "../modules/timer.h"
+#include "fat.h"
+#include <stdlib.h>
 
 #define DISK_PARAMETER_ADDRESS 0x000FEFC7
 
@@ -25,43 +26,43 @@ typedef struct {
     unsigned char format_gap_length;
     unsigned char filler;
     unsigned char head_settle_time; /*specified in milliseconds*/
-    unsigned char motor_start_time; /*specified in 1/8 seconds*/
-}__attribute__ ((packed)) floppy_parameters;
+    unsigned char motor_start_time; /*specified in 1/8 second*/
+} __attribute__((packed)) floppy_parameters;
 
-#define FLOPPY_PRIMARY_BASE     0x03F0
-#define FLOPPY_SECONDARY_BASE   0x0370
+#define FLOPPY_PRIMARY_BASE 0x03F0
+#define FLOPPY_SECONDARY_BASE 0x0370
 
 enum FloppyRegisters {
     STATUS_REGISTER_A = 0x000, // read-only
     STATUS_REGISTER_B = 0x001, // read-only
     DIGITAL_OUTPUT_REGISTER = 0x002,
     TAPE_DRIVE_REGISTER = 0x003,
-    MAIN_STATUS_REGISTER = 0x004, // read-only
+    MAIN_STATUS_REGISTER = 0x004,     // read-only
     DATARATE_SELECT_REGISTER = 0x004, // write-only
     DATA_FIFO = 0x005,
-    DIGITAL_INPUT_REGISTER = 0x007, // read-only
-    CONFIGURATION_CONTROL_REGISTER = 0x007  // write-only
+    DIGITAL_INPUT_REGISTER = 0x007,        // read-only
+    CONFIGURATION_CONTROL_REGISTER = 0x007 // write-only
 };
 
 enum FloppyCommands {
-    READ_TRACK = 2,    // generates IRQ6
-    SPECIFY = 3,      // * set drive parameters
+    READ_TRACK = 2, // generates IRQ6
+    SPECIFY = 3,    // * set drive parameters
     SENSE_DRIVE_STATUS = 4,
     WRITE_DATA = 5,      // * write to the disk
-    READ_DATA = 6,      // * read from the disk
-    RECALIBRATE = 7,      // * seek to cylinder 0
-    SENSE_INTERRUPT = 8,      // * ack IRQ6, get status of last command
+    READ_DATA = 6,       // * read from the disk
+    RECALIBRATE = 7,     // * seek to cylinder 0
+    SENSE_INTERRUPT = 8, // * ack IRQ6, get status of last command
     WRITE_DELETED_DATA = 9,
-    READ_ID = 10,    // generates IRQ6
+    READ_ID = 10, // generates IRQ6
     READ_DELETED_DATA = 12,
-    FORMAT_TRACK = 13,     // *
+    FORMAT_TRACK = 13, // *
     DUMPREG = 14,
-    SEEK = 15,     // * seek both heads to cylinder X
-    VERSION = 16,    // * used during initialization, once
+    SEEK = 15,    // * seek both heads to cylinder X
+    VERSION = 16, // * used during initialization, once
     SCAN_EQUAL = 17,
-    PERPENDICULAR_MODE = 18,    // * used during initialization, once, maybe
-    CONFIGURE = 19,     // * set controller parameters
-    LOCK = 20,     // * protect controller params from a reset
+    PERPENDICULAR_MODE = 18, // * used during initialization, once, maybe
+    CONFIGURE = 19,          // * set controller parameters
+    LOCK = 20,               // * protect controller params from a reset
     VERIFY = 22,
     SCAN_LOW_OR_EQUAL = 25,
     SCAN_HIGH_OR_EQUAL = 29
@@ -73,8 +74,7 @@ static const char *drive_types[6] = {
     "1.2MB 5.25in floppy",
     "720KB 3.5in floppy",
     "1.44MB 3.5in floppy",
-    "2.88MB 3.5in floppy"
-};
+    "2.88MB 3.5in floppy"};
 
 typedef enum {
     floppy_direction_read = 1,
@@ -119,6 +119,8 @@ int floppy_sector_write(unsigned int, unsigned long int, unsigned char *);
 
 int floppy_search_file(const char *, fat_entry *);
 
-int floppy_load_file(const char *);
+void *floppy_load_file(const char *);
+
+void listfiles(void);
 
 #endif //FLOPPY_H

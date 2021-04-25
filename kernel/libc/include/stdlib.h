@@ -29,6 +29,12 @@ int atoi(const char *);
 
 char *itoa(int, char *, int);
 
+char *ltoa(long int, char *, int);
+
+char *utoa(unsigned int, char *, int);
+
+char *lutoa(unsigned long int, char *, int);
+
 long int atol(const char *);
 
 double strtod(const char *, char **);
@@ -40,6 +46,8 @@ unsigned long int strtoul(const char *, char **, int);
 void *calloc(size_t, size_t);
 
 void free(void *);
+
+void *malloc(size_t);
 
 void *realloc(void *, size_t);
 

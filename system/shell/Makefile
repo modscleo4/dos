@@ -1,19 +1,22 @@
-BUILD_DIR=../build/system/shell
-SHELL=$(BUILD_DIR)/system/shell/shell
+BUILD_DIR=../../build/system/shell
+BIN=$(BUILD_DIR)/shell
 
-CFLAGS=-ffreestanding -m32 -I libc/include -nostdlib
+CFLAGS=-ffreestanding -m32 -I ../libc/include -nostdlib
 
-SHELL_SRCS := $(wildcard *.c)
-SHELL_HDRS := $(wildcard *.h)
-SHELL_OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(SHELL_SRCS))
+SRCS := $(wildcard *.c ../libc/*.c)
+HDRS := $(wildcard *.h ../libc/include/*.h)
+OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRCS))
 
-all: $(SHELL)
+all: dir $(BIN)
 
-$(BUILD_DIR)/%.o: %.c $(SHELL_HDRS)
+dir:
+	mkdir -p $(BUILD_DIR)
+
+$(BUILD_DIR)/%.o: %.c $(HDRS)
 	gcc $(CFLAGS) -c $< -o $@
 
-$(KERNEL): $(SHELL_OBJS)
-	ld -m elf_i386 -T Sshell.lds $^ -o $@
+$(BIN): $(OBJS)
+	ld -m elf_i386 -T shell.lds $^ -o $@
 
 clean:
-	rm $(SHELL_OBJS)
+	rm $(OBJS)

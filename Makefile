@@ -1,7 +1,7 @@
 BUILD_DIR=build
 BOOTLOADER=$(BUILD_DIR)/bootloader/bootloader
 KERNEL=$(BUILD_DIR)/kernel/kernel
-SYSTEM_SHELL=$(BUILD_DIR)/system/shell
+SYSTEM_SHELL=$(BUILD_DIR)/system/shell/shell
 DISK_IMG=disk.img
 
 all: dir disk
@@ -28,10 +28,10 @@ disk: bootloader kernel system
 	mcopy -i $(DISK_IMG) $(SYSTEM_SHELL) ::/
 
 startvm: disk
-	"/mnt/c/Program Files/Bochs/bochsdbg.exe" -f "C:\\Users\\Modscleo4\\Documents\\Bochs\\bochsrc.bxrc"
+	"/mnt/c/Program Files/Bochs/bochsdbg.exe" -f "C:\\Users\\Modscleo4\\Documents\\Bochs\\bochsrc.bxrc" -q
 	#"/mnt/c/Program Files/Oracle/VirtualBox/VirtualBoxVM.exe" --comment "SO" --startvm "{b1e3976b-9a74-4224-b868-fc050192db27}"
 
 clean:
 	make -C bootloader clean || true
 	make -C kernel clean || true
-	make -C shell clean || true
+	make -C system clean || true

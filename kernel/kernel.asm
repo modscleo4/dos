@@ -1,20 +1,40 @@
 [bits 32]
 
 global kernel_start
+global switch_ring3
 
-global _sys_stack
+global sys_stack
 
 section .text
 
 kernel_start:
-    mov esp, _sys_stack
+    mov esp, sys_stack
+    push esp
     jmp stublet
 
 stublet:
     extern kernel_main
     call kernel_main
+    cli
+    hlt
     jmp $
+
+switch_ring3:
+    extern start_shell
+    mov ax,0x23
+    mov ds,ax
+    mov es,ax
+    mov fs,ax
+    mov gs,ax
+
+    mov eax,esp
+    push 0x23
+    push eax
+    pushf
+    push 0x1B
+    push start_shell
+    iret
 
 section .bss
     resb 8192
-_sys_stack:
+sys_stack:

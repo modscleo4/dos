@@ -37,45 +37,45 @@ typedef struct fat_entry {
     unsigned char name[8];
     unsigned char ext[3];
     struct {
-        unsigned char read_only: 1;
-        unsigned char hidden: 1;
-        unsigned char system: 1;
-        unsigned char volume: 1;
-        unsigned char directory: 1;
-        unsigned char archive: 1;
-        unsigned char device: 1;
-        unsigned char lfn: 1;
+        unsigned char read_only : 1;
+        unsigned char hidden : 1;
+        unsigned char system : 1;
+        unsigned char volume : 1;
+        unsigned char directory : 1;
+        unsigned char archive : 1;
+        unsigned char device : 1;
+        unsigned char lfn : 1;
     } __attribute__((packed)) attributes;
-    unsigned char winnt: 8;
-    unsigned char creation_msstamp: 8;
+    unsigned char winnt : 8;
+    unsigned char creation_msstamp : 8;
     struct {
-        unsigned char seconds: 5;
-        unsigned char minutes: 6;
-        unsigned char hour: 5;
+        unsigned char hour : 5;
+        unsigned char minute : 6;
+        unsigned char second : 5;
     } __attribute__((packed)) created_time;
     struct {
-        unsigned char year: 7;
-        unsigned char month: 4;
-        unsigned char day: 5;
+        unsigned char year : 7;
+        unsigned char month : 4;
+        unsigned char day : 5;
     } __attribute__((packed)) created_date;
     struct {
-        unsigned char seconds: 5;
-        unsigned char minutes: 6;
-        unsigned char hour: 5;
+        unsigned char hour : 5;
+        unsigned char minute : 6;
+        unsigned char second : 5;
     } __attribute__((packed)) last_access_date;
-    unsigned int cluster_fat32: 16;
+    unsigned int cluster_fat32 : 16;
     struct {
-        unsigned char hour: 5;
-        unsigned char minutes: 6;
-        unsigned char seconds: 5;
+        unsigned char hour : 5;
+        unsigned char minute : 6;
+        unsigned char second : 5;
     } __attribute__((packed)) last_write_time;
     struct {
-        unsigned char year: 7;
-        unsigned char month: 4;
-        unsigned char day: 5;
+        unsigned char year : 7;
+        unsigned char month : 4;
+        unsigned char day : 5;
     } __attribute__((packed)) last_write_date;
-    unsigned short int cluster: 16;
-    unsigned int size: 32;
+    unsigned short int cluster : 16;
+    unsigned int size : 32;
 } __attribute__((packed)) fat_entry;
 
 /*
@@ -87,7 +87,7 @@ typedef struct fat_entry {
 
 void buffer2fatentry(unsigned char *, fat_entry *);
 
-unsigned int fat_next_cluster(unsigned int, const unsigned char *, unsigned int);
+unsigned short int fat_next_cluster(unsigned int, const unsigned char *, unsigned int);
 
 int fat_writefile();
 

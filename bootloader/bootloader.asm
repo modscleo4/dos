@@ -38,8 +38,8 @@ ext_bios_param:
     param_current_head db 0x00; Current Head
     param_signature db 0x29; Signature
     param_serial_number dd 0xCE134630; Volume Serial Number
-    param_volume_label db "MARCOSLIRA", 20h; Volume Label
-    param_filesystem db "FAT12", 20h, 20h, 20h; System ID
+    param_volume_label db "MARCOSLIRA", 0x20; Volume Label
+    param_filesystem db "FAT12", 0x20, 0x20, 0x20; System ID
 
 boot:
     cli
@@ -48,8 +48,6 @@ boot:
     mov [boot_drive], DRIVE_NUM
 
     mov bh, 0
-    mov si, booting_msg
-    call puts
 
     mov ah, 0
     mov DRIVE_NUM, [boot_drive]
@@ -87,8 +85,8 @@ putchar:
 puts:
     .loop:
         lodsb
-        cmp al, 0
-        je .done
+        or al, al
+        jz .done
 
         mov cx, 1
         call putchar
@@ -169,12 +167,9 @@ gdt:
 [bits 16]
 
 load_kernel:
-    mov si, loading_kernel_msg
-    call puts
-
     ; We will assume that the Kernel is the first file in the disk
     mov bx, KERNEL_OFFSET
-    mov dh, 50
+    mov dh, 54
     call disk_load
 
     ret
@@ -220,11 +215,7 @@ begin_pm:
     hlt
 
 ;section .data
-booting_msg db "Booting from Floppy...", 0xD, 0xA, 0h
-loading_kernel_msg db "Loading Kernel", 0xD, 0xA, 0h
-kernel_not_found_msg db "Kernel not found", 0xD, 0xA, 0h
-disk_error_msg db "Disk read error", 0xD, 0xA, 0h
-kernel_file db "KERNEL  ", "   "
+disk_error_msg db "Disk read error", 0xD, 0xA, 0x0
 user_data dw 0
 boot_drive db 0
 curr_y db 0

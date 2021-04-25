@@ -1,5 +1,3 @@
-[bits 32]
-
 global gdt_flush
 
 section .text

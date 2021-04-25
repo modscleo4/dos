@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../drivers/screen.h"
+
 #include "../drivers/keyboard.h"
+#include "../drivers/screen.h"
 
 int fclose(FILE *stream) {
     return 0;
@@ -26,7 +27,7 @@ int getchar() {
         return -1;
     }
 
-    putchar(ret);
+    putchar((char)ret);
     return ret;
 }
 
@@ -45,14 +46,15 @@ int puts(const char *str) {
 }
 
 int printf(const char *format, ...) {
-    unsigned int i;
-    char buf[1024];
+    char buf[1024] = {0};
 
     va_list args;
     va_start(args, format);
 
-    while (*format != '\0') {
-        if (*format == '%') {
+    int modifier = 0;
+
+    while (*format) {
+        if (modifier || *format == '%') {
             format++;
 
             switch (*format++) {
@@ -60,19 +62,45 @@ int printf(const char *format, ...) {
                     putchar('%');
                     break;
 
+                case 'l':
+                    modifier++;
+                    continue;
+
                 case 'c':
-                    i = va_arg(args, int);
-                    putchar(i);
+                    putchar((char)va_arg(args, int));
                     break;
 
+                case 'u':
+                    if (modifier == 1) {
+                        lutoa(va_arg(args, unsigned long int), buf, 10);
+                    } else {
+                        utoa(va_arg(args, unsigned int), buf, 10);
+                    }
+
+                    puts(buf);
+
+                    break;
+
+                case 'i':
                 case 'd':
-                    i = va_arg(args, int);
-                    puts(itoa(i, buf, 10));
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 10);
+                    } else {
+                        itoa(va_arg(args, int), buf, 10);
+                    }
+
+                    puts(buf);
+
                     break;
 
                 case 'o':
-                    i = va_arg(args, int);
-                    puts(itoa(i, buf, 8));
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 8);
+                    } else {
+                        itoa(va_arg(args, int), buf, 8);
+                    }
+
+                    puts(buf);
                     break;
 
                 case 's':
@@ -80,15 +108,27 @@ int printf(const char *format, ...) {
                     break;
 
                 case 'x':
-                    i = va_arg(args, int);
-                    puts(itoa(i, buf, 16));
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 16);
+                    } else {
+                        itoa(va_arg(args, int), buf, 16);
+                    }
+
+                    puts(buf);
                     break;
 
                 case 'X':
-                    i = va_arg(args, int);
-                    puts(strupr(itoa(i, buf, 16)));
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 16);
+                    } else {
+                        itoa(va_arg(args, int), buf, 16);
+                    }
+
+                    puts(strupr(buf));
                     break;
             }
+
+            modifier = 0;
         } else {
             putchar(*format++);
         }
@@ -101,7 +141,6 @@ int printf(const char *format, ...) {
 int scanf(const char *format, ...) {
     va_list args;
     va_start(args, format);
-
 
     va_end(args);
     return 0;

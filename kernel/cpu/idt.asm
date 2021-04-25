@@ -1,5 +1,3 @@
-[bits 32]
-
 global load_idt
 
 section .text

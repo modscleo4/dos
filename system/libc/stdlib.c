@@ -1,8 +1,4 @@
-#include <stdio.h>
 #include <stdlib.h>
-
-#include "../drivers/floppy.h"
-#include "../kernel.h"
 
 float atof(const char *str) {
     return 0.0F;
@@ -13,10 +9,6 @@ int atoi(const char *str) {
 }
 
 char *itoa(int value, char *str, int base) {
-    return ltoa((long int)value, str, base);
-}
-
-char *ltoa(long int value, char *str, int base) {
     char *rc;
     char *ptr;
     char *low;
@@ -31,40 +23,6 @@ char *ltoa(long int value, char *str, int base) {
     if (value < 0 && base == 10) {
         *ptr++ = '-';
     }
-
-    low = ptr;
-
-    do {
-        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + value % base];
-        value /= base;
-    } while (value);
-
-    *ptr-- = '\0';
-
-    while (low < ptr) {
-        char tmp = *low;
-        *low++ = *ptr;
-        *ptr-- = tmp;
-    }
-
-    return rc;
-}
-
-char *utoa(unsigned int value, char *str, int base) {
-    return lutoa((unsigned long int)value, str, base);
-}
-
-char *lutoa(unsigned long int value, char *str, int base) {
-    char *rc;
-    char *ptr;
-    char *low;
-
-    if (base < 2 || base > 36) {
-        *str = '\0';
-        return str;
-    }
-
-    rc = ptr = str;
 
     low = ptr;
 
@@ -108,11 +66,7 @@ void free(void *ptr) {
 }
 
 void *malloc(size_t size) {
-    if (size == 0) {
-        return NULL;
-    }
-
-    return (void *)0x100000;
+    return NULL;
 }
 
 void *realloc(void *ptr, size_t size) {
@@ -134,18 +88,7 @@ char *getenv(const char *name) {
 }
 
 int system(const char *command) {
-    void *addr = floppy_load_file(command);
-    if (addr == NULL) {
-        printf("Not found.\n");
-        return -1;
-    }
-
-    addr += 0x1000;
-    printf("%d\n", addr);
-
-    asm volatile("jmp *%0"
-                 :
-                 : "r"(addr));
+    //floppy_load_file(command);
 
     return 0;
 }

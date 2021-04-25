@@ -40,12 +40,12 @@ extern void irq15();
 
 void irq_remap();
 
-void irq_install_handler(int, void (*)(registers *));
+void irq_install_handler(int, void (*)(registers*));
 
 void irq_uninstall_handler(int);
 
 void irq_init();
 
-void irq_handler(registers *);
+void irq_handler(registers*);
 
 #endif //KERNEL_IRQ_H

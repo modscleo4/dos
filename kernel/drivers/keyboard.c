@@ -13,7 +13,7 @@ void keyboard_handler(struct registers *r) {
 }
 
 void wait_irq1() {
-    while (irq1_c <= 0);
+    while (irq1_c <= 0) {}
     irq1_c--;
 }
 
