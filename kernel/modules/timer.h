@@ -3,6 +3,7 @@
 
 #include "../cpu/irq.h"
 #include "../cpu/system.h"
+#include "cmos.h"
 
 typedef struct time {
     unsigned char hour;

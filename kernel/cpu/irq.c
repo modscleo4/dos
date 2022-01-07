@@ -47,7 +47,7 @@ void irq_init() {
 
 void irq_handler(registers *r) {
     void (*handler)(registers *);
-    //set_kernel_stack(&r->esp);
+    set_kernel_stack(&r->esp);
 
     handler = irq_routines[r->int_no - 32];
     if (handler) {

@@ -5,7 +5,7 @@ syscall_handler:
     extern run_syscall
     extern __syscall_ret
 
-    cli
+    ;cli
     push byte 1
     push byte 0
 

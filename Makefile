@@ -24,11 +24,12 @@ disk: bootloader kernel system
 	dd if=/dev/zero of=$(DISK_IMG) bs=512 count=2880
 	mkfs.vfat $(DISK_IMG)
 	dd conv=notrunc if=$(BOOTLOADER) of=$(DISK_IMG) bs=512 count=1 seek=0
+	#dd conv=notrunc if=$(KERNEL) of=$(DISK_IMG) bs=512 count=63 seek=33
 	mcopy -i $(DISK_IMG) $(KERNEL) ::/
 	mcopy -i $(DISK_IMG) $(SYSTEM_SHELL) ::/
 
 startvm: disk
-	"/mnt/c/Program Files/Bochs/bochsdbg.exe" -f "C:\\Users\\Modscleo4\\Documents\\Bochs\\bochsrc.bxrc" -q
+	"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f "C:\\Users\\Modscleo4\\Documents\\Bochs\\bochsrc.bxrc" -rc bochsdbg.rc -q
 	#"/mnt/c/Program Files/Oracle/VirtualBox/VirtualBoxVM.exe" --comment "SO" --startvm "{b1e3976b-9a74-4224-b868-fc050192db27}"
 
 clean:

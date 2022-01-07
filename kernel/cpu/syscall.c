@@ -1,6 +1,9 @@
 #include "syscall.h"
+
+#include "../cpu/gdt.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/screen.h"
+#include "../kernel.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -9,27 +12,33 @@
 int __syscall_ret;
 
 int run_syscall(registers *r) {
+    int ret = -1;
     asm("sti");
-    int no = r->eax;
+    long int no = r->eax;
 
-    int arg0 = r->ebx;
-    int arg1 = r->ecx;
-    int arg2 = r->edx;
-    int arg3 = r->esi;
-    int arg4 = r->edi;
-    int arg5 = r->ebp;
+    long int arg0 = r->ebx;
+    long int arg1 = r->ecx;
+    long int arg2 = r->edx;
+    long int arg3 = r->esi;
+    long int arg4 = r->edi;
+    long int arg5 = r->ebp;
+    //dbgprint("syscall: %x(%x %x %x %x %x %x)\n", no, arg0, arg1, arg2, arg3, arg4, arg5);
 
     switch (no) {
         case 0:
-            return keyboard_read();
+            ret = keyboard_read();
+            break;
 
         case 1:
-            return screen_write(arg0);
+            ret = write(arg0, arg1) == arg1 ? 0 : -1;
+            break;
 
         default:
-            printf("Invalid SYSCALL\n");
-            return -1;
+            dbgprint("Invalid SYSCALL\n");
+            ret = -1;
     }
+
+    return ret;
 }
 
 void syscall_init() {

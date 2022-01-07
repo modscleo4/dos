@@ -134,18 +134,33 @@ char *getenv(const char *name) {
 }
 
 int system(const char *command) {
-    void *addr = floppy_load_file(command);
-    if (addr == NULL) {
-        printf("Not found.\n");
+    fat_entry f;
+    if (floppy_search_file(command, &f)) {
+        dbgprint("Not found.\n");
+        return -1;
+    }
+
+    void *addr = malloc(f.size);
+    if (!addr) {
+        dbgprint("Allocation failed\n");
+        return -1;
+    }
+
+    if (!floppy_load_file_at(&f, addr)) {
+        dbgprint("Not found.\n");
         return -1;
     }
 
     addr += 0x1000;
-    printf("%d\n", addr);
+    dbgprint("%s loaded at address %x\n", command, addr);
+    //hexdump(addr, 0x200);
 
-    asm volatile("jmp *%0"
+    //set_kernel_stack(_esp + 0x2000);
+
+    switch_ring3(addr);
+    /*asm volatile("jmp *%0"
                  :
-                 : "r"(addr));
+                 : "r"(addr));*/
 
     return 0;
 }

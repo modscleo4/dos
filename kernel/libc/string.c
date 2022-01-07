@@ -15,8 +15,9 @@ void strcpy(char *destination, const char *source) {
 }
 
 void strncpy(char *destination, const char *source, size_t n) {
-    size_t i = n;
-    while (i-- && (*destination++ = *source++)) {}
+    memcpy(destination, source, n);
+
+    destination[n] = 0;
 }
 
 char *strupr(char *str) {

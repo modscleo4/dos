@@ -35,6 +35,17 @@ int putchar(char c) {
     return screen_write(c);
 }
 
+int write(const char *buf, int size) {
+    int i;
+    for (i = 0; i < size; i++) {
+        if (putchar(buf[i]) == EOF) {
+            break;
+        }
+    }
+
+    return i;
+}
+
 int puts(const char *str) {
     while (*str) {
         if (putchar(*str++) == EOF) {
@@ -45,11 +56,8 @@ int puts(const char *str) {
     return 1;
 }
 
-int printf(const char *format, ...) {
+int vprintf(const char *format, va_list args) {
     char buf[1024] = {0};
-
-    va_list args;
-    va_start(args, format);
 
     int modifier = 0;
 
@@ -134,8 +142,17 @@ int printf(const char *format, ...) {
         }
     }
 
-    va_end(args);
     return 0;
+}
+
+int printf(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    int ret = vprintf(format, args);
+
+    va_end(args);
+    return ret;
 }
 
 int scanf(const char *format, ...) {

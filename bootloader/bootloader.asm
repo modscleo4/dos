@@ -2,11 +2,16 @@
 
 %define DRIVE_NUM dl
 %define HEAD_NUM dh
-%define TRACK_NUM ch
+%define CYLINDER_NUM ch
 %define SECTOR_NUM cl
 %define NUM_OF_SECTORS al
 
-KERNEL_OFFSET equ 0x1000
+KERNEL_ADDR equ 0x10000
+%define KERNEL_SEG    (KERNEL_ADDR >> 4)
+%define KERNEL_OFF    (KERNEL_ADDR & 0xf)
+_KERNEL_ADDR equ 0x1000
+%define _KERNEL_SEG    (_KERNEL_ADDR >> 4)
+%define _KERNEL_OFF    (_KERNEL_ADDR & 0xf)
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
 
@@ -108,24 +113,25 @@ memdump:
     .done:
         ret
 
-disk_load:
-    push dx
-
-    mov DRIVE_NUM, [boot_drive]
+disk_reset:
     mov ah, 0x00
     int 0x13
+    ret
+
+disk_load:
+    push ax
+
+    mov DRIVE_NUM, [boot_drive]
+    call disk_reset
 
     mov ah, 0x02
     mov DRIVE_NUM, [boot_drive]
-    mov NUM_OF_SECTORS, dh
-    mov TRACK_NUM, 1
-    mov HEAD_NUM, 0
-    mov SECTOR_NUM, 6
 
     int 0x13
+    mov dh, al
     jc disk_error
 
-    pop dx
+    pop ax
     cmp dh, al
     jne disk_error
 
@@ -168,8 +174,14 @@ gdt:
 
 load_kernel:
     ; We will assume that the Kernel is the first file in the disk
-    mov bx, KERNEL_OFFSET
-    mov dh, 54
+
+    mov bx, KERNEL_SEG
+    mov es, bx
+    mov bx, KERNEL_OFF
+    mov NUM_OF_SECTORS, 63
+    mov CYLINDER_NUM, 1
+    mov HEAD_NUM, 0
+    mov SECTOR_NUM, 6
     call disk_load
 
     ret
@@ -194,8 +206,8 @@ init_pm:
     mov fs, ax
     mov gs, ax
 
-    mov ebp, 0x90000
-    mov esp, ebp
+    ;mov ebp, 0x90000
+    ;mov esp, ebp
 
     call begin_pm
 
@@ -210,7 +222,7 @@ begin_pm:
     mov dh, [curr_y]
     mov dl, [curr_x]
 
-    call KERNEL_OFFSET
+    jmp CODE_SEG:KERNEL_ADDR
 
     hlt
 

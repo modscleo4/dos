@@ -2,6 +2,7 @@
 #define FLOPPY_H
 
 #include "../bits.h"
+#include "../modules/cmos.h"
 #include "../cpu/irq.h"
 #include "../modules/timer.h"
 #include "fat.h"
@@ -119,7 +120,7 @@ int floppy_sector_write(unsigned int, unsigned long int, unsigned char *);
 
 int floppy_search_file(const char *, fat_entry *);
 
-void *floppy_load_file(const char *);
+void *floppy_load_file_at(const fat_entry *, void *);
 
 void listfiles(void);
 

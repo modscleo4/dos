@@ -35,6 +35,8 @@ int getchar();
 
 int putchar(char);
 
+int write(const char *, int);
+
 int puts(const char *);
 
 int printf(const char *, ...);

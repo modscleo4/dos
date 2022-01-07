@@ -27,7 +27,13 @@ float atof(const char*);
 
 int atoi(const char*);
 
-char* itoa(int, char*, int);
+char *itoa(int, char *, int);
+
+char *ltoa(long int, char *, int);
+
+char *utoa(unsigned int, char *, int);
+
+char *lutoa(unsigned long int, char *, int);
 
 long int atol(const char*);
 

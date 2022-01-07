@@ -9,7 +9,7 @@ void idt_set_gate(unsigned char num, unsigned long int base, unsigned short int 
     idt[num].base_high = (base >> 16) & 0xFFFF;
     idt[num].selector = sel;
     idt[num].zero = 0;
-    idt[num].flags = flags;
+    idt[num].flags = flags | 0x60;
 }
 
 void idt_init(void) {
@@ -17,5 +17,5 @@ void idt_init(void) {
     ip.base = (unsigned int) &idt;
     memset(&idt, 0, sizeof(idt));
 
-    load_idt((unsigned long int) &ip);
+    load_idt((unsigned long int)&ip);
 }

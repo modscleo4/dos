@@ -1,9 +1,33 @@
 #include <string.h>
 
+void memcpy(void *dest, const void *source, size_t n) {
+    unsigned char *c_src = (unsigned char *)source;
+    unsigned char *c_dest = (unsigned char *)dest;
+
+    int i;
+    for (i = 0; i < n; i++) {
+        c_dest[i] = c_src[i];
+    }
+}
+
+void strcpy(char *destination, const char *source) {
+    memcpy(destination, source, strlen(source));
+}
+
+void strncpy(char *destination, const char *source, size_t n) {
+    size_t i = n;
+    while (i-- && (*destination = *source)) {
+        destination++;
+        source++;
+    }
+
+    destination[n] = 0;
+}
+
 char *strupr(char *str) {
     char *ptr = str;
 
-    while ((*ptr = (char)toupper(*ptr)) != '\0') {
+    while ((*ptr = (char)toupper(*ptr))) {
         ptr++;
     }
 
@@ -13,7 +37,7 @@ char *strupr(char *str) {
 char *strlwr(char *str) {
     char *ptr = str;
 
-    while ((*ptr = (char)tolower(*ptr)) != '\0') {
+    while ((*ptr = (char)tolower(*ptr))) {
         ptr++;
     }
 
@@ -28,19 +52,33 @@ int memcmp(const void *ptr1, const void *ptr2, size_t num) {
         if (*c_ptr1 != *c_ptr2) {
             return *c_ptr1 - *c_ptr2;
         }
+
+        c_ptr1++;
+        c_ptr2++;
     }
 
     return 0;
 }
 
 int strcmp(const char *str1, const char *str2) {
-    while (str1++ && str2++) {
-        if (*str1 != *str2) {
-            return *str1 - *str2;
+    return memcmp(str1, str2, strlen(str1));
+}
+
+void *memchr(void *ptr, int value, size_t num) {
+    unsigned char *ptr_c = (unsigned char *)ptr;
+
+    int i;
+    for (i = 0; i < num; i++) {
+        if (ptr_c[i] == (unsigned char)value) {
+            return &ptr_c[i];
         }
     }
 
-    return 0;
+    return NULL;
+}
+
+char *strchr(char *str, int character) {
+    return memchr(str, character, strlen(str) + 1);
 }
 
 size_t strlen(const char *str) {
@@ -53,16 +91,6 @@ size_t strlen(const char *str) {
     return l;
 }
 
-void memcpy(void *source, void *dest, size_t n) {
-    unsigned char *c_src = (unsigned char *)source;
-    unsigned char *c_dest = (unsigned char *)dest;
-
-    int i;
-    for (i = 0; i < n; i++) {
-        c_dest[i] = c_src[i];
-    }
-}
-
 void *memset(void *ptr, int value, size_t num) {
     unsigned char *c_ptr = ptr;
 
@@ -73,8 +101,4 @@ void *memset(void *ptr, int value, size_t num) {
     }
 
     return ptr;
-}
-
-char *strcpy(char *destination, const char *source) {
-    memcpy(source, destination, strlen(source));
 }

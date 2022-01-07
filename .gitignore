@@ -3,6 +3,7 @@ build/
 disk.img
 
 .idea/
+.vscode/
 
 # Prerequisites
 *.d

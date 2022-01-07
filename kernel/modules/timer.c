@@ -9,14 +9,14 @@ void getRTC() {
     outb(0x70, 0x8A);
     outb(0x71, 0x20);
 
-    t.second = inb(0x00);
-    t.minute = inb(0x02);
-    t.hour = inb(0x04);
+    t.second = read_cmos_register(0x00, 1);
+    t.minute = read_cmos_register(0x02, 1);
+    t.hour = read_cmos_register(0x04, 1);
 
-    d.day = inb(0x07);
-    d.month = inb(0x08);
-    d.year = inb(0x32) << 2 | inb(0x09);
-    printf("Time/date: %d/%d/%d %d:%d:%d\n", d.day, d.month, d.year, t.hour, t.minute, t.second);
+    d.day = read_cmos_register(0x07, 1);
+    d.month = read_cmos_register(0x08, 1);
+    d.year = read_cmos_register(0x09, 1);
+    dbgprint("Time/date: %d/%d/%d %d:%d:%d\n", d.day, d.month, d.year, t.hour, t.minute, t.second);
 }
 
 void timer_phase(int hz) {
@@ -41,6 +41,6 @@ void timer_wait(int ms) {
 
 void timer_init() {
     getRTC();
-    timer_phase(1000);
+    timer_phase(10000);
     irq_install_handler(0, timer_handler);
 }

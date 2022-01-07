@@ -9,6 +9,10 @@ int atoi(const char *str) {
 }
 
 char *itoa(int value, char *str, int base) {
+    return ltoa((long int)value, str, base);
+}
+
+char *ltoa(long int value, char *str, int base) {
     char *rc;
     char *ptr;
     char *low;
@@ -23,6 +27,40 @@ char *itoa(int value, char *str, int base) {
     if (value < 0 && base == 10) {
         *ptr++ = '-';
     }
+
+    low = ptr;
+
+    do {
+        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + value % base];
+        value /= base;
+    } while (value);
+
+    *ptr-- = '\0';
+
+    while (low < ptr) {
+        char tmp = *low;
+        *low++ = *ptr;
+        *ptr-- = tmp;
+    }
+
+    return rc;
+}
+
+char *utoa(unsigned int value, char *str, int base) {
+    return lutoa((unsigned long int)value, str, base);
+}
+
+char *lutoa(unsigned long int value, char *str, int base) {
+    char *rc;
+    char *ptr;
+    char *low;
+
+    if (base < 2 || base > 36) {
+        *str = '\0';
+        return str;
+    }
+
+    rc = ptr = str;
 
     low = ptr;
 
@@ -63,6 +101,7 @@ void *calloc(size_t num, size_t size) {
 }
 
 void free(void *ptr) {
+
 }
 
 void *malloc(size_t size) {
@@ -74,6 +113,7 @@ void *realloc(void *ptr, size_t size) {
 }
 
 void abort(void) {
+    //
 }
 
 int atexit(void (*func)(void)) {
@@ -81,6 +121,7 @@ int atexit(void (*func)(void)) {
 }
 
 void exit(int status) {
+    //
 }
 
 char *getenv(const char *name) {
@@ -98,6 +139,7 @@ void *bsearch(const void *key, const void *base, size_t num, size_t size, int (*
 }
 
 void qsort(void *base, size_t num, size_t size, int (*compar)(const void *, const void *)) {
+    //
 }
 
 int abs(int n) {
@@ -125,6 +167,7 @@ int rand(void) {
 }
 
 void srand(unsigned int seed) {
+    //
 }
 
 int mblen(const char *pmb, size_t max) {

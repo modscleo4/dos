@@ -1,6 +1,7 @@
 #include "screen.h"
 
 unsigned int curr_cursor_pos = 0;
+char color = 0x07;
 
 void init_video() {
     char x = 0;
@@ -12,6 +13,21 @@ void init_video() {
         : "=r"(y));
 
     gotoxy(x, y);
+}
+
+void clear_screen() {
+    gotoxy(0, 0);
+    color = 0x07;
+
+    int i;
+    for (i = 0; i < MAX_ROWS; i++) {
+        int j;
+        for (j = 0; j < MAX_COLS; j++) {
+            screen_write(' ');
+        }
+    }
+
+    gotoxy(0, 0);
 }
 
 void handle_scroll() {
@@ -78,8 +94,8 @@ int screen_write(char c) {
         handle_scroll();
     }
 
-    video_memory[curr_cursor_pos] = c;
-    curr_cursor_pos += 2;
+    video_memory[curr_cursor_pos++] = c;
+    video_memory[curr_cursor_pos++] = color;
     outb(CONTROL, 0x0F);
     outb(DATA, (unsigned char)(curr_cursor_pos / 2 & 0xFF));
     outb(CONTROL, 0x0E);

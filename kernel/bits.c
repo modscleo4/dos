@@ -12,6 +12,7 @@ unsigned char inb(unsigned int addr) {
     asm volatile("inb %1, %0;"
                  : "=a"(ret)
                  : "Nd"(addr));
+    //dbgprint("> addr %x: %x\n", &ret, ret);
     return ret;
 }
 

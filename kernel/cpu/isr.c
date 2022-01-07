@@ -1,4 +1,5 @@
 #include "isr.h"
+#include "../kernel.h"
 #include <stdio.h>
 
 void isr_init() {
@@ -72,10 +73,12 @@ static const char *exception_messages[] = {
     "Reserved"};
 
 void isr_fault_handler(registers *r) {
+    set_kernel_stack(&r->esp);
+
     if (r->int_no < 32 || r->int_no == 127) {
         printf("%s Exception. System Halted!\n", exception_messages[r->int_no]);
-        asm("hlt");
+        dbgprint("  Error code: %d\n", r->err_code);
+        printf("  eax: %x\n", r->eax);
+        panic("");
     }
-
-    PIC_sendEOI(r->int_no);
 }

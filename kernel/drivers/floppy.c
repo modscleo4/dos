@@ -19,25 +19,24 @@ void init_floppy() {
     unsigned int edx = 0;
     asm("mov %%edx, %0;"
         : "=r"(edx));
-    boot_drive = edx >> 16U;
+    boot_drive = edx >> 16U;;
 
     memcpy(&floppy, (unsigned char *)DISK_PARAMETER_ADDRESS, sizeof(floppy_parameters));
     irq_install_handler(6, floppy_handler);
 
     detect_floppy_types();
-    printf("Boot drive is #%d\n", boot_drive);
-    printf("  Head settle time: %d\n", floppy.head_settle_time);
+    dbgprint("Boot drive is #%d\n", boot_drive);
+    dbgprint("  Head settle time: %d\n", floppy.head_settle_time);
 }
 
 void detect_floppy_types() {
-    outb(0x70, 0x10);
-    unsigned char c = inb(0x71);
+    unsigned char c = read_cmos_register(0x10, 1);
 
     drives[0] = c >> 4U;
     drives[1] = c & 0xFU;
 
-    printf("Floppy 0: %s\n", drive_types[drives[0]]);
-    printf("Floppy 1: %s\n", drive_types[drives[1]]);
+    dbgprint("Floppy 0: %s\n", drive_types[drives[0]]);
+    dbgprint("Floppy 1: %s\n", drive_types[drives[1]]);
 }
 
 void loadfat() {
@@ -103,6 +102,7 @@ void floppy_check_interrupt(unsigned int drive, int *st0, int *cylinder) {
 }
 
 int floppy_calibrate(unsigned int drive) {
+    const char *fn = "floppy_calibrate";
     int i;
     int st0 = 0;
     int cylinder = -1;
@@ -118,7 +118,7 @@ int floppy_calibrate(unsigned int drive) {
 
         if (0xC0 & st0) {
             static const char *status[] = {0, "error", "invalid", "drive"};
-            printf("floppy_calibrate: status = %s\n", status[st0 >> 6]);
+            dbgprint("%s: status = %s\n", fn, status[st0 >> 6]);
             continue;
         }
 
@@ -128,7 +128,7 @@ int floppy_calibrate(unsigned int drive) {
         }
     }
 
-    puts("floppy_calibrate: 10 retries exhausted\n");
+    dbgprint("%s: 10 retries exhausted\n", fn);
     floppy_motor_off(drive);
 
     return -1;
@@ -141,7 +141,8 @@ int ResetFloppy(unsigned int drive) {
 
     wait_irq6();
 
-    {
+    int i;
+    for (i = 0; i < 4; i++) {
         int st0 = 0;
         int cylinder = -1;
         floppy_check_interrupt(drive, &st0, &cylinder);
@@ -160,6 +161,7 @@ int ResetFloppy(unsigned int drive) {
 }
 
 int floppy_seek(unsigned int drive, unsigned char cylinder, unsigned char head) {
+    const char *fn = "floppy_seek";
     int st0 = 0;
     int cyl = -1;
 
@@ -176,7 +178,7 @@ int floppy_seek(unsigned int drive, unsigned char cylinder, unsigned char head) 
 
         if (0xC0 & st0) {
             static const char *status[] = {"normal", "error", "invalid", "drive"};
-            printf("floppy_seek: status = %s\n", status[st0 >> 6]);
+            dbgprint("%s: status = %s\n", fn, status[st0 >> 6]);
             continue;
         }
 
@@ -186,7 +188,7 @@ int floppy_seek(unsigned int drive, unsigned char cylinder, unsigned char head) 
         }
     }
 
-    puts("floppy_seek: 10 retries exhausted\n");
+    dbgprint("%s: 10 retries exhausted\n", fn);
     floppy_motor_off(drive);
 
     return -1;
@@ -216,6 +218,7 @@ void floppy_handler(registers *r) {
 }
 
 static void floppy_dma_init(floppy_direction direction, unsigned char *buffer) {
+    const char *fn = "floppy_dma_init";
     union {
         unsigned char b[4];
         unsigned long int l;
@@ -225,7 +228,7 @@ static void floppy_dma_init(floppy_direction direction, unsigned char *buffer) {
     count.l = (unsigned long int)511;
 
     if ((addr.l >> 24) || (count.l >> 16) || (((addr.l & 0xffff) + count.l) >> 16)) {
-        puts("floppy_dma_init: buffer problem\n");
+        dbgprint("%s: buffer problem\n", fn);
         asm("hlt");
     }
 
@@ -241,7 +244,7 @@ static void floppy_dma_init(floppy_direction direction, unsigned char *buffer) {
             break;
 
         default:
-            puts("floppy_dma_init: invalid direction");
+            dbgprint("%s: invalid direction", fn);
             asm("hlt");
             return;
     }
@@ -259,6 +262,7 @@ static void floppy_dma_init(floppy_direction direction, unsigned char *buffer) {
 }
 
 int floppy_do_sector(unsigned int drive, unsigned long int lba, unsigned char *buffer, floppy_direction direction) {
+    const char *fn = "floppy_do_sector";
     unsigned char command;
     static const int flags = 0xC0;
 
@@ -275,7 +279,7 @@ int floppy_do_sector(unsigned int drive, unsigned long int lba, unsigned char *b
             break;
 
         default:
-            puts("floppy_do_sector: invalid direction");
+            dbgprint("%s: invalid direction", fn);
             asm("hlt");
             return 0;
     }
@@ -315,72 +319,72 @@ int floppy_do_sector(unsigned int drive, unsigned long int lba, unsigned char *b
 
         if (st0 & 0xC0) {
             static const char *status[] = {0, "error", "invalid command", "drive not ready"};
-            printf("floppy_do_sector: status = %s\n", status[st0 >> 6]);
+            dbgprint("%s: status = %s\n", fn, status[st0 >> 6]);
             error = 1;
         }
 
         if (st1 & 0x80) {
-            puts("floppy_do_sector: end of cylinder\n");
+            dbgprint("%s: end of cylinder\n", fn);
             error = 1;
         }
 
         if (st0 & 0x08) {
-            puts("floppy_do_sector: drive not ready\n");
+            dbgprint("%s: drive not ready\n", fn);
             error = 1;
         }
 
         if (st1 & 0x20) {
-            puts("floppy_do_sector: CRC error\n");
+            dbgprint("%s: CRC error\n", fn);
             error = 1;
         }
 
         if (st1 & 0x10) {
-            puts("floppy_do_sector: controller timeout\n");
+            dbgprint("%s: controller timeout\n", fn);
             error = 1;
         }
 
         if (st1 & 0x04) {
-            puts("floppy_do_sector: no data found\n");
+            dbgprint("%s: no data found\n", fn);
             error = 1;
         }
 
         if ((st1 | st2) & 0x01) {
-            puts("floppy_do_sector: no address mark found\n");
+            dbgprint("%s: no address mark found\n", fn);
             error = 1;
         }
 
         if (st2 & 0x40) {
-            puts("floppy_do_sector: deleted address mark\n");
+            dbgprint("%s: deleted address mark\n", fn);
             error = 1;
         }
 
         if (st2 & 0x20) {
-            puts("floppy_do_sector: CRC error in data\n");
+            dbgprint("%s: CRC error in data\n", fn);
             error = 1;
         }
 
         if (st2 & 0x10) {
-            puts("floppy_do_sector: wrong cylinder\n");
+            dbgprint("%s: wrong cylinder\n", fn);
             error = 1;
         }
 
         if (st2 & 0x04) {
-            puts("floppy_do_sector: uPD765 sector not found\n");
+            dbgprint("%s: uPD765 sector not found\n", fn);
             error = 1;
         }
 
         if (st2 & 0x02) {
-            puts("floppy_do_sector: bad cylinder\n");
+            dbgprint("%s: bad cylinder\n", fn);
             error = 1;
         }
 
         if (bps != 0x2) {
-            printf("floppy_do_sector: wanted 512B/sector, got %d", (1 << (bps + 7)));
+            dbgprint("%s: wanted 512B/sector, got %d", fn, (1 << (bps + 7)));
             error = 1;
         }
 
         if (st1 & 0x02) {
-            puts("floppy_do_sector: not writable\n");
+            dbgprint("%s: not writable\n", fn);
             error = 2;
         }
 
@@ -391,14 +395,14 @@ int floppy_do_sector(unsigned int drive, unsigned long int lba, unsigned char *b
         }
 
         if (error > 1) {
-            puts("floppy_do_sector: not retrying..\n");
+            dbgprint("%s: not retrying..\n", fn);
             floppy_motor_off(drive);
 
             return -2;
         }
     }
 
-    puts("floppy_do_sector: 20 retries exhausted\n");
+    dbgprint("%s: 20 retries exhausted\n", fn);
     floppy_motor_off(drive);
 
     return -1;
@@ -416,6 +420,12 @@ int floppy_search_file(const char *filename, fat_entry *f) {
     unsigned char buffer[512];
 
     int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
+    char _fname[9];
+    strncpy(_fname, filename, 8);
+    int _len = strlen(_fname);
+    while (_len < 8) {
+        _fname[_len++] = ' ';
+    }
 
     int i;
     for (i = 0; i < params.rootdir_entries * sizeof(fat_entry); i += sizeof(fat_entry)) {
@@ -431,9 +441,8 @@ int floppy_search_file(const char *filename, fat_entry *f) {
 
         char fname[9];
         strncpy(fname, f->name, 8);
-        fname[8] = 0;
 
-        if (strcmp(fname, filename) == 0) {
+        if (strcmp(fname, _fname) == 0) {
             return 0;
         }
     }
@@ -441,24 +450,18 @@ int floppy_search_file(const char *filename, fat_entry *f) {
     return -1;
 }
 
-void *floppy_load_file(const char *filename) {
-    fat_entry f;
-    if (floppy_search_file(filename, &f)) {
+void *floppy_load_file_at(const fat_entry *f, void *addr) {
+    if (!f) {
         return NULL;
     }
 
-    void *addr = malloc(f.size);
-    if (addr == NULL) {
-        return NULL;
-    }
-
-    unsigned short int cluster = f.cluster;
+    unsigned short int cluster = f->cluster;
     unsigned int first_fat_sector = params.reserved_sectors;
 
     unsigned int cl = 0;
     unsigned int last_fat_sector = 0;
 
-    unsigned char fat_buffer[2048];
+    unsigned char fat_buffer[512];
 
     unsigned int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
 
@@ -469,7 +472,7 @@ void *floppy_load_file(const char *filename) {
 
         unsigned int sector = (cluster - 2) * params.sectors_per_cluster + rootdir_sector + (params.rootdir_entries * sizeof(fat_entry) / params.bytes_per_sector);
 
-        unsigned char buffer[2048];
+        unsigned char buffer[512];
 
         if (!last_fat_sector || last_fat_sector != fat_sector) {
             floppy_sector_read(boot_drive, fat_sector, fat_buffer);

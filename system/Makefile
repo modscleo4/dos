@@ -10,4 +10,4 @@ sys_shell:
 	make -C shell
 
 clean:
-	make -C sys_shell clean
+	make -C shell clean
