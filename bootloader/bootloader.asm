@@ -179,7 +179,7 @@ load_kernel:
     mov es, bx
     mov bx, KERNEL_OFF
     mov NUM_OF_SECTORS, 63
-    mov CYLINDER_NUM, 1
+    mov CYLINDER_NUM, 1 ; Sector 33 + 0x10 (skip ELF header)
     mov HEAD_NUM, 0
     mov SECTOR_NUM, 6
     call disk_load
@@ -205,9 +205,6 @@ init_pm:
     mov es, ax
     mov fs, ax
     mov gs, ax
-
-    ;mov ebp, 0x90000
-    ;mov esp, ebp
 
     call begin_pm
 

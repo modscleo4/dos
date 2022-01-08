@@ -9,7 +9,7 @@ syscall_handler:
     push byte 1
     push byte 0
 
-    pusha
+    pushad
     push ds
     push es
     push fs

@@ -10,6 +10,6 @@ void keyboard_handler(struct registers *);
 
 void wait_irq1();
 
-unsigned char keyboard_read();
+char keyboard_read();
 
 #endif //KEYBOARD_H

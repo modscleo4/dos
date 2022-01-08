@@ -37,6 +37,8 @@ int putchar(char);
 
 int puts(const char *);
 
+char *gets(char *);
+
 int printf(const char *, ...);
 
 int scanf(const char *, ...);

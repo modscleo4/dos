@@ -73,12 +73,16 @@ static const char *exception_messages[] = {
     "Reserved"};
 
 void isr_fault_handler(registers *r) {
-    set_kernel_stack(&r->esp);
-
     if (r->int_no < 32 || r->int_no == 127) {
-        printf("%s Exception. System Halted!\n", exception_messages[r->int_no]);
-        dbgprint("  Error code: %d\n", r->err_code);
-        printf("  eax: %x\n", r->eax);
-        panic("");
+        char *buf[256];
+
+        // only print err_code if the exception set it
+        if (r->int_no == 8 || r->int_no == 10 || r->int_no == 11 || r->int_no == 12 || r->int_no == 13 || r->int_no == 14 || r->int_no == 17 || r->int_no == 21 || r->int_no == 29 || r->int_no == 30) {
+            sprintf(buf, "%d: %s Exception", r->err_code, exception_messages[r->int_no]);
+        } else {
+            sprintf(buf, "%s Exception", exception_messages[r->int_no]);
+        }
+
+        panic(buf);
     }
 }

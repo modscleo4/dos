@@ -144,35 +144,35 @@ isr16:
     push byte 16
 
     jmp isr_common_stub
-    
+
 isr17:
     cli
     push byte 0
     push byte 17
 
     jmp isr_common_stub
-    
+
 isr18:
     cli
     push byte 0
     push byte 18
 
     jmp isr_common_stub
-    
+
 isr19:
     cli
     push byte 0
     push byte 19
 
     jmp isr_common_stub
-    
+
 isr20:
     cli
     push byte 0
     push byte 20
 
     jmp isr_common_stub
-    
+
 isr21:
     cli
     push byte 0
@@ -214,28 +214,28 @@ isr26:
     push byte 26
 
     jmp isr_common_stub
-    
+
 isr27:
     cli
     push byte 0
     push byte 27
 
     jmp isr_common_stub
-    
+
 isr28:
     cli
     push byte 0
     push byte 28
 
     jmp isr_common_stub
-    
+
 isr29:
     cli
     push byte 0
     push byte 29
 
     jmp isr_common_stub
-    
+
 isr30:
     cli
     push byte 0
@@ -259,7 +259,7 @@ isr127:
 
 isr_common_stub:
     extern isr_fault_handler
-    pusha
+    pushad
     push ds
     push es
     push fs

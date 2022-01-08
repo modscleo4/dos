@@ -3,6 +3,17 @@
 #include <string.h>
 #include <unistd.h>
 
+int in_buf_pos = 0;
+char in_buf[1024] = {0};
+
+int out_buf_pos = 0;
+char out_buf[1024] = {0};
+
+void _init_stdio() {
+    in_buf_pos = 0;
+    out_buf_pos = 0;
+}
+
 int fclose(FILE *stream) {
     return 0;
 }
@@ -19,25 +30,30 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
     return NULL;
 }
 
+int _getchar() {
+    in_buf_pos = syscall(3, in_buf, 1);
+    if (in_buf_pos != 1) {
+        return EOF;
+    }
+
+    return in_buf[in_buf_pos = 0];
+}
+
 int getchar() {
-    unsigned char ret = syscall(0);
-    if (ret == 0) {
+    unsigned char ret = _getchar();
+    if (ret <= 0) {
         return -1;
     }
 
-    putchar(ret);
     return ret;
 }
-
-int out_buf_pos = 0;
-char out_buf[1024] = {0};
 
 int _flush() {
     if (out_buf_pos == 0) {
         return 0;
     }
 
-    int ret = syscall(1, out_buf, out_buf_pos);
+    int ret = syscall(4, out_buf, out_buf_pos);
     out_buf_pos = 0;
     return ret;
 }
@@ -56,7 +72,7 @@ int putchar(char c) {
     return _flush();
 }
 
-void _puts(const char *str) {
+int _puts(const char *str) {
     while (*str) {
         if (_putchar(*str++) == EOF) {
             return EOF;
@@ -65,10 +81,22 @@ void _puts(const char *str) {
 }
 
 int puts(const char *str) {
-    _puts(str);
+    if (_puts(str) == EOF) {
+        return EOF;
+    }
     _putchar('\n');
 
     return _flush();
+}
+
+char *gets(char *str) {
+    int pos = syscall(3, str, 1024);
+    if (pos == 0) {
+        return NULL;
+    }
+    str[pos] = 0;
+
+    return str;
 }
 
 int vprintf(const char *format, va_list args) {

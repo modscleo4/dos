@@ -1,13 +1,13 @@
 BUILD_DIR=../build/system
 
-all: dir sys_shell
+all: dir sys_init
 
 dir:
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(BUILD_DIR)/libc
 
-sys_shell:
-	make -C shell
+sys_init:
+	make -C init
 
 clean:
-	make -C shell clean
+	make -C init clean

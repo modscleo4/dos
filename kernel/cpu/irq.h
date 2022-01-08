@@ -6,6 +6,25 @@
 #include "pic.h"
 #include "../bits.h"
 
+enum IRQ {
+    IRQ_PIT = 0,
+    IRQ_KEYBOARD,
+    IRQ_CASCADE,
+    IRQ_COM2,
+    IRQ_COM1,
+    IRQ_LPT2,
+    IRQ_FLOPPY,
+    IRQ_LPT1,
+    IRQ_CMOS,
+    IRQ_FREE_0,
+    IRQ_FREE_1,
+    IRQ_FREE_2,
+    IRQ_PS2_MOUSE,
+    IRQ_FPU,
+    IRQ_ATA_PRIMARY,
+    IRQ_ATA_SECONDARY
+};
+
 extern void irq0();
 
 extern void irq1();

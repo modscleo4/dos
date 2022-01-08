@@ -13,7 +13,9 @@ kernel_start:
 
 stublet:
     extern kernel_main
-    push esp
+    extern _esp
+
+    mov [_esp], esp
     call kernel_main
     cli
     hlt

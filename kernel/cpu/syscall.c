@@ -13,8 +13,9 @@ int __syscall_ret;
 
 int run_syscall(registers *r) {
     int ret = -1;
-    asm("sti");
+    //set_kernel_stack(_esp);
     long int no = r->eax;
+    asm("sti");
 
     long int arg0 = r->ebx;
     long int arg1 = r->ecx;
@@ -25,11 +26,11 @@ int run_syscall(registers *r) {
     //dbgprint("syscall: %x(%x %x %x %x %x %x)\n", no, arg0, arg1, arg2, arg3, arg4, arg5);
 
     switch (no) {
-        case 0:
-            ret = keyboard_read();
+        case 3:
+            ret = read(arg0, arg1);
             break;
 
-        case 1:
+        case 4:
             ret = write(arg0, arg1) == arg1 ? 0 : -1;
             break;
 
@@ -38,6 +39,7 @@ int run_syscall(registers *r) {
             ret = -1;
     }
 
+    //set_kernel_stack(r->esp);
     return ret;
 }
 

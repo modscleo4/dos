@@ -135,7 +135,7 @@ char *getenv(const char *name) {
 
 int system(const char *command) {
     fat_entry f;
-    if (floppy_search_file(command, &f)) {
+    if (fat_search_file(boot_drive, command, &f)) {
         dbgprint("Not found.\n");
         return -1;
     }
@@ -146,21 +146,17 @@ int system(const char *command) {
         return -1;
     }
 
-    if (!floppy_load_file_at(&f, addr)) {
+    if (!fat_load_file_at(boot_drive, &f, addr)) {
         dbgprint("Not found.\n");
         return -1;
     }
 
-    addr += 0x1000;
     dbgprint("%s loaded at address %x\n", command, addr);
-    //hexdump(addr, 0x200);
+    addr += 0x1000;
 
-    //set_kernel_stack(_esp + 0x2000);
+    set_kernel_stack(0x1000000);
 
     switch_ring3(addr);
-    /*asm volatile("jmp *%0"
-                 :
-                 : "r"(addr));*/
 
     return 0;
 }

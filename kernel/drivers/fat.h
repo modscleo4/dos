@@ -1,6 +1,9 @@
 #ifndef FAT_H
 #define FAT_H
 
+#include "floppy.h"
+#include <stdbool.h>
+
 /*
  * 0x00: Unused
  * 0xFF0-0xFF6: Reserved cluster
@@ -85,12 +88,18 @@ typedef struct fat_entry {
  * 0x05      In a FAT32 entry, 0x05 as the lead character is translated to 0xe5, a Kanji character, so that Japanese language versions work.
  */
 
+void buffer2struct(unsigned char *, bios_params *);
+
+void loadfat(int);
+
 void buffer2fatentry(unsigned char *, fat_entry *);
 
 unsigned short int fat_next_cluster(unsigned int, const unsigned char *, unsigned int);
 
-int fat_writefile();
+int fat_search_file(int, const char *, fat_entry *);
 
-int fat_readfile();
+void *fat_load_file_at(int, const fat_entry *, void *);
+
+void listfiles(int);
 
 #endif //FAT_H

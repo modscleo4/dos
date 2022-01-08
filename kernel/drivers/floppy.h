@@ -7,6 +7,7 @@
 #include "../modules/timer.h"
 #include "fat.h"
 #include <stdlib.h>
+#include <stdbool.h>
 
 #define DISK_PARAMETER_ADDRESS 0x000FEFC7
 
@@ -69,6 +70,18 @@ enum FloppyCommands {
     SCAN_HIGH_OR_EQUAL = 29
 };
 
+enum FloppyMSRFlags {
+    MSR_MRQ = 0x80,
+    MSR_DIO = 0x40,
+    MSR_NON_DMA = 0x20,
+    MSR_BUSY = 0x10,
+    MSR_ACTD = 0x08,
+    MSR_ACTC = 0x04,
+    MSR_ACTB = 0x02,
+    MSR_ACTA = 0x01
+
+};
+
 static const char *drive_types[6] = {
     "No floppy drive.",
     "360KB 5.25in floppy",
@@ -82,13 +95,9 @@ typedef enum {
     floppy_direction_write = 2
 } floppy_direction;
 
-void buffer2struct(unsigned char *, bios_params *);
-
-void init_floppy();
+int init_floppy();
 
 void detect_floppy_types();
-
-void loadfat();
 
 void lba2chs(unsigned long int, chs *, floppy_parameters);
 
@@ -112,16 +121,10 @@ void floppy_handler(registers *);
 
 static void floppy_dma_init(floppy_direction, unsigned char *);
 
-int floppy_do_sector(unsigned int, unsigned long int, unsigned char *, floppy_direction);
+int floppy_do_sector(unsigned int, unsigned long int, unsigned char *, floppy_direction, bool);
 
-int floppy_sector_read(unsigned int, unsigned long int, unsigned char *);
+int floppy_sector_read(unsigned int, unsigned long int, unsigned char *, bool);
 
-int floppy_sector_write(unsigned int, unsigned long int, unsigned char *);
-
-int floppy_search_file(const char *, fat_entry *);
-
-void *floppy_load_file_at(const fat_entry *, void *);
-
-void listfiles(void);
+int floppy_sector_write(unsigned int, unsigned long int, unsigned char *, bool);
 
 #endif //FLOPPY_H

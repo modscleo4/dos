@@ -11,13 +11,40 @@ void memcpy(void *dest, const void *source, size_t n) {
 }
 
 void strcpy(char *destination, const char *source) {
-    memcpy(destination, source, strlen(source));
+    strncpy(destination, source, strlen(source));
 }
 
 void strncpy(char *destination, const char *source, size_t n) {
     memcpy(destination, source, n);
 
     destination[n] = 0;
+}
+
+void *memmove(void *dest, const void *source, size_t n) {
+    if (dest < source) {
+        memcpy(dest, source, n);
+    } else {
+        unsigned char *c_dest = (unsigned char *)dest;
+        unsigned char *c_src = (unsigned char *)source;
+
+        int i;
+        for (i = n - 1; i >= 0; i--) {
+            c_dest[i] = c_src[i];
+        }
+    }
+
+    return dest;
+}
+
+char* strcat(char *destination, const char *source) {
+    return strncat(destination, source, strlen(source));
+}
+
+char* strncat(char *destination, const char *source, size_t n) {
+    memcpy(destination + strlen(destination), source, n);
+
+    destination[n] = 0;
+    return destination;
 }
 
 char *strupr(char *str) {
@@ -79,9 +106,8 @@ char *strchr(char *str, int character) {
 
 size_t strlen(const char *str) {
     size_t l = 0;
-    while (*str) {
+    while (*str++) {
         l++;
-        str++;
     }
 
     return l;

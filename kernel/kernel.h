@@ -20,16 +20,20 @@
 
 uintptr_t _esp;
 
+int boot_drive;
+
 extern void switch_ring3(unsigned int);
 
-void panic(const char *msg);
+void load_regs(void);
+
+void panic_handler(const char *);
+
+#define panic(msg) (load_regs(), panic_handler(msg))
 
 void dbgprint(const char *msg, ...);
 
 void hexdump(void *ptr, size_t n);
 
-void start_shell(void);
-
-void kernel_main(uintptr_t);
+void kernel_main();
 
 #endif //KERNEL_H

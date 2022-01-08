@@ -1,7 +1,7 @@
 BUILD_DIR=build
 BOOTLOADER=$(BUILD_DIR)/bootloader/bootloader
 KERNEL=$(BUILD_DIR)/kernel/kernel
-SYSTEM_SHELL=$(BUILD_DIR)/system/shell/shell
+SYSTEM_INIT=$(BUILD_DIR)/system/init/init.elf
 DISK_IMG=disk.img
 
 all: dir disk
@@ -26,7 +26,7 @@ disk: bootloader kernel system
 	dd conv=notrunc if=$(BOOTLOADER) of=$(DISK_IMG) bs=512 count=1 seek=0
 	#dd conv=notrunc if=$(KERNEL) of=$(DISK_IMG) bs=512 count=63 seek=33
 	mcopy -i $(DISK_IMG) $(KERNEL) ::/
-	mcopy -i $(DISK_IMG) $(SYSTEM_SHELL) ::/
+	mcopy -i $(DISK_IMG) $(SYSTEM_INIT) ::/
 
 startvm: disk
 	"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f "C:\\Users\\Modscleo4\\Documents\\Bochs\\bochsrc.bxrc" -rc bochsdbg.rc -q

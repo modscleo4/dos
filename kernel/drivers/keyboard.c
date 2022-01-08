@@ -3,13 +3,23 @@
 unsigned char scancode;
 int irq1_c = 0;
 
+void _keyboard_reset() {
+    char tmp = inb(0x61);
+    outb(0x61, tmp | 0x80);
+    outb(0x61, tmp & 0x7F);
+    inb(0x60);
+}
+
 void init_keyboard() {
-    irq_install_handler(1, keyboard_handler);
+    irq_install_handler(IRQ_KEYBOARD, keyboard_handler);
+    _keyboard_reset();
 }
 
 void keyboard_handler(struct registers *r) {
+    while (inb(0x64) & 2) { }
     irq1_c++;
     scancode = inb(0x60);
+    PIC_sendEOI(IRQ_KEYBOARD);
 }
 
 void wait_irq1() {
@@ -17,10 +27,10 @@ void wait_irq1() {
     irq1_c--;
 }
 
-unsigned char keyboard_read() {
+char keyboard_read() {
     wait_irq1();
     if (scancode & 0x80) {
-        return 0;
+        return -1;
     } else {
         return kblayout[scancode];
     }

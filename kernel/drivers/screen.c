@@ -1,7 +1,7 @@
 #include "screen.h"
 
 unsigned int curr_cursor_pos = 0;
-char color = 0x07;
+char color;
 
 void init_video() {
     char x = 0;
@@ -13,6 +13,11 @@ void init_video() {
         : "=r"(y));
 
     gotoxy(x, y);
+    setcolor(BLACK << 1 | GRAY);
+}
+
+void setcolor(char c) {
+    color = c;
 }
 
 void clear_screen() {
@@ -43,6 +48,7 @@ void handle_scroll() {
 
     for (i = 0; i < MAX_COLS; i++) {
         video_memory[curr_cursor_pos + 2 * i] = ' ';
+        video_memory[curr_cursor_pos + 2 * i + 1] = color;
     }
 }
 
