@@ -10,7 +10,8 @@ void _keyboard_reset() {
     inb(0x60);
 }
 
-void init_keyboard() {
+void keyboard_init() {
+    irq1_c = 0;
     irq_install_handler(IRQ_KEYBOARD, keyboard_handler);
     _keyboard_reset();
 }
@@ -19,7 +20,7 @@ void keyboard_handler(struct registers *r) {
     while (inb(0x64) & 2) { }
     irq1_c++;
     scancode = inb(0x60);
-    PIC_sendEOI(IRQ_KEYBOARD);
+    pic_send_eoi(IRQ_KEYBOARD);
 }
 
 void wait_irq1() {

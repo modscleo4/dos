@@ -11,11 +11,149 @@
 // This var is to store the current SYSCALL return value
 int __syscall_ret;
 
+long int syscall_read(int fd, char *buf, size_t count) {
+    return read(buf, count);
+}
+
+long int syscall_write(int fd, char *buf, size_t count) {
+    return write(buf, count);
+}
+
+static void *syscalls[] = {
+    NULL,
+    NULL,
+    NULL,
+    &syscall_read,
+    &syscall_write,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
+
 int run_syscall(registers *r) {
     int ret = -1;
-    //set_kernel_stack(_esp);
-    long int no = r->eax;
     asm("sti");
+    long int no = r->eax;
 
     long int arg0 = r->ebx;
     long int arg1 = r->ecx;
@@ -25,21 +163,20 @@ int run_syscall(registers *r) {
     long int arg5 = r->ebp;
     //dbgprint("syscall: %x(%x %x %x %x %x %x)\n", no, arg0, arg1, arg2, arg3, arg4, arg5);
 
-    switch (no) {
-        case 3:
-            ret = read(arg0, arg1);
-            break;
-
-        case 4:
-            ret = write(arg0, arg1) == arg1 ? 0 : -1;
-            break;
-
-        default:
-            dbgprint("Invalid SYSCALL\n");
-            ret = -1;
+    if (syscalls[no]) {
+        long int (*syscall_fn)(long int, long int, long int, long int, long int, long int) = syscalls[no];
+        ret = syscall_fn(arg0, arg1, arg2, arg3, arg4, arg5);
+        asm("add $4, %esp");
+        asm("add $4, %esp");
+        asm("add $4, %esp");
+        asm("add $4, %esp");
+        asm("add $4, %esp");
+        asm("add $4, %esp");
+    } else {
+        dbgprint("syscall: %x not implemented\n", no);
+        ret = -1;
     }
 
-    //set_kernel_stack(r->esp);
     return ret;
 }
 

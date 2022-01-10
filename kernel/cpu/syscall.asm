@@ -5,7 +5,6 @@ syscall_handler:
     extern run_syscall
     extern __syscall_ret
 
-    ;cli
     push byte 1
     push byte 0
 
@@ -31,7 +30,7 @@ syscall_handler:
     pop fs
     pop es
     pop ds
-    popa
+    popad
 
     add esp, 8
 

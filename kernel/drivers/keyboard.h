@@ -4,7 +4,7 @@
 #include "../cpu/irq.h"
 #include "../modules/kblayout/us.h"
 
-void init_keyboard();
+void keyboard_init();
 
 void keyboard_handler(struct registers *);
 

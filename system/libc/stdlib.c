@@ -1,11 +1,19 @@
 #include <stdlib.h>
 
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+
 float atof(const char *str) {
     return 0.0F;
 }
 
 int atoi(const char *str) {
     return 0;
+}
+
+char *htoa(short int value, char *str, int base) {
+    return ltoa((long int)value, str, base);
 }
 
 char *itoa(int value, char *str, int base) {
@@ -46,6 +54,10 @@ char *ltoa(long int value, char *str, int base) {
     return rc;
 }
 
+char *hutoa(unsigned short int value, char *str, int base) {
+    return lutoa((unsigned long int)value, str, base);
+}
+
 char *utoa(unsigned int value, char *str, int base) {
     return lutoa((unsigned long int)value, str, base);
 }
@@ -80,6 +92,57 @@ char *lutoa(unsigned long int value, char *str, int base) {
     return rc;
 }
 
+char *ftoa(float value, char *str, int precision) {
+    if (isnanf(value)) {
+        strcpy(str, "nan");
+        return str;
+    } else if (isinff(value)) {
+        if (value < 0) {
+            strcpy(str, "-inf");
+        } else {
+            strcpy(str, "inf");
+        }
+
+        return str;
+    }
+
+    return lftoa((double)value, str, precision);
+}
+
+char *lftoa(double value, char *str, int precision) {
+    if (isnanl(value)) {
+        strcpy(str, "nan");
+        return str;
+    } else if (isinfl(value)) {
+        if (value < 0) {
+            strcpy(str, "-inf");
+        } else {
+            strcpy(str, "inf");
+        }
+
+        return str;
+    }
+
+    ltoa((long int)value, str, 10);
+    int i = strlen(str);
+    if (precision > 0) {
+        str[i] = '.';
+
+        value -= (long int)value;
+        value *= powl(10, precision);
+        ltoa((long int)value, str + i + 1, 10);
+
+        int j = strlen(str + i + 1);
+        while (j < precision) {
+            str[i + j + 1] = '0';
+            str[i + j + 2] = 0;
+            j++;
+        }
+    }
+
+    return str;
+}
+
 long int atol(const char *str) {
     return 0;
 }
@@ -101,7 +164,7 @@ void *calloc(size_t num, size_t size) {
 }
 
 void free(void *ptr) {
-
+    //
 }
 
 void *malloc(size_t size) {
@@ -142,24 +205,24 @@ void qsort(void *base, size_t num, size_t size, int (*compar)(const void *, cons
     //
 }
 
-int abs(int n) {
-    return n >= 0 ? n : -n;
-}
-
 div_t div(int numer, int denom) {
     return (div_t){
         0,
         0};
 }
 
-long int labs(long int n) {
-    return n >= 0 ? n : -n;
-}
-
 ldiv_t ldiv(long int numer, long int denom) {
     return (ldiv_t){
         0,
         0};
+}
+
+int abs(int x) {
+    return (int)labs((long int)x);
+}
+
+long int labs(long int x) {
+    return x < 0 ? -x : x;
 }
 
 int rand(void) {

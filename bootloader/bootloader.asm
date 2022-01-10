@@ -9,9 +9,9 @@
 KERNEL_ADDR equ 0x10000
 %define KERNEL_SEG    (KERNEL_ADDR >> 4)
 %define KERNEL_OFF    (KERNEL_ADDR & 0xf)
-_KERNEL_ADDR equ 0x1000
-%define _KERNEL_SEG    (_KERNEL_ADDR >> 4)
-%define _KERNEL_OFF    (_KERNEL_ADDR & 0xf)
+KERNEL_ADDR_2 equ 0x17E00
+%define KERNEL_SEG_2    (KERNEL_ADDR_2 >> 4)
+%define KERNEL_OFF_2    (KERNEL_ADDR_2 & 0xf)
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
 
@@ -62,11 +62,24 @@ boot:
     mov bp, 0x9000
     mov sp, bp
 
+    call check_a20
+    cmp ax, 1
+    jne a20_not_enabled
+
+    call enable_a20
+    cmp ax, 1
+    jne a20_not_enabled
+
+a20_enabled:
+
     call load_kernel
 
     call getxy
 
     call switch_to_pm
+
+a20_not_enabled:
+    hlt
 
 getxy:
     push dx
@@ -142,6 +155,88 @@ disk_error:
     call puts
     jmp $
 
+check_a20:
+    pushf
+    push ds
+    push es
+    push di
+    push si
+
+    cli
+
+    xor ax, ax ; ax = 0
+    mov es, ax
+
+    not ax ; ax = 0xFFFF
+    mov ds, ax
+
+    mov di, 0x0500
+    mov si, 0x0510
+
+    mov al, byte [es:di]
+    push ax
+
+    mov al, byte [ds:si]
+    push ax
+
+    mov byte [es:di], 0x00
+    mov byte [ds:si], 0xFF
+
+    cmp byte [es:di], 0xFF
+
+    pop ax
+    mov byte [ds:si], al
+
+    pop ax
+    mov byte [es:di], al
+
+    mov ax, 0
+    je check_a20__exit
+
+    mov ax, 1
+
+check_a20__exit:
+    pop si
+    pop di
+    pop es
+    pop ds
+    popf
+
+    ret
+
+enable_a20:
+    mov     ax, 0x2403
+    int     0x15
+    jb      a20_ns
+    cmp     ah, 0
+    jnz     a20_ns
+
+    mov     ax, 0x2402
+    int     0x15
+    jb      a20_failed
+    cmp     ah, 0
+    jnz     a20_failed
+
+    cmp     al, 1
+    jz      a20_activated
+
+    mov     ax, 0x2401
+    int     0x15
+    jb      a20_failed
+    cmp     ah, 0
+    jnz     a20_failed
+
+a20_activated:
+    mov ax, 1
+    ret
+
+a20_ns:
+    mov ax, 0
+    ret
+
+a20_failed:
+    hlt
+
 [bits 32]
 
 gdt_start:
@@ -182,6 +277,15 @@ load_kernel:
     mov CYLINDER_NUM, 1 ; Sector 33 + 0x10 (skip ELF header)
     mov HEAD_NUM, 0
     mov SECTOR_NUM, 6
+    call disk_load
+
+    mov bx, KERNEL_SEG_2
+    mov es, bx
+    mov bx, KERNEL_OFF_2
+    mov NUM_OF_SECTORS, 63
+    mov CYLINDER_NUM, 2 ; Sector 33 + 0x10 (skip ELF header) + 63 (previously loaded)
+    mov HEAD_NUM, 1
+    mov SECTOR_NUM, 15
     call disk_load
 
     ret

@@ -1,4 +1,5 @@
 #include "fat.h"
+#include <stdio.h>
 #include <string.h>
 
 bios_params params;
@@ -23,8 +24,8 @@ unsigned short int fat_next_cluster(unsigned int cluster, const unsigned char *b
     return table_value;
 }
 
-void loadfat(int drive) {
-    ResetFloppy(drive);
+void fat_load(int drive) {
+    floppy_reset(drive);
     unsigned char buffer[512];
     floppy_sector_read(drive, 0, buffer, true);
 
@@ -129,7 +130,7 @@ void *fat_load_file_at(int drive, const fat_entry *f, void *addr) {
     return addr;
 }
 
-void listfiles(int drive) {
+void fat_listfiles(int drive) {
     printf("Files on disk: \n");
 
     fat_entry *f;

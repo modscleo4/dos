@@ -9,29 +9,27 @@ int floppy_motor_state[2] = {0, 0}; /* 0: OFF, 1: ON; 2: WAIT */
 
 int irq6_c = 0;
 
-int init_floppy() {
-    unsigned int edx = 0;
-    asm("mov %%edx, %0;"
-        : "=r"(edx));
-    unsigned int boot_drive = edx >> 16U;;
+int floppy_init(long int edx) {
+    irq6_c = 0;
+    unsigned int boot_drive = edx >> 16U;
 
     memcpy(&floppy, (unsigned char *)DISK_PARAMETER_ADDRESS, sizeof(floppy_parameters));
     irq_install_handler(IRQ_FLOPPY, floppy_handler);
 
-    detect_floppy_types();
+    floppy_detect_types();
     dbgprint("Boot drive is #%d\n", boot_drive);
     dbgprint("  Head settle time: %d\n", floppy.head_settle_time);
     return boot_drive;
 }
 
-void detect_floppy_types() {
+void floppy_detect_types() {
     unsigned char c = read_cmos_register(0x10, 1);
 
     drives[0] = c >> 4U;
     drives[1] = c & 0xFU;
 
-    dbgprint("Floppy 0: %s\n", drive_types[drives[0]]);
-    dbgprint("Floppy 1: %s\n", drive_types[drives[1]]);
+    dbgprint("Floppy 0: %d - %s\n", drives[0], drive_types[drives[0]]);
+    dbgprint("Floppy 1: %d - %s\n", drives[1], drive_types[drives[1]]);
 }
 
 void lba2chs(unsigned long int lba, chs *c, floppy_parameters fparams) {
@@ -134,7 +132,7 @@ int floppy_calibrate(unsigned int drive) {
     return -1;
 }
 
-int ResetFloppy(unsigned int drive) {
+int floppy_reset(unsigned int drive) {
     int base = (drive == 0) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
     outb(base + DIGITAL_OUTPUT_REGISTER, 0x00);
     outb(base + DIGITAL_OUTPUT_REGISTER, 0x0C);
@@ -149,13 +147,14 @@ int ResetFloppy(unsigned int drive) {
     }
 
     outb(base + CONFIGURATION_CONTROL_REGISTER, 0x00);
-    floppy_send_byte(drive, SPECIFY);
-    floppy_send_byte(drive, 0xDF);
-    floppy_send_byte(drive, 0x02);
 
     if (floppy_calibrate(drive)) {
         return -1;
     }
+
+    floppy_send_byte(drive, SPECIFY);
+    floppy_send_byte(drive, ((3 & 0xf) << 4) | (240 & 0xf));
+    floppy_send_byte(drive, ((16 << 1) | 0));
 
     return 0;
 }
@@ -215,7 +214,7 @@ void floppy_motor_off(unsigned int drive) {
 
 void floppy_handler(registers *r) {
     irq6_c++;
-    PIC_sendEOI(IRQ_FLOPPY);
+    pic_send_eoi(IRQ_FLOPPY);
 }
 
 static void floppy_dma_init(floppy_direction direction, unsigned char *buffer) {

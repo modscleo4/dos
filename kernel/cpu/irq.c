@@ -26,7 +26,6 @@ void irq_uninstall_handler(int irq) {
 
 void irq_init() {
     irq_remap();
-
     idt_set_gate(32, (unsigned int)irq0, 0x08, 0x8E);
     idt_set_gate(33, (unsigned int)irq1, 0x08, 0x8E);
     idt_set_gate(34, (unsigned int)irq2, 0x08, 0x8E);
@@ -53,5 +52,5 @@ void irq_handler(registers *r) {
         handler(r);
     }
 
-    PIC_sendEOI(r->int_no);
+    pic_send_eoi(r->int_no);
 }

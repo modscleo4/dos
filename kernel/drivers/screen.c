@@ -3,14 +3,12 @@
 unsigned int curr_cursor_pos = 0;
 char color;
 
-void init_video() {
+void video_init(int edx) {
     char x = 0;
     char y = 0;
-    asm("mov %%dl, %0;"
-        : "=r"(x));
 
-    asm("mov %%dh, %0;"
-        : "=r"(y));
+    x = (edx & 0x00FF);
+    y = (edx & 0xFF00) >> 8;
 
     gotoxy(x, y);
     setcolor(BLACK << 1 | GRAY);
@@ -78,6 +76,15 @@ int screen_write(char c) {
             video_memory[curr_cursor_pos] = ' ';
             gotoxy((curr_cursor_pos / 2) % MAX_COLS, (curr_cursor_pos / 2) / MAX_COLS);
             return 0;
+
+        case '\t': {
+            int l = 8 - ((curr_cursor_pos / 2) % 8);
+
+            while (l--) {
+                screen_write(' ');
+            }
+            return 0;
+        }
 
         case '\r':
             gotoxy(0, (curr_cursor_pos / 2) / MAX_COLS);

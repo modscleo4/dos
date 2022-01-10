@@ -24,7 +24,7 @@ disk: bootloader kernel system
 	dd if=/dev/zero of=$(DISK_IMG) bs=512 count=2880
 	mkfs.vfat $(DISK_IMG)
 	dd conv=notrunc if=$(BOOTLOADER) of=$(DISK_IMG) bs=512 count=1 seek=0
-	#dd conv=notrunc if=$(KERNEL) of=$(DISK_IMG) bs=512 count=63 seek=33
+	#dd conv=notrunc if=$(KERNEL) of=$(DISK_IMG) bs=512 count=128 seek=33
 	mcopy -i $(DISK_IMG) $(KERNEL) ::/
 	mcopy -i $(DISK_IMG) $(SYSTEM_INIT) ::/
 

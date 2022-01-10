@@ -33,7 +33,11 @@ enum ScrrenRegisters {
     DATA = 0x3D5
 };
 
-void init_video();
+void video_init();
+
+void setcolor(char);
+
+void clear_screen();
 
 void gotoxy(int, int);
 

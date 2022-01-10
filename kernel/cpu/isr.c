@@ -39,50 +39,51 @@ void isr_init() {
 }
 
 static const char *exception_messages[] = {
-    "Division by zero",
+    "Division-by-zero Error",
     "Debug",
-    "Non-maskable interrupt",
+    "Non-maskable Interrupt",
     "Breakpoint",
-    "Detected overflow",
-    "Out-of-bounds",
-    "Invalid opcode",
-    "No coprocessor",
-    "Double fault",
-    "Coprocessor segment overrun",
-    "Bad TSS",
-    "Segment not present",
-    "Stack fault",
-    "General protection fault",
-    "Page fault",
+    "Overflow",
+    "Bound Range Exceeded",
+    "Invalid Opcode",
+    "Device Not Available",
+    "Double Fault",
+    "Coprocessor Segment Overrun",
+    "Invalid TSS",
+    "Segment Not Present",
+    "Stack-Segment Fault",
+    "General Protection Fault",
+    "Page Fault",
     "Unknown interrupt",
-    "Coprocessor fault",
-    "Alignment check",
-    "Machine check",
+    "x87 Floating-Point Exception",
+    "Alignment Check",
+    "Machine Check",
+    "SIMD Floating-Point Exception",
+    "Virtualization Exception",
+    "Control Protection Exception",
     "Reserved",
     "Reserved",
     "Reserved",
     "Reserved",
     "Reserved",
     "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved"};
+    "Hypervisor Injection Exception",
+    "VMM Communication Exception",
+    "Security",
+    "Reserved"
+};
 
 void isr_fault_handler(registers *r) {
     if (r->int_no < 32 || r->int_no == 127) {
-        char *buf[256];
+        char buf[128];
 
         // only print err_code if the exception set it
         if (r->int_no == 8 || r->int_no == 10 || r->int_no == 11 || r->int_no == 12 || r->int_no == 13 || r->int_no == 14 || r->int_no == 17 || r->int_no == 21 || r->int_no == 29 || r->int_no == 30) {
-            sprintf(buf, "%d: %s Exception", r->err_code, exception_messages[r->int_no]);
+            sprintf(buf, "%d: %s", r->err_code, exception_messages[r->int_no]);
         } else {
-            sprintf(buf, "%s Exception", exception_messages[r->int_no]);
+            sprintf(buf, "%s", exception_messages[r->int_no]);
         }
 
-        panic(buf);
+        panic_handler(buf, r);
     }
 }

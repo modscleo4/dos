@@ -2,6 +2,7 @@
 
 global kernel_start
 global switch_ring3
+global _asm_load_regs
 
 global sys_stack
 
@@ -16,6 +17,10 @@ stublet:
     extern _esp
 
     mov [_esp], esp
+    push edx
+    push ecx
+    push ebx
+    push eax
     call kernel_main
     cli
     hlt
@@ -24,6 +29,7 @@ stublet:
 switch_ring3:
     extern __ring3_addr
 
+    cli
     mov eax, [esp + 4]
     mov [__ring3_addr], eax
 
@@ -38,6 +44,9 @@ switch_ring3:
 	push (4 * 8) | 3 ; data selector
 	push eax ; current esp
 	pushf ; eflags
+    pop eax
+    or eax, 0x200 ; set IF
+    push eax ; new eflags
 	push (3 * 8) | 3 ; code selector (ring 3 code with bottom 2 bits set for ring 3)
 
     mov eax, [__ring3_addr]

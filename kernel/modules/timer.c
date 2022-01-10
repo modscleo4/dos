@@ -1,5 +1,5 @@
 #include "timer.h"
-#include <stdio.h>
+#include "../kernel.h"
 
 time t;
 date d;
@@ -33,7 +33,7 @@ void pit_handler(registers *r) {
 
     }
 
-    PIC_sendEOI(IRQ_PIT);
+    pic_send_eoi(IRQ_PIT);
 }
 
 void timer_wait(int ms) {

@@ -1,7 +1,7 @@
 BUILD_DIR=../build/kernel
 BIN=$(BUILD_DIR)/kernel
 
-CFLAGS=-ffreestanding -m32 -I libc/include -nostdlib
+CFLAGS=-ffreestanding -m32 -I libc/include -nostdlib -Wl,--stack,0x2000
 
 ASM_SRCS = $(wildcard *.asm cpu/*.asm)
 ASM_OBJS = $(patsubst %.asm, $(BUILD_DIR)/%.obj, $(ASM_SRCS))

@@ -23,31 +23,41 @@ typedef struct ldiv_t {
     long int rem;
 } ldiv_t;
 
-float atof(const char*);
+float atof(const char *);
 
-int atoi(const char*);
+int atoi(const char *);
+
+char *htoa(short int, char *, int);
 
 char *itoa(int, char *, int);
 
 char *ltoa(long int, char *, int);
 
+char *hutoa(unsigned short int, char *, int);
+
 char *utoa(unsigned int, char *, int);
 
 char *lutoa(unsigned long int, char *, int);
 
-long int atol(const char*);
+char *ftoa(float, char *, int);
 
-double strtod(const char*, char**);
+char *lftoa(double, char *, int);
 
-long int strtol(const char*, char**, int);
+long int atol(const char *);
 
-unsigned long int strtoul(const char*, char**, int);
+double strtod(const char *, char **);
 
-void* calloc(size_t, size_t);
+long int strtol(const char *, char **, int);
 
-void free(void*);
+unsigned long int strtoul(const char *, char **, int);
 
-void* realloc(void*, size_t);
+void *calloc(size_t, size_t);
+
+void free(void *);
+
+void *malloc(size_t);
+
+void *realloc(void *, size_t);
 
 void abort(void);
 
@@ -55,34 +65,34 @@ int atexit(void (*)(void));
 
 void exit(int);
 
-char* getenv(const char*);
+char *getenv(const char *);
 
-int system(const char*);
+int system(const char *);
 
-void* bsearch(const void*, const void*, size_t, size_t, int (*)(const void*, const void*));
+void *bsearch(const void *, const void *, size_t, size_t, int (*)(const void *, const void *));
 
-void qsort(void*, size_t, size_t, int (*)(const void*, const void*));
+void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
 
 int abs(int);
 
 div_t div(int, int);
 
-long int labs(long int);
-
 ldiv_t ldiv(long int, long int);
+
+long int labs(long int);
 
 int rand(void);
 
 void srand(unsigned int seed);
 
-int mblen(const char*, size_t);
+int mblen(const char *, size_t);
 
-size_t mbstowcs(wchar_t*, const char*, size_t);
+size_t mbstowcs(wchar_t *, const char *, size_t);
 
-int mbtowc(wchar_t*, const char*, size_t);
+int mbtowc(wchar_t *, const char *, size_t);
 
-size_t wcstombs(char*, const wchar_t*, size_t);
+size_t wcstombs(char *, const wchar_t *, size_t);
 
-int wctomb(char*, wchar_t);
+int wctomb(char *, wchar_t);
 
 #endif //STDLIB_H

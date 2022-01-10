@@ -1,7 +1,7 @@
 BUILD_DIR=../../build/system/init
 BIN=$(BUILD_DIR)/init.elf
 
-CFLAGS=-ffreestanding -m32 -I ../libc/include -nostdlib
+CFLAGS=-ffreestanding -m32 -I ../libc/include -nostdlib -Wl,--stack,0x4000
 
 ASM_SRCS = $(wildcard *.asm)
 ASM_OBJS = $(patsubst %.asm, $(BUILD_DIR)/%.obj, $(ASM_SRCS))

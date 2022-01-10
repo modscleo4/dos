@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#include "cpu/cpuid.h"
 #include "cpu/fpu.h"
 #include "cpu/gdt.h"
 #include "cpu/idt.h"
@@ -24,16 +25,14 @@ int boot_drive;
 
 extern void switch_ring3(unsigned int);
 
-void load_regs(void);
+void panic(const char *);
 
-void panic_handler(const char *);
-
-#define panic(msg) (load_regs(), panic_handler(msg))
+void panic_handler(const char *, registers *);
 
 void dbgprint(const char *msg, ...);
 
 void hexdump(void *ptr, size_t n);
 
-void kernel_main();
+void kernel_main(long int, long int, long int, long int);
 
 #endif //KERNEL_H

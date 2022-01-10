@@ -27,13 +27,21 @@ float atof(const char *);
 
 int atoi(const char *);
 
+char *htoa(short int, char *, int);
+
 char *itoa(int, char *, int);
 
 char *ltoa(long int, char *, int);
 
+char *hutoa(unsigned short int, char *, int);
+
 char *utoa(unsigned int, char *, int);
 
 char *lutoa(unsigned long int, char *, int);
+
+char *ftoa(float, char *, int);
+
+char *lftoa(double, char *, int);
 
 long int atol(const char *);
 
@@ -69,9 +77,9 @@ int abs(int);
 
 div_t div(int, int);
 
-long int labs(long int);
-
 ldiv_t ldiv(long int, long int);
+
+long int labs(long int);
 
 int rand(void);
 

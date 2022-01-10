@@ -280,6 +280,6 @@ isr_common_stub:
     pop fs
     pop es
     pop ds
-    popa
+    popad
     add esp, 8
     iret

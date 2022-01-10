@@ -88,16 +88,17 @@ static const char *drive_types[6] = {
     "1.2MB 5.25in floppy",
     "720KB 3.5in floppy",
     "1.44MB 3.5in floppy",
-    "2.88MB 3.5in floppy"};
+    "2.88MB 3.5in floppy"
+};
 
 typedef enum {
     floppy_direction_read = 1,
     floppy_direction_write = 2
 } floppy_direction;
 
-int init_floppy();
+int floppy_init();
 
-void detect_floppy_types();
+void floppy_detect_types();
 
 void lba2chs(unsigned long int, chs *, floppy_parameters);
 
@@ -109,7 +110,7 @@ void floppy_check_interrupt(unsigned int, int *, int *);
 
 int floppy_calibrate(unsigned int);
 
-int ResetFloppy(unsigned int);
+int floppy_reset(unsigned int);
 
 int floppy_seek(unsigned int, unsigned char, unsigned char);
 

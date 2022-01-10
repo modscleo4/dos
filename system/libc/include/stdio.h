@@ -37,9 +37,13 @@ int putchar(char);
 
 int puts(const char *);
 
-char *gets(char *);
+int vprintf(const char *, va_list);
 
 int printf(const char *, ...);
+
+int vsprintf(char *, const char *, va_list);
+
+int sprintf(char *, const char *, ...);
 
 int scanf(const char *, ...);
 

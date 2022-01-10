@@ -2,11 +2,11 @@
 
 extern void _init_stdio();
 
+char str[1024];
+
 void init() {
     _init_stdio();
-    printf("Ring3!\n");
 
-    char str[1024];
     while (true) {
         printf("> ");
         gets(str);
@@ -15,6 +15,12 @@ void init() {
             printf("not implemented\n");
         } else if (strcmp(str, "exit") == 0) {
             break;
+        } else if (strcmp(str, "div0") == 0) {
+            printf("%f\n", 0.0F / .0F);
+            printf("%f\n", 1.0F / .0F);
+            printf("%f\n", -1.0F / .0F);
+        } else if (strcmp(str, "exc") == 0) {
+            asm("hlt");
         } else {
             printf("unknown command\n");
         }
@@ -23,10 +29,6 @@ void init() {
 
 int main() {
     init();
-
-    /*for (;;) {
-        //
-    }*/
 
     return 0;
 }

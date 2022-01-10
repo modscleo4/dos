@@ -1,7 +1,9 @@
 #include <stdio.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 int in_buf_pos = 0;
 char in_buf[1024] = {0};
@@ -31,7 +33,7 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
 }
 
 int _getchar() {
-    in_buf_pos = syscall(3, in_buf, 1);
+    in_buf_pos = syscall(3, 0, in_buf, 1);
     if (in_buf_pos != 1) {
         return EOF;
     }
@@ -53,7 +55,7 @@ int _flush() {
         return 0;
     }
 
-    int ret = syscall(4, out_buf, out_buf_pos);
+    int ret = syscall(4, 1, out_buf, out_buf_pos);
     out_buf_pos = 0;
     return ret;
 }
@@ -90,7 +92,7 @@ int puts(const char *str) {
 }
 
 char *gets(char *str) {
-    int pos = syscall(3, str, 1024);
+    int pos = syscall(3, 0, str, 1024);
     if (pos == 0) {
         return NULL;
     }
@@ -102,92 +104,13 @@ char *gets(char *str) {
 int vprintf(const char *format, va_list args) {
     char buf[1024] = {0};
 
-    int modifier = 0;
-
-    while (*format) {
-        if (modifier || *format == '%') {
-            format++;
-
-            switch (*format++) {
-                case '%':
-                    _putchar('%');
-                    break;
-
-                case 'l':
-                    modifier++;
-                    continue;
-
-                case 'c':
-                    _putchar((char)va_arg(args, int));
-                    break;
-
-                case 'u':
-                    if (modifier == 1) {
-                        lutoa(va_arg(args, unsigned long int), buf, 10);
-                    } else {
-                        utoa(va_arg(args, unsigned int), buf, 10);
-                    }
-
-                    _puts(buf);
-
-                    break;
-
-                case 'i':
-                case 'd':
-                    if (modifier == 1) {
-                        ltoa(va_arg(args, long int), buf, 10);
-                    } else {
-                        itoa(va_arg(args, int), buf, 10);
-                    }
-
-                    _puts(buf);
-
-                    break;
-
-                case 'o':
-                    if (modifier == 1) {
-                        ltoa(va_arg(args, long int), buf, 8);
-                    } else {
-                        itoa(va_arg(args, int), buf, 8);
-                    }
-
-                    _puts(buf);
-                    break;
-
-                case 's':
-                    _puts(va_arg(args, char *));
-                    break;
-
-                case 'x':
-                    if (modifier == 1) {
-                        ltoa(va_arg(args, long int), buf, 16);
-                    } else {
-                        itoa(va_arg(args, int), buf, 16);
-                    }
-
-                    _puts(buf);
-                    break;
-
-                case 'X':
-                    if (modifier == 1) {
-                        ltoa(va_arg(args, long int), buf, 16);
-                    } else {
-                        itoa(va_arg(args, int), buf, 16);
-                    }
-
-                    _puts(strupr(buf));
-                    break;
-            }
-
-            modifier = 0;
-        } else {
-            _putchar(*format++);
-        }
+    int ret = vsprintf(buf, format, args);
+    if (ret == -1) {
+        return -1;
     }
 
-    _flush();
-
-    return 0;
+    _puts(buf);
+    return _flush();
 }
 
 int printf(const char *format, ...) {
@@ -198,6 +121,220 @@ int printf(const char *format, ...) {
 
     va_end(args);
     return ret;
+}
+
+int vsprintf(char *str, const char *format, va_list args) {
+    char buf[1024] = {0};
+
+    int modifier = 0;
+    char curr_mod = 0;
+    bool padding = false;
+    int padding_size = 0;
+    int buf_len;
+    bool dec_count = false;
+    int dec_count_len = 0;
+
+    while (*format) {
+        if (modifier || padding || *format == '%') {
+            format++;
+
+            switch (*format) {
+                case '%':
+                    *str = '%';
+                    str++;
+                    break;
+
+                case '0':
+                    if (!padding && !curr_mod) {
+                        curr_mod = *format;
+                        padding = true;
+                        continue;
+                    }
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    if (curr_mod == '0') {
+                        padding_size *= 10;
+                        padding_size += *format - '0';
+                    } else if (curr_mod == '.') {
+                        dec_count_len *= 10;
+                        dec_count_len += *format - '0';
+                    }
+                    continue;
+
+                case '.':
+                    curr_mod = *format;
+                    dec_count = true;
+                    continue;
+
+                case 'l':
+                    modifier++;
+                    continue;
+
+                case 'h':
+                    modifier--;
+                    continue;
+
+                case 'c':
+                    *(++str) = (char)va_arg(args, int);
+                    break;
+
+                case 's':
+                    strcpy(buf, va_arg(args, char *));
+
+                    str = strcat(str, buf);
+                    str += strlen(buf);
+                    break;
+
+                case 'u':
+                    if (modifier == 1) {
+                        lutoa(va_arg(args, unsigned long int), buf, 10);
+                    } else if (modifier == 0) {
+                        utoa(va_arg(args, unsigned int), buf, 10);
+                    } else if (modifier == -1) {
+                        hutoa((unsigned short int)va_arg(args, unsigned int), buf, 10);
+                    }
+
+                    str = strcat(str, buf);
+                    str += strlen(buf);
+                    break;
+
+                case 'i':
+                case 'd':
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 10);
+                    } else if (modifier == 0) {
+                        itoa(va_arg(args, int), buf, 10);
+                    } else if (modifier == -1) {
+                        htoa((short int)va_arg(args, int), buf, 10);
+                    }
+
+                    buf_len = strlen(buf);
+                    if (padding && padding_size > buf_len) {
+                        memmove(buf + padding_size - buf_len, buf, buf_len);
+                        memset(buf, '0', padding_size - buf_len);
+                    }
+
+                    str = strcat(str, buf);
+                    str += strlen(buf);
+                    break;
+
+                case 'o':
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 8);
+                    } else if (modifier == 0) {
+                        itoa(va_arg(args, int), buf, 8);
+                    } else if (modifier == -1) {
+                        htoa((short int)va_arg(args, int), buf, 8);
+                    }
+
+                    buf_len = strlen(buf);
+                    if (padding && padding_size > buf_len) {
+                        memmove(buf + padding_size - buf_len, buf, buf_len);
+                        memset(buf, '0', padding_size - buf_len);
+                    }
+
+                    str = strcat(str, buf);
+                    str += strlen(buf);
+                    break;
+
+                case 'b':
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 2);
+                    } else if (modifier == 0) {
+                        itoa(va_arg(args, int), buf, 2);
+                    } else if (modifier == -1) {
+                        htoa((short int)va_arg(args, int), buf, 2);
+                    }
+
+                    buf_len = strlen(buf);
+                    if (padding && padding_size > buf_len) {
+                        memmove(buf + padding_size - buf_len, buf, buf_len);
+                        memset(buf, '0', padding_size - buf_len);
+                    }
+
+                    str = strcat(str, buf);
+                    str += strlen(buf);
+                    break;
+
+                case 'x':
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 16);
+                    } else if (modifier == 0) {
+                        itoa(va_arg(args, int), buf, 16);
+                    } else if (modifier == -1) {
+                        htoa((short int)va_arg(args, int), buf, 16);
+                    }
+
+                    buf_len = strlen(buf);
+                    if (padding && padding_size > buf_len) {
+                        memmove(buf + padding_size - buf_len, buf, buf_len);
+                        memset(buf, '0', padding_size - buf_len);
+                    }
+
+                    str = strcat(str, buf);
+                    str += strlen(buf);
+                    break;
+
+                case 'X':
+                    if (modifier == 1) {
+                        ltoa(va_arg(args, long int), buf, 16);
+                    } else if (modifier == 0) {
+                        itoa(va_arg(args, int), buf, 16);
+                    } else if (modifier == -1) {
+                        htoa((short int)va_arg(args, int), buf, 16);
+                    }
+
+                    buf_len = strlen(buf);
+                    if (padding && padding_size > buf_len) {
+                        memmove(buf + padding_size - buf_len, buf, buf_len);
+                        memset(buf, '0', padding_size - buf_len);
+                    }
+
+                    str = strcat(str, strupr(buf));
+                    str += strlen(buf);
+                    break;
+
+                case 'f':
+                    if (modifier == 1) {
+                        lftoa(va_arg(args, double), buf, dec_count ? dec_count_len : 6);
+                    } else if (modifier == 0) {
+                        ftoa((float)va_arg(args, double), buf, dec_count ? dec_count_len : 6);
+                    }
+
+                    buf_len = strlen(buf);
+                    if (padding && padding_size > buf_len) {
+                        memmove(buf + padding_size - buf_len, buf, buf_len);
+                        memset(buf, '0', padding_size - buf_len);
+                    }
+
+                    str = strcat(str, buf);
+                    str += strlen(buf);
+
+                    break;
+            }
+
+            curr_mod = 0;
+            modifier = 0;
+            padding = false;
+            padding_size = 0;
+            dec_count = false;
+            dec_count_len = 0;
+        } else {
+            *str = *format;
+            str++;
+        }
+
+        format++;
+    }
+
+    return 0;
 }
 
 int scanf(const char *format, ...) {
