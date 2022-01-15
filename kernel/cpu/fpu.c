@@ -1,7 +1,11 @@
 #include "fpu.h"
 
-#include "cpuid.h"
 #include "../bits.h"
+#include "cpuid.h"
+#include "../debug.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
 
 void fpu_load_control_word(const unsigned short int control) {
     asm volatile("fldcw %0;"
@@ -9,7 +13,7 @@ void fpu_load_control_word(const unsigned short int control) {
                  : "m"(control));
 }
 
-void fpu_init() {
+void fpu_init(void) {
     long int cr0;
     asm volatile("mov %%cr0, %0;"
                  : "=r"(cr0));
@@ -28,11 +32,11 @@ void fpu_init() {
     }
 }
 
-bool sse_available() {
+bool sse_available(void) {
     return cpuid.sse;
 }
 
-void sse_init() {
+void sse_init(void) {
     long int cr0;
     long int cr4;
     asm volatile("mov %%cr0, %0;"

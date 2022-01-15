@@ -1,11 +1,8 @@
 #ifndef KERNEL_SYSCALL_H
 #define KERNEL_SYSCALL_H
 
-#include "idt.h"
-#include "system.h"
+extern void syscall_handler(void);
 
-extern void syscall_handler();
-
-void syscall_init();
+void syscall_init(void);
 
 #endif //KERNEL_SYSCALL_H

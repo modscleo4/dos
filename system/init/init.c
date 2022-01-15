@@ -2,10 +2,15 @@
 
 extern void _init_stdio();
 
-char str[1024];
-
-void init() {
+void _main(void) {
     _init_stdio();
+
+    syscall(0, main());
+}
+
+int main(void) {
+    unsigned long int esp;
+    char str[1024];
 
     while (true) {
         printf("> ");
@@ -19,16 +24,12 @@ void init() {
             printf("%f\n", 0.0F / .0F);
             printf("%f\n", 1.0F / .0F);
             printf("%f\n", -1.0F / .0F);
-        } else if (strcmp(str, "exc") == 0) {
+        } else if (strcmp(str, "panic") == 0) {
             asm("hlt");
         } else {
             printf("unknown command\n");
         }
     }
-}
-
-int main() {
-    init();
 
     return 0;
 }

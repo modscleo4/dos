@@ -1,4 +1,7 @@
 #include "fat.h"
+
+#include "../cpu/panic.h"
+#include "../debug.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -24,12 +27,12 @@ unsigned short int fat_next_cluster(unsigned int cluster, const unsigned char *b
     return table_value;
 }
 
-void fat_load(int drive) {
-    floppy_reset(drive);
-    unsigned char buffer[512];
-    floppy_sector_read(drive, 0, buffer, true);
+void fat_init(iodriver *driver) {
+    dbgprint("Reading File Allocation Table...\n");
 
-    buffer2struct(buffer, &params);
+    driver->read_sector(driver->device, 0, driver->io_buffer, true);
+
+    buffer2struct(driver->io_buffer, &params);
     char volume_label[12];
     char filesystem[9];
     strncpy(volume_label, params.volume_label, 11);
@@ -62,16 +65,16 @@ char *dos83toStr(const char *name, const char *ext) {
     return ret;
 }
 
-int fat_search_file(int drive, const char *filename, fat_entry *f) {
+int fat_search_file(iodriver *driver, const char *filename, void *_f) {
+    fat_entry *f = (fat_entry *)_f;
     unsigned char buffer[512];
 
     int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
     int last_sector = params.rootdir_entries * sizeof(fat_entry);
 
-    int i;
-    for (i = 0; i < last_sector; i += sizeof(fat_entry)) {
+    for (int i = 0; i < last_sector; i += sizeof(fat_entry)) {
         if (i % 512 == 0) {
-            floppy_sector_read(drive, rootdir_sector++, buffer, i != last_sector / sizeof(fat_entry));
+            driver->read_sector(driver->device, rootdir_sector++, buffer, i != last_sector / sizeof(fat_entry));
         }
 
         if (buffer[i % 512] == 0) {
@@ -80,7 +83,7 @@ int fat_search_file(int drive, const char *filename, fat_entry *f) {
 
         buffer2fatentry(&buffer[i % 512], f);
 
-        if (strcmp(dos83toStr(f->name, f->size), filename) == 0) {
+        if (strcmp(dos83toStr(f->name, f->ext), filename) == 0) {
             return 0;
         }
     }
@@ -88,7 +91,8 @@ int fat_search_file(int drive, const char *filename, fat_entry *f) {
     return -1;
 }
 
-void *fat_load_file_at(int drive, const fat_entry *f, void *addr) {
+void *fat_load_file_at(iodriver *driver, const void *_f, void *addr) {
+    fat_entry *f = (fat_entry *)_f;
     if (!f) {
         return NULL;
     }
@@ -110,49 +114,45 @@ void *fat_load_file_at(int drive, const fat_entry *f, void *addr) {
 
         unsigned int sector = (cluster - 2) * params.sectors_per_cluster + rootdir_sector + (params.rootdir_entries * sizeof(fat_entry) / params.bytes_per_sector);
 
-        unsigned char buffer[512];
-
         if (!last_fat_sector || last_fat_sector != fat_sector) {
-            floppy_sector_read(drive, fat_sector, fat_buffer, true);
+            driver->read_sector(driver->device, fat_sector, fat_buffer, true);
         }
 
-        floppy_sector_read(drive, sector, buffer, true);
+        driver->read_sector(driver->device, sector, driver->io_buffer, true);
 
-        memcpy(addr + cl, buffer, params.bytes_per_sector);
+        memcpy(addr + cl, driver->io_buffer, params.bytes_per_sector);
         cl += params.bytes_per_sector;
 
         last_fat_sector = fat_sector;
         cluster = fat_next_cluster(cluster, fat_buffer, ent_offset);
     }
 
-    floppy_motor_off(drive);
+    driver->stop(driver->device);
 
     return addr;
 }
 
-void fat_listfiles(int drive) {
+void fat_list_files(iodriver *driver) {
     printf("Files on disk: \n");
 
-    fat_entry *f;
-    unsigned char buffer[512];
+    fat_entry f;
 
     int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
 
-    int i;
-    for (i = 0; i < params.rootdir_entries * sizeof(fat_entry); i += sizeof(fat_entry)) {
+    for (int i = 0; i < params.rootdir_entries * sizeof(fat_entry); i += sizeof(fat_entry)) {
         if (i % 512 == 0) {
-            floppy_sector_read(drive, rootdir_sector++, buffer, i != params.rootdir_entries * sizeof(fat_entry));
+            driver->read_sector(driver->device, rootdir_sector++, driver->io_buffer, i != params.rootdir_entries * sizeof(fat_entry));
         }
 
-        if (buffer[i % 512] == 0) {
+        if (driver->io_buffer[i % 512] == 0) {
             continue;
         }
 
-        buffer2fatentry(&buffer[i % 512], f);
+        buffer2fatentry(&driver->io_buffer[i % 512], &f);
 
-        printf("  Name: %s\n", dos83toStr(f->name, f->ext));
-        printf("    Size: %d\n", f->size);
-        printf("    Cluster: %d\n", f->cluster);
+        printf("  Name: %s\n", dos83toStr(f.name, f.ext));
+        printf("    Size: %d\n", f.size);
+        printf("    Cluster: %d\n", f.cluster);
         printf("\n");
     }
 }

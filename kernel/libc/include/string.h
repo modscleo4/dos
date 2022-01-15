@@ -1,7 +1,6 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <ctype.h>
 #include <stddef.h>
 
 void memcpy(void *, const void *, size_t);

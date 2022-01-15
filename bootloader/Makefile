@@ -9,11 +9,11 @@ dir:
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/%.o: %.asm
-	nasm -f elf -F dwarf -g $< -o $@
+	nasm -f elf -F dwarf -g $< -o $@ $(ARG1)
 
 $(BUILD_DIR)/bootloader: $(BOOTLOADER_OBJS)
 	ld -m elf_i386 -nmagic -T bootloader.lds $< -o $@.elf
 	objcopy -O binary -j .text $@.elf $@
 
 clean:
-	rm $(BOOTLOADER_OBJS)
+	rm -f $(BOOTLOADER_OBJS)

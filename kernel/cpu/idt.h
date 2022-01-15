@@ -1,8 +1,6 @@
 #ifndef KERNEL_IDT_H
 #define KERNEL_IDT_H
 
-#include "../bits.h"
-
 extern void load_idt(unsigned long int);
 
 typedef struct IDT_entry {
@@ -20,6 +18,6 @@ typedef struct IDT_ptr {
 
 void idt_set_gate(unsigned char, unsigned long int, unsigned short int, unsigned char);
 
-void idt_init();
+void idt_init(void);
 
 #endif //KERNEL_IDT_H

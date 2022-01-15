@@ -1,9 +1,12 @@
-#include <stdio.h>
 #include <stdlib.h>
 
+#include "../debug.h"
+#include "../ring3.h"
+#include "../cpu/gdt.h"
+#include "../drivers/fat.h"
 #include <math.h>
-#include "../drivers/floppy.h"
-#include "../kernel.h"
+#include <stdio.h>
+#include <string.h>
 
 float atof(const char *str) {
     return 0.0F;
@@ -198,7 +201,7 @@ char *getenv(const char *name) {
 
 int system(const char *command) {
     fat_entry f;
-    if (fat_search_file(boot_drive, command, &f)) {
+    if (fs.search_file(&io_driver, command, &f)) {
         dbgprint("Not found.\n");
         return -1;
     }
@@ -209,17 +212,18 @@ int system(const char *command) {
         return -1;
     }
 
-    if (!fat_load_file_at(boot_drive, &f, addr)) {
+    if (!fs.load_file_at(&io_driver, &f, addr)) {
         dbgprint("Not found.\n");
         return -1;
     }
 
     dbgprint("%s loaded at address %x\n", command, addr);
-    addr += 0x1000;
 
-    set_kernel_stack(0x110000);
+    static unsigned long int esp;
+    asm volatile("mov %%esp, %0" : "=r"(esp));
+    set_kernel_stack(esp);
 
-    switch_ring3(addr);
+    switch_ring3(addr + 0x1000, addr + 0x10000);
 
     return 0;
 }

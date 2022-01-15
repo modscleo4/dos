@@ -1,10 +1,6 @@
 #ifndef KERNEL_TIMER_H
 #define KERNEL_TIMER_H
 
-#include "../cpu/irq.h"
-#include "../cpu/system.h"
-#include "cmos.h"
-
 typedef struct time {
     unsigned char hour;
     unsigned char minute;
@@ -17,10 +13,10 @@ typedef struct date {
     unsigned int day;
 } date;
 
-void getRTC();
+void rtc_init(void);
 
 void timer_wait(int);
 
-void timer_init();
+void timer_init(void);
 
 #endif //KERNEL_TIMER_H

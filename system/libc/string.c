@@ -1,11 +1,12 @@
 #include <string.h>
 
+#include <ctype.h>
+
 void memcpy(void *dest, const void *source, size_t n) {
     unsigned char *c_src = (unsigned char *)source;
     unsigned char *c_dest = (unsigned char *)dest;
 
-    int i;
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         c_dest[i] = c_src[i];
     }
 }
@@ -27,8 +28,7 @@ void *memmove(void *dest, const void *source, size_t n) {
         unsigned char *c_dest = (unsigned char *)dest;
         unsigned char *c_src = (unsigned char *)source;
 
-        int i;
-        for (i = n - 1; i >= 0; i--) {
+        for (int i = n - 1; i >= 0; i--) {
             c_dest[i] = c_src[i];
         }
     }
@@ -90,8 +90,7 @@ int strcmp(const char *str1, const char *str2) {
 void *memchr(void *ptr, int value, size_t num) {
     unsigned char *ptr_c = (unsigned char *)ptr;
 
-    int i;
-    for (i = 0; i < num; i++) {
+    for (int i = 0; i < num; i++) {
         if (ptr_c[i] == (unsigned char)value) {
             return &ptr_c[i];
         }

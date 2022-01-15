@@ -2,7 +2,6 @@
 
 global kernel_start
 global switch_ring3
-global _asm_load_regs
 
 global sys_stack
 
@@ -32,6 +31,7 @@ switch_ring3:
     cli
     mov eax, [esp + 4]
     mov [__ring3_addr], eax
+    mov esp, [esp + 8]
 
     mov ax, (4 * 8) | 3 ; ring 3 data with bottom 2 bits set for ring 3
 	mov ds, ax
@@ -55,8 +55,9 @@ switch_ring3:
     iret
     ret
 
+
 section .bss
 
 sys_stack_start:
-    resb 8192
+    resb 16384
 sys_stack:

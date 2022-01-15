@@ -11,7 +11,7 @@ char in_buf[1024] = {0};
 int out_buf_pos = 0;
 char out_buf[1024] = {0};
 
-void _init_stdio() {
+void _init_stdio(void) {
     in_buf_pos = 0;
     out_buf_pos = 0;
 }
@@ -32,7 +32,7 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
     return NULL;
 }
 
-int _getchar() {
+int _getchar(void) {
     in_buf_pos = syscall(3, 0, in_buf, 1);
     if (in_buf_pos != 1) {
         return EOF;
@@ -41,7 +41,7 @@ int _getchar() {
     return in_buf[in_buf_pos = 0];
 }
 
-int getchar() {
+int getchar(void) {
     unsigned char ret = _getchar();
     if (ret <= 0) {
         return -1;
@@ -50,7 +50,7 @@ int getchar() {
     return ret;
 }
 
-int _flush() {
+static int _flush(void) {
     if (out_buf_pos == 0) {
         return 0;
     }
@@ -60,7 +60,7 @@ int _flush() {
     return ret;
 }
 
-int _putchar(char c) {
+static int _putchar(char c) {
     if (out_buf_pos == 1024) {
         _flush();
     }
@@ -74,7 +74,7 @@ int putchar(char c) {
     return _flush();
 }
 
-int _puts(const char *str) {
+static int _puts(const char *str) {
     while (*str) {
         if (_putchar(*str++) == EOF) {
             return EOF;
@@ -182,7 +182,8 @@ int vsprintf(char *str, const char *format, va_list args) {
                     continue;
 
                 case 'c':
-                    *(++str) = (char)va_arg(args, int);
+                    *str = (char)va_arg(args, int);
+                    str++;
                     break;
 
                 case 's':

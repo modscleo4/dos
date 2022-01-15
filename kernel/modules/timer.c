@@ -1,11 +1,17 @@
 #include "timer.h"
-#include "../kernel.h"
+
+#include "../bits.h"
+#include "../debug.h"
+#include "../cpu/irq.h"
+#include "../cpu/pic.h"
+#include "../cpu/system.h"
+#include "cmos.h"
 
 time t;
 date d;
 int timer_ticks = 0;
 
-void getRTC() {
+void rtc_init(void) {
     outb(0x70, 0x8A);
     outb(0x71, 0x20);
 
@@ -26,14 +32,12 @@ void timer_phase(int hz) {
     outb(0x40, (divisor >> 8) & 0xFF);
 }
 
-void pit_handler(registers *r) {
+static void irq0_handler(registers *r) {
     timer_ticks += 10;
 
     if (timer_ticks % 1000 == 0) {
 
     }
-
-    pic_send_eoi(IRQ_PIT);
 }
 
 void timer_wait(int ms) {
@@ -41,8 +45,8 @@ void timer_wait(int ms) {
     while (timer_ticks < elapsed_ticks) {}
 }
 
-void timer_init() {
-    getRTC();
+void timer_init(void) {
+    rtc_init();
     timer_phase(100);
-    irq_install_handler(IRQ_PIT, pit_handler);
+    irq_install_handler(IRQ_PIT, irq0_handler);
 }

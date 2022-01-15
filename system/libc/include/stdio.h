@@ -31,11 +31,13 @@ FILE *fopen(const char *, const char *);
 
 FILE *freopen(const char *, const char *, FILE *);
 
-int getchar();
+int getchar(void);
 
 int putchar(char);
 
 int puts(const char *);
+
+char *gets(char *);
 
 int vprintf(const char *, va_list);
 

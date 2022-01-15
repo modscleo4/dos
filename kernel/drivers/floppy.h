@@ -1,12 +1,8 @@
 #ifndef FLOPPY_H
 #define FLOPPY_H
 
-#include "../bits.h"
-#include "../modules/cmos.h"
-#include "../cpu/irq.h"
-#include "../modules/timer.h"
-#include "fat.h"
-#include <stdlib.h>
+#include "../cpu/system.h"
+#include "iodriver.h"
 #include <stdbool.h>
 
 #define DISK_PARAMETER_ADDRESS 0x000FEFC7
@@ -33,53 +29,53 @@ typedef struct {
 
 #define FLOPPY_PRIMARY_BASE 0x03F0
 #define FLOPPY_SECONDARY_BASE 0x0370
+#define FLOPPY_TERTIARY_BASE 0x0360
 
-enum FloppyRegisters {
-    STATUS_REGISTER_A = 0x000, // read-only
-    STATUS_REGISTER_B = 0x001, // read-only
-    DIGITAL_OUTPUT_REGISTER = 0x002,
-    TAPE_DRIVE_REGISTER = 0x003,
-    MAIN_STATUS_REGISTER = 0x004,     // read-only
-    DATARATE_SELECT_REGISTER = 0x004, // write-only
-    DATA_FIFO = 0x005,
-    DIGITAL_INPUT_REGISTER = 0x007,        // read-only
-    CONFIGURATION_CONTROL_REGISTER = 0x007 // write-only
+enum Floppy_Registers {
+    FLOPPY_STATUS_REGISTER_A = 0x000, // read-only
+    FLOPPY_STATUS_REGISTER_B = 0x001, // read-only
+    FLOPPY_DIGITAL_OUTPUT_REGISTER = 0x002,
+    FLOPPY_TAPE_DRIVE_REGISTER = 0x003,
+    FLOPPY_MAIN_STATUS_REGISTER = 0x004,     // read-only
+    FLOPPY_DATARATE_SELECT_REGISTER = 0x004, // write-only
+    FLOPPY_DATA_FIFO = 0x005,
+    FLOPPY_DIGITAL_INPUT_REGISTER = 0x007,        // read-only
+    FLOPPY_CONFIGURATION_CONTROL_REGISTER = 0x007 // write-only
 };
 
-enum FloppyCommands {
-    READ_TRACK = 2, // generates IRQ6
-    SPECIFY = 3,    // * set drive parameters
-    SENSE_DRIVE_STATUS = 4,
-    WRITE_DATA = 5,      // * write to the disk
-    READ_DATA = 6,       // * read from the disk
-    RECALIBRATE = 7,     // * seek to cylinder 0
-    SENSE_INTERRUPT = 8, // * ack IRQ6, get status of last command
-    WRITE_DELETED_DATA = 9,
-    READ_ID = 10, // generates IRQ6
-    READ_DELETED_DATA = 12,
-    FORMAT_TRACK = 13, // *
-    DUMPREG = 14,
-    SEEK = 15,    // * seek both heads to cylinder X
-    VERSION = 16, // * used during initialization, once
-    SCAN_EQUAL = 17,
-    PERPENDICULAR_MODE = 18, // * used during initialization, once, maybe
-    CONFIGURE = 19,          // * set controller parameters
-    LOCK = 20,               // * protect controller params from a reset
-    VERIFY = 22,
-    SCAN_LOW_OR_EQUAL = 25,
-    SCAN_HIGH_OR_EQUAL = 29
+enum Floppy_Commands {
+    FLOPPY_READ_TRACK = 2, // generates IRQ6
+    FLOPPY_SPECIFY = 3,    // * set drive parameters
+    FLOPPY_SENSE_DRIVE_STATUS = 4,
+    FLOPPY_WRITE_DATA = 5,      // * write to the disk
+    FLOPPY_READ_DATA = 6,       // * read from the disk
+    FLOPPY_RECALIBRATE = 7,     // * seek to cylinder 0
+    FLOPPY_SENSE_INTERRUPT = 8, // * ack IRQ6, get status of last command
+    FLOPPY_WRITE_DELETED_DATA = 9,
+    FLOPPY_READ_ID = 10, // generates IRQ6
+    FLOPPY_READ_DELETED_DATA = 12,
+    FLOPPY_FORMAT_TRACK = 13, // *
+    FLOPPY_DUMPREG = 14,
+    FLOPPY_SEEK = 15,    // * seek both heads to cylinder X
+    FLOPPY_VERSION = 16, // * used during initialization, once
+    FLOPPY_SCAN_EQUAL = 17,
+    FLOPPY_PERPENDICULAR_MODE = 18, // * used during initialization, once, maybe
+    FLOPPY_CONFIGURE = 19,          // * set controller parameters
+    FLOPPY_LOCK = 20,               // * protect controller params from a reset
+    FLOPPY_VERIFY = 22,
+    FLOPPY_SCAN_LOW_OR_EQUAL = 25,
+    FLOPPY_SCAN_HIGH_OR_EQUAL = 29
 };
 
-enum FloppyMSRFlags {
-    MSR_MRQ = 0x80,
-    MSR_DIO = 0x40,
-    MSR_NON_DMA = 0x20,
-    MSR_BUSY = 0x10,
-    MSR_ACTD = 0x08,
-    MSR_ACTC = 0x04,
-    MSR_ACTB = 0x02,
-    MSR_ACTA = 0x01
-
+enum Floppy_MSR_Flags {
+    FLOPPY_MSR_MRQ = 0x80,
+    FLOPPY_MSR_DIO = 0x40,
+    FLOPPY_MSR_NON_DMA = 0x20,
+    FLOPPY_MSR_BUSY = 0x10,
+    FLOPPY_MSR_ACTD = 0x08,
+    FLOPPY_MSR_ACTC = 0x04,
+    FLOPPY_MSR_ACTB = 0x02,
+    FLOPPY_MSR_ACTA = 0x01
 };
 
 static const char *drive_types[6] = {
@@ -91,16 +87,15 @@ static const char *drive_types[6] = {
     "2.88MB 3.5in floppy"
 };
 
-typedef enum {
-    floppy_direction_read = 1,
-    floppy_direction_write = 2
-} floppy_direction;
+iodriver *floppy_init(unsigned int);
 
-int floppy_init();
-
-void floppy_detect_types();
+void floppy_detect_types(void);
 
 void lba2chs(unsigned long int, chs *, floppy_parameters);
+
+void wait_irq6(void);
+
+int floppy_wait_until_ready(unsigned int);
 
 int floppy_recv_byte(unsigned int);
 
@@ -112,17 +107,17 @@ int floppy_calibrate(unsigned int);
 
 int floppy_reset(unsigned int);
 
+void floppy_specify(unsigned int);
+
 int floppy_seek(unsigned int, unsigned char, unsigned char);
 
 void floppy_motor_on(unsigned int);
 
 void floppy_motor_off(unsigned int);
 
-void floppy_handler(registers *);
+static void floppy_dma_init(io_operation, unsigned char *);
 
-static void floppy_dma_init(floppy_direction, unsigned char *);
-
-int floppy_do_sector(unsigned int, unsigned long int, unsigned char *, floppy_direction, bool);
+int floppy_do_sector(unsigned int, unsigned long int, unsigned char *, io_operation, bool);
 
 int floppy_sector_read(unsigned int, unsigned long int, unsigned char *, bool);
 

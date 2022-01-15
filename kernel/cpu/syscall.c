@@ -1,15 +1,22 @@
 #include "syscall.h"
 
 #include "../cpu/gdt.h"
+#include "../debug.h"
+#include "../ring3.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/screen.h"
-#include "../kernel.h"
+#include "idt.h"
+#include "system.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 
 // This var is to store the current SYSCALL return value
 int __syscall_ret;
+
+long int syscall_exit(int exit_code) {
+    return 0;
+}
 
 long int syscall_read(int fd, char *buf, size_t count) {
     return read(buf, count);
@@ -20,7 +27,7 @@ long int syscall_write(int fd, char *buf, size_t count) {
 }
 
 static void *syscalls[] = {
-    NULL,
+    &syscall_exit,
     NULL,
     NULL,
     &syscall_read,
@@ -151,6 +158,7 @@ static void *syscalls[] = {
 };
 
 int run_syscall(registers *r) {
+    unsigned long int esp;
     int ret = -1;
     asm("sti");
     long int no = r->eax;
@@ -180,6 +188,6 @@ int run_syscall(registers *r) {
     return ret;
 }
 
-void syscall_init() {
+void syscall_init(void) {
     idt_set_gate(128, (unsigned int)syscall_handler, 0x08, 0x8E);
 }

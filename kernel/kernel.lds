@@ -5,10 +5,11 @@ ENTRY(kernel_start);
 
 SECTIONS
 {
-    .text 0x10000 :
+    .text 0x11000 :
     {
         . = 0x0;
         *(.text.kernel_start)
+        *(.text.switch_ring3)
         *(.text*)
     }
 

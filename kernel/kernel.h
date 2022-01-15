@@ -1,38 +1,31 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-
+#include "ring3.h"
+#include "bits.h"
 #include "cpu/cpuid.h"
 #include "cpu/fpu.h"
 #include "cpu/gdt.h"
 #include "cpu/idt.h"
 #include "cpu/irq.h"
 #include "cpu/isr.h"
+#include "cpu/panic.h"
 #include "cpu/pic.h"
 #include "cpu/syscall.h"
+#include "debug.h"
+#include "drivers/pci.h"
+#include "drivers/ata.h"
+#include "drivers/fat.h"
 #include "drivers/floppy.h"
+#include "drivers/mbr.h"
 #include "drivers/keyboard.h"
 #include "drivers/screen.h"
 #include "modules/timer.h"
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-uintptr_t _esp;
-
-int boot_drive;
-
-extern void switch_ring3(unsigned int);
-
-void panic(const char *);
-
-void panic_handler(const char *, registers *);
-
-void dbgprint(const char *msg, ...);
-
-void hexdump(void *ptr, size_t n);
-
-void kernel_main(long int, long int, long int, long int);
+void kernel_main(unsigned int, unsigned int, unsigned int, unsigned int);
 
 #endif //KERNEL_H

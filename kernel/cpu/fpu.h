@@ -1,10 +1,7 @@
 #ifndef KERNEL_FPU_H
 #define KERNEL_FPU_H
 
-#include "../kernel.h"
-#include <stddef.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 enum CR0 {
     CR0_MP = 1 << 1,

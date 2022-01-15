@@ -1,7 +1,7 @@
 BUILD_DIR=../../build/system/init
 BIN=$(BUILD_DIR)/init.elf
 
-CFLAGS=-ffreestanding -m32 -I ../libc/include -nostdlib -Wl,--stack,0x4000
+CFLAGS=-ffreestanding -m32 -I ../libc/include -nostdlib -Wl,--stack,0x4000 -Wno-packed-bitfield-compat
 
 ASM_SRCS = $(wildcard *.asm)
 ASM_OBJS = $(patsubst %.asm, $(BUILD_DIR)/%.obj, $(ASM_SRCS))
@@ -24,4 +24,4 @@ $(BIN): $(ASM_OBJS) $(OBJS)
 	ld -m elf_i386 -T init.lds $^ -o $@
 
 clean:
-	rm $(OBJS)
+	rm -f $(OBJS)

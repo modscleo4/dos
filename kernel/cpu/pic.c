@@ -1,5 +1,7 @@
 #include "pic.h"
 
+#include "../bits.h"
+
 void pic_send_eoi(unsigned char irq) {
     if (irq >= 8) {
         outb(PIC2_COMMAND, 0x20);

@@ -1,7 +1,11 @@
 #include "irq.h"
-#include "gdt.h"
 
-void irq_remap() {
+#include "gdt.h"
+#include "../bits.h"
+#include "idt.h"
+#include "pic.h"
+
+void irq_remap(void) {
     outb(0x20, 0x11);
     outb(0xA0, 0x11);
     outb(0x21, 0x20);
@@ -24,7 +28,7 @@ void irq_uninstall_handler(int irq) {
     irq_routines[irq] = 0;
 }
 
-void irq_init() {
+void irq_init(void) {
     irq_remap();
     idt_set_gate(32, (unsigned int)irq0, 0x08, 0x8E);
     idt_set_gate(33, (unsigned int)irq1, 0x08, 0x8E);

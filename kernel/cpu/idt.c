@@ -1,4 +1,6 @@
 #include "idt.h"
+
+#include "../bits.h"
 #include <string.h>
 
 IDT_entry idt[256];

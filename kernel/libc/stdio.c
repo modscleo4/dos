@@ -22,7 +22,7 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
     return NULL;
 }
 
-int getchar() {
+int getchar(void) {
     char ret;
     while ((ret = keyboard_read()) == -1) { }
 
@@ -73,7 +73,7 @@ int write(const char *buf, int size) {
     return i;
 }
 
-int _puts(const char *str) {
+static int _puts(const char *str) {
     while (*str) {
         if (putchar(*str++) == EOF) {
             return EOF;
@@ -172,7 +172,8 @@ int vsprintf(char *str, const char *format, va_list args) {
                     continue;
 
                 case 'c':
-                    *(++str) = (char)va_arg(args, int);
+                    *str = (char)va_arg(args, int);
+                    str++;
                     break;
 
                 case 's':

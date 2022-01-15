@@ -17,7 +17,7 @@ int syscall(int sysno, ...) {
 
     int retval;
 
-    asm("push %%ebp;"
+    asm volatile("push %%ebp;"
         "mov %1, %%ebp;"
         "int $0x80;"
         "pop %%ebp"

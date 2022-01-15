@@ -3,7 +3,7 @@
 
 extern void gdt_flush(unsigned long int);
 
-extern void tss_flush();
+extern void tss_flush(void);
 
 typedef union GDT_entry {
     struct {
@@ -68,7 +68,7 @@ typedef struct TSS_entry {
     unsigned short int iomap_base;
 } __attribute__((packed)) TSS_entry;
 
-void gdt_init();
+void gdt_init(void);
 
 void install_tss(int, unsigned short int, unsigned int);
 

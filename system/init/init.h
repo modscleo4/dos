@@ -4,7 +4,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
-int main();
+int main(void);
 
 #endif //INIT_H

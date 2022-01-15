@@ -1,82 +1,37 @@
 #include "kernel.h"
 
-#define DEBUG
-
-// This variable stores the address to the target Ring 3
-unsigned long int __ring3_addr;
-
-void panic(const char *msg) {
-    panic_handler(msg, NULL);
-}
-
-void panic_handler(const char *msg, registers *r) {
-    clear_screen();
-    setcolor(RED << 4 | WHITE);
-    printf("                                   MVLIRA05 OS                                  \n\n");
-    setcolor(BLACK << 4 | WHITE);
-    printf("PANIC!\n%s\n", msg);
-    setcolor(BLACK << 4 | GRAY);
-
-    if (r) {
-        printf("\n");
-        // Print the registers before halting
-        printf("eax: %08lx    ebx: %08lx    ecx: %08lx    edx: %08lx\n", r->eax, r->ebx, r->ecx, r->edx);
-        printf("esi: %08lx    edi: %08lx    ebp: %08lx    esp: %08lx\n", r->esi, r->edi, r->ebp, r->esp);
-        printf("eip: %08lx\n\n", r->eip);
-        hexdump(r->esp, 0x40);
-        printf("\n");
-        printf("cs: %04hx\n", (short int) r->cs);
-        printf("ds: %04hx\n", (short int) r->ds);
-        printf("es: %04hx\n", (short int) r->es);
-        printf("fs: %04hx\n", (short int) r->fs);
-        printf("gs: %04hx\n", (short int) r->gs);
-        printf("ss: %04hx\n", (short int) r->ss);
-        printf("eflags: %016b\n", r->eflags);
-    }
-    for (;;) {}
-}
-
-void dbgprint(const char *msg, ...) {
-#ifdef DEBUG
-    va_list args;
-    va_start(args, msg);
-    vprintf(msg, args);
-    va_end(args);
-#endif
-}
-
-void hexdump(void *ptr, size_t n) {
-    unsigned char *ptr_c = ptr;
-
-    int i;
-    for (i = 0; i < n; i++) {
-        printf("%02x ", ptr_c[i]);
-        if (i % 16 == 15 || i == n - 1) {
-            if (i % 16 < 15) {
-                int j;
-                for (j = i % 16; j < 15; j++) {
-                    printf("   ");
-                }
-            }
-
-            printf("\t");
-            int j;
-            for (j = i - (i % 16); j <= i; j++) {
-                if (ptr_c[j] >= 32 && ptr_c[j] <= 126) {
-                    printf("%c", ptr_c[j]);
-                } else {
-                    printf(".");
-                }
-            }
-
-            printf("\n");
-        }
+static void iodriver_init(unsigned int edx) {
+    iodriver *_tmpio;
+    edx >>= 16;
+    if (ISSET_BIT_INT(edx, 0x80)) {
+        _tmpio = ata_init(DISABLE_BIT_INT(edx, 0x80));
+    } else {
+        _tmpio = floppy_init(edx);
     }
 
-    printf("\n");
+    if (!_tmpio) {
+        panic("No I/O driver available");
+    }
+
+    io_driver = *_tmpio;
+
+    if (io_driver.reset && io_driver.reset(io_driver.device)) {
+        panic("Failed to reset device");
+    }
 }
 
-void kernel_main(long int eax, long int ebx, long int ecx, long int edx) {
+static void fs_init(void) {
+    filesystem *_tmpfs = mbr_init(&io_driver);
+    if (!_tmpfs) {
+        panic("No filesystem available");
+    }
+
+    fs = *_tmpfs;
+
+    fs.init(&io_driver);
+}
+
+void kernel_main(unsigned int eax, unsigned int ebx, unsigned int ecx, unsigned int edx) {
     // Remove parameters from stack
     asm volatile("add $4, %%esp" : : : "memory");
     asm volatile("add $4, %%esp" : : : "memory");
@@ -84,7 +39,7 @@ void kernel_main(long int eax, long int ebx, long int ecx, long int edx) {
     asm volatile("add $4, %%esp" : : : "memory");
 
     video_init(edx);
-    //clear_screen();
+    clear_screen();
     dbgprint("Kernel started\n");
     dbgprint("_esp: 0x%x\n", _esp);
     if (!get_cpuid_info(&cpuid)) {
@@ -100,15 +55,16 @@ void kernel_main(long int eax, long int ebx, long int ecx, long int edx) {
     pic_remap(32, 40);
     fpu_init();
 
-    boot_drive = floppy_init(edx);
     timer_init();
     keyboard_init();
     asm("sti");
     dbgprint("Interruptions enabled\n");
-    dbgprint("Reading File Allocation Table...\n");
-    fat_load(boot_drive);
+    pci_init();
+    dbgprint("Reading Master Boot Record...\n");
+    iodriver_init(edx);
+    fs_init();
     dbgprint("Reading Root Directory...\n");
-    fat_listfiles(boot_drive);
+    fs.list_files(&io_driver);
 
     dbgprint("Starting INIT\n");
     if (system("INIT.ELF")) {

@@ -1,6 +1,8 @@
 #build dir
 build/
-disk.img
+floppy_disk.img
+ata_disk.img
+ata_disk.vdi
 
 .idea/
 .vscode/

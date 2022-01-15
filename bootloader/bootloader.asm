@@ -7,6 +7,7 @@
 %define NUM_OF_SECTORS al
 
 KERNEL_ADDR equ 0x10000
+KERNEL_START_ADDR equ 0x11000
 %define KERNEL_SEG    (KERNEL_ADDR >> 4)
 %define KERNEL_OFF    (KERNEL_ADDR & 0xf)
 KERNEL_ADDR_2 equ 0x17E00
@@ -24,27 +25,11 @@ start:
 
 os_name db "MVLIRA05"; OS Name
 
-bios_param:
-    param_bytes_per_sector dw 0x0200; Bytes per Sector
-    param_sectors_per_cluster db 0x01; Sectors per Cluster
-    param_reserved_sectors dw 0x0001; Reserved Sectors
-    param_number_of_fat db 0x02; Number of file allocation tables
-    param_rootdir_entries dw 0x00E0; Root Directory Entries
-    param_small_sectors dw 0x0B40; Small Sectors
-    param_media_type db 0xF0; Media Type
-    param_sectors_per_fat dw 0x0009; Sectors per file allocation table
-    param_sectors_per_track dw 0x0012; Sectors per Track
-    param_number_of_heads dw 0x0002; Number of Heads
-    param_hidden_sectors dd 0x00000000; Hidden Sectors
-    param_large_sectors dd 0x00000000; Large Sectors
-
-ext_bios_param:
-    param_disk_number db 0x00; Physical Disk Number
-    param_current_head db 0x00; Current Head
-    param_signature db 0x29; Signature
-    param_serial_number dd 0xCE134630; Volume Serial Number
-    param_volume_label db "MARCOSLIRA", 0x20; Volume Label
-    param_filesystem db "FAT12", 0x20, 0x20, 0x20; System ID
+%ifdef FLOPPY
+%include "floppy_biosparams.inc"
+%else
+%include "ata_biosparams.inc"
+%endif
 
 boot:
     cli
@@ -59,27 +44,18 @@ boot:
     int 0x13
     jc boot
 
+    in al, 0x92
+    or al, 2
+    out 0x92, al
+
     mov bp, 0x9000
     mov sp, bp
-
-    call check_a20
-    cmp ax, 1
-    jne a20_not_enabled
-
-    call enable_a20
-    cmp ax, 1
-    jne a20_not_enabled
-
-a20_enabled:
 
     call load_kernel
 
     call getxy
 
     call switch_to_pm
-
-a20_not_enabled:
-    hlt
 
 getxy:
     push dx
@@ -155,88 +131,6 @@ disk_error:
     call puts
     jmp $
 
-check_a20:
-    pushf
-    push ds
-    push es
-    push di
-    push si
-
-    cli
-
-    xor ax, ax ; ax = 0
-    mov es, ax
-
-    not ax ; ax = 0xFFFF
-    mov ds, ax
-
-    mov di, 0x0500
-    mov si, 0x0510
-
-    mov al, byte [es:di]
-    push ax
-
-    mov al, byte [ds:si]
-    push ax
-
-    mov byte [es:di], 0x00
-    mov byte [ds:si], 0xFF
-
-    cmp byte [es:di], 0xFF
-
-    pop ax
-    mov byte [ds:si], al
-
-    pop ax
-    mov byte [es:di], al
-
-    mov ax, 0
-    je check_a20__exit
-
-    mov ax, 1
-
-check_a20__exit:
-    pop si
-    pop di
-    pop es
-    pop ds
-    popf
-
-    ret
-
-enable_a20:
-    mov     ax, 0x2403
-    int     0x15
-    jb      a20_ns
-    cmp     ah, 0
-    jnz     a20_ns
-
-    mov     ax, 0x2402
-    int     0x15
-    jb      a20_failed
-    cmp     ah, 0
-    jnz     a20_failed
-
-    cmp     al, 1
-    jz      a20_activated
-
-    mov     ax, 0x2401
-    int     0x15
-    jb      a20_failed
-    cmp     ah, 0
-    jnz     a20_failed
-
-a20_activated:
-    mov ax, 1
-    ret
-
-a20_ns:
-    mov ax, 0
-    ret
-
-a20_failed:
-    hlt
-
 [bits 32]
 
 gdt_start:
@@ -265,30 +159,11 @@ gdt:
     dw gdt_end - gdt_start - 1
     dd gdt_start
 
-[bits 16]
-
-load_kernel:
-    ; We will assume that the Kernel is the first file in the disk
-
-    mov bx, KERNEL_SEG
-    mov es, bx
-    mov bx, KERNEL_OFF
-    mov NUM_OF_SECTORS, 63
-    mov CYLINDER_NUM, 1 ; Sector 33 + 0x10 (skip ELF header)
-    mov HEAD_NUM, 0
-    mov SECTOR_NUM, 6
-    call disk_load
-
-    mov bx, KERNEL_SEG_2
-    mov es, bx
-    mov bx, KERNEL_OFF_2
-    mov NUM_OF_SECTORS, 63
-    mov CYLINDER_NUM, 2 ; Sector 33 + 0x10 (skip ELF header) + 63 (previously loaded)
-    mov HEAD_NUM, 1
-    mov SECTOR_NUM, 15
-    call disk_load
-
-    ret
+%ifdef FLOPPY
+%include "floppy_loadkernel.inc"
+%else
+%include "ata_loadkernel.inc"
+%endif
 
 switch_to_pm:
     cli
@@ -316,14 +191,15 @@ init_pm:
 
 begin_pm:
     pop ax
-    mov dh, [boot_drive]
+    mov dx, 0
+    mov dl, [boot_drive]
 
     shl edx, 16
 
     mov dh, [curr_y]
     mov dl, [curr_x]
 
-    jmp CODE_SEG:KERNEL_ADDR
+    jmp CODE_SEG:KERNEL_START_ADDR
 
     hlt
 
@@ -334,6 +210,11 @@ boot_drive db 0
 curr_y db 0
 curr_x db 0
 
-times 510 - ($-$$) db 0
+times 446 - ($-$$) db 0
+
+PARTITION1
+PARTITION2
+PARTITION3
+PARTITION4
 
 dw 0xAA55

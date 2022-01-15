@@ -1,8 +1,6 @@
 #ifndef KERNEL_PIC_H
 #define KERNEL_PIC_H
 
-#include "../bits.h"
-
 #define PIC1 0x20
 #define PIC2 0xA0
 #define PIC1_COMMAND PIC1

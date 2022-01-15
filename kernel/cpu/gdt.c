@@ -17,7 +17,7 @@ void gdt_set_gate(int num, unsigned long int base, unsigned long int limit, unsi
     entry[num].entry.access = access;
 }
 
-void gdt_init() {
+void gdt_init(void) {
     gp.limit = sizeof(entry) - 1;
     gp.base = (unsigned int)&entry;
 
