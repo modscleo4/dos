@@ -201,7 +201,7 @@ char *getenv(const char *name) {
 
 int system(const char *command) {
     fat_entry f;
-    if (fs.search_file(&io_driver, command, &f)) {
+    if (fs.search_file(&io_driver, command, &f, fs.type)) {
         dbgprint("Not found.\n");
         return -1;
     }
@@ -212,7 +212,7 @@ int system(const char *command) {
         return -1;
     }
 
-    if (!fs.load_file_at(&io_driver, &f, addr)) {
+    if (!fs.load_file_at(&io_driver, &f, addr, fs.type)) {
         dbgprint("Not found.\n");
         return -1;
     }

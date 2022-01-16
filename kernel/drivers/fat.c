@@ -15,7 +15,7 @@ void buffer2fatentry(unsigned char *buffer, fat_entry *f) {
     memcpy(f, buffer, sizeof(fat_entry));
 }
 
-unsigned short int fat_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
+unsigned short int fat12_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
     unsigned short int table_value = *(unsigned short int *)&buffer[ent_offset];
 
     if (cluster & 0x0001) {
@@ -23,6 +23,12 @@ unsigned short int fat_next_cluster(unsigned int cluster, const unsigned char *b
     } else {
         table_value = table_value & 0x0FFF;
     }
+
+    return table_value;
+}
+
+unsigned short int fat16_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
+    unsigned short int table_value = *(unsigned short int *)&buffer[ent_offset];
 
     return table_value;
 }
@@ -65,7 +71,7 @@ char *dos83toStr(const char *name, const char *ext) {
     return ret;
 }
 
-int fat_search_file(iodriver *driver, const char *filename, void *_f) {
+int fat_search_file(iodriver *driver, const char *filename, void *_f, unsigned char fs_type) {
     fat_entry *f = (fat_entry *)_f;
     unsigned char buffer[512];
 
@@ -91,7 +97,7 @@ int fat_search_file(iodriver *driver, const char *filename, void *_f) {
     return -1;
 }
 
-void *fat_load_file_at(iodriver *driver, const void *_f, void *addr) {
+void *fat_load_file_at(iodriver *driver, const void *_f, void *addr, unsigned char fs_type) {
     fat_entry *f = (fat_entry *)_f;
     if (!f) {
         return NULL;
@@ -107,10 +113,26 @@ void *fat_load_file_at(iodriver *driver, const void *_f, void *addr) {
 
     unsigned int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
 
-    while (cluster < 0xFF8) {
-        unsigned int fat_offset = cluster + (cluster / 2);
-        unsigned int fat_sector = first_fat_sector + (fat_offset / params.bytes_per_sector);
-        unsigned int ent_offset = fat_offset % params.bytes_per_sector;
+    unsigned int invalid;
+    if (fs_type == FS_FAT12) {
+        invalid = 0xFF8;
+    } else if (fs_type == FS_FAT16) {
+        invalid = 0xFFF8;
+    }
+
+    while (cluster >= 2 && cluster < invalid) {
+        unsigned int fat_offset;
+        unsigned int fat_sector;
+        unsigned int ent_offset;
+
+        if (fs.type == FS_FAT12) {
+            fat_offset = cluster + (cluster / 2);
+        } else if (fs.type == FS_FAT16) {
+            fat_offset = cluster * 2;
+        }
+
+        fat_sector = first_fat_sector + (fat_offset / params.bytes_per_sector);
+        ent_offset = fat_offset % params.bytes_per_sector;
 
         unsigned int sector = (cluster - 2) * params.sectors_per_cluster + rootdir_sector + (params.rootdir_entries * sizeof(fat_entry) / params.bytes_per_sector);
 
@@ -124,7 +146,12 @@ void *fat_load_file_at(iodriver *driver, const void *_f, void *addr) {
         cl += params.bytes_per_sector;
 
         last_fat_sector = fat_sector;
-        cluster = fat_next_cluster(cluster, fat_buffer, ent_offset);
+
+        if (fs_type == FS_FAT12) {
+            cluster = fat12_next_cluster(cluster, fat_buffer, ent_offset);
+        } else if (fs_type == FS_FAT16) {
+            cluster = fat16_next_cluster(cluster, fat_buffer, ent_offset);
+        }
     }
 
     driver->stop(driver->device);
@@ -132,7 +159,7 @@ void *fat_load_file_at(iodriver *driver, const void *_f, void *addr) {
     return addr;
 }
 
-void fat_list_files(iodriver *driver) {
+void fat_list_files(iodriver *driver, unsigned char fs_type) {
     printf("Files on disk: \n");
 
     fat_entry f;
@@ -152,7 +179,7 @@ void fat_list_files(iodriver *driver) {
 
         printf("  Name: %s\n", dos83toStr(f.name, f.ext));
         printf("    Size: %d\n", f.size);
-        printf("    Cluster: %d\n", f.cluster);
+        printf("    First Cluster: %d\n", f.cluster);
         printf("\n");
     }
 }

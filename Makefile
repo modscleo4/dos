@@ -32,16 +32,17 @@ floppy: bootloader_floppy kernel system
 	#mkfs.vfat $(FLOPPY_DISK_IMG)
 	dd conv=notrunc if=$(BOOTLOADER) of=$(FLOPPY_DISK_IMG) bs=512 count=1 seek=0
 	#dd conv=notrunc if=$(KERNEL) of=$(FLOPPY_DISK_IMG) bs=512 count=128 seek=33
-	mcopy -i $(FLOPPY_DISK_IMG) $(KERNEL) ::/
-	mcopy -i $(FLOPPY_DISK_IMG) $(SYSTEM_INIT) ::/
+	mcopy $(KERNEL) a:
+	mcopy $(SYSTEM_INIT) a:
 
 ata: bootloader_ata kernel system
-	dd if=/dev/zero of=$(ATA_DISK_IMG) bs=512 count=4096
-	#mkfs.vfat $(ATA_DISK_IMG)
+	dd if=/dev/zero of=$(ATA_DISK_IMG) bs=512 count=32768
+	#mkfs.vfat $(ATA_DISK_IMG) -F 16
 	dd conv=notrunc if=$(BOOTLOADER) of=$(ATA_DISK_IMG) bs=512 count=1 seek=0
 	#dd conv=notrunc if=$(KERNEL) of=$(ATA_DISK_IMG) bs=512 count=128 seek=33
-	mcopy -i $(ATA_DISK_IMG) $(KERNEL) ::/
-	mcopy -i $(ATA_DISK_IMG) $(SYSTEM_INIT) ::/
+	export MTOOLSRC="./mtoolsrc"
+	mcopy $(KERNEL) c:
+	mcopy $(SYSTEM_INIT) c:
 
 vboxvdi: ata
 	rm -f $(VBOX_DISK_IMG)

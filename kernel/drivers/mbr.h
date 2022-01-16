@@ -4,11 +4,6 @@
 #include "iodriver.h"
 #include "filesystem.h"
 
-enum FileSystem_Type {
-    FS_EMPTY = 0,
-    FS_FAT12
-};
-
 typedef struct mbr_partition {
     unsigned char bootable;
     unsigned char start_head;

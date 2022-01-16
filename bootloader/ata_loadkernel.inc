@@ -10,8 +10,8 @@ load_kernel:
     mov es, bx
     mov bx, KERNEL_OFF
     mov NUM_OF_SECTORS, 127
-    mov CYLINDER_NUM, 0 ; Sector 33
-    mov HEAD_NUM, 1
+    mov CYLINDER_NUM, 0 ; Sector (1+20*2+56)=97
+    mov HEAD_NUM, 3
     mov SECTOR_NUM, 2
     call disk_load
 

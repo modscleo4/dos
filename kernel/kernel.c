@@ -64,7 +64,7 @@ void kernel_main(unsigned int eax, unsigned int ebx, unsigned int ecx, unsigned 
     iodriver_init(edx);
     fs_init();
     dbgprint("Reading Root Directory...\n");
-    fs.list_files(&io_driver);
+    fs.list_files(&io_driver, fs.type);
 
     dbgprint("Starting INIT\n");
     if (system("INIT.ELF")) {

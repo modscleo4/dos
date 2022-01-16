@@ -1,0 +1,8 @@
+drive a:
+    file="./floppy_disk.img"
+    1.44m filter
+
+drive c:
+    file="./ata_disk.img"
+    fat_bits=16 cylinders=256 heads=4 sectors=32 filter
+mtools_skip_check=1

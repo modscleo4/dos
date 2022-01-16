@@ -17,7 +17,7 @@ bios_param:
 
 ext_bios_param:
     param_disk_number db 0x00; Physical Disk Number
-    param_current_head db 0x00; Current Head
+    param_checkdisk db 0x00; Check Disk
     param_signature db 0x29; Signature
     param_serial_number dd 0xCE134630; Volume Serial Number
     param_volume_label db "MARCOSLIRA", 0x20; Volume Label

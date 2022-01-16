@@ -3,8 +3,8 @@
 import sys
 from typing import List
 
-HEADS = 2
-CYLINDERS = 64
+HEADS = 4
+CYLINDERS = 256
 SECTORS_PER_TRACK = 32
 SECTOR_SIZE = 512
 

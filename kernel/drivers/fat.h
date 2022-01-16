@@ -29,7 +29,7 @@ typedef struct bios_params {
     unsigned int large_sectors;
 
     unsigned char disk_number;
-    unsigned char current_head;
+    unsigned char checkdisk;
     unsigned char signature;
     unsigned int serial_number;
     unsigned char volume_label[11];
@@ -84,12 +84,14 @@ typedef struct fat_entry {
 
 void fat_init(iodriver *);
 
-unsigned short int fat_next_cluster(unsigned int, const unsigned char *, unsigned int);
+unsigned short int fat12_next_cluster(unsigned int, const unsigned char *, unsigned int);
 
-int fat_search_file(iodriver *, const char *, void *);
+unsigned short int fat16_next_cluster(unsigned int, const unsigned char *, unsigned int);
 
-void *fat_load_file_at(iodriver *, const void *, void *);
+int fat_search_file(iodriver *, const char *, void *, unsigned char);
 
-void fat_list_files(iodriver *);
+void *fat_load_file_at(iodriver *, const void *, void *, unsigned char);
+
+void fat_list_files(iodriver *, unsigned char);
 
 #endif //FAT_H

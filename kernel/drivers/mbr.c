@@ -44,6 +44,14 @@ filesystem *mbr_get_fs(int partition) {
             _fs.list_files = &fat_list_files;
             return &_fs;
         }
+        case 0x04: {
+            _fs.type = FS_FAT16;
+            _fs.init = &fat_init;
+            _fs.search_file = &fat_search_file;
+            _fs.load_file_at = &fat_load_file_at;
+            _fs.list_files = &fat_list_files;
+            return &_fs;
+        }
         default:
             return NULL;
     }
