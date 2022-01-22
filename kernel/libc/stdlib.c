@@ -176,7 +176,7 @@ void *malloc(size_t size) {
         return NULL;
     }
 
-    return (void *)0x100000;
+    return (void *)0x1000000;
 }
 
 void *realloc(void *ptr, size_t size) {
@@ -201,7 +201,7 @@ char *getenv(const char *name) {
 
 int system(const char *command) {
     fat_entry f;
-    if (fs.search_file(&io_driver, command, &f, fs.type)) {
+    if (rootfs.search_file(&rootfs_io, &rootfs, command, &f)) {
         dbgprint("Not found.\n");
         return -1;
     }
@@ -212,7 +212,7 @@ int system(const char *command) {
         return -1;
     }
 
-    if (!fs.load_file_at(&io_driver, &f, addr, fs.type)) {
+    if (!rootfs.load_file_at(&rootfs_io, &rootfs, &f, addr)) {
         dbgprint("Not found.\n");
         return -1;
     }

@@ -61,10 +61,11 @@ enum Floppy_Commands {
     FLOPPY_SCAN_EQUAL = 17,
     FLOPPY_PERPENDICULAR_MODE = 18, // * used during initialization, once, maybe
     FLOPPY_CONFIGURE = 19,          // * set controller parameters
-    FLOPPY_LOCK = 20,               // * protect controller params from a reset
+    FLOPPY_UNLOCK = 20,               // * protect controller params from a reset
     FLOPPY_VERIFY = 22,
     FLOPPY_SCAN_LOW_OR_EQUAL = 25,
-    FLOPPY_SCAN_HIGH_OR_EQUAL = 29
+    FLOPPY_SCAN_HIGH_OR_EQUAL = 29,
+    FLOPPY_LOCK = 0x94
 };
 
 enum Floppy_MSR_Flags {
@@ -87,9 +88,15 @@ static const char *drive_types[6] = {
     "2.88MB 3.5in floppy"
 };
 
-iodriver *floppy_init(unsigned int);
+iodriver *floppy_init(unsigned char, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int);
 
 void floppy_detect_types(void);
+
+void floppy_configure(unsigned int);
+
+unsigned char floppy_version(unsigned int);
+
+bool floppy_lock(unsigned int, bool);
 
 void lba2chs(unsigned long int, chs *, floppy_parameters);
 
@@ -122,5 +129,7 @@ int floppy_do_sector(unsigned int, unsigned long int, unsigned char *, io_operat
 int floppy_sector_read(unsigned int, unsigned long int, unsigned char *, bool);
 
 int floppy_sector_write(unsigned int, unsigned long int, unsigned char *, bool);
+
+iodriver floppy_io;
 
 #endif //FLOPPY_H

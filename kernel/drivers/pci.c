@@ -1,6 +1,7 @@
 #include "pci.h"
 
 #include "ata.h"
+#include "floppy.h"
 #include "../bits.h"
 #include "../debug.h"
 #include <string.h>
@@ -93,7 +94,11 @@ static void pci_device_found(unsigned char bus, unsigned char slot, unsigned cha
         if (header->class == 0x01) {
             dbgprint("\tMass Storage Controller: %x\n", header->subclass);
             // Set BARs
-            ata_load_bars(device.header.prog_if, device.base_address[0], device.base_address[1], device.base_address[2], device.base_address[3], device.base_address[4]);
+            if (header->subclass == 0x01) {
+                ata_init(device.header.prog_if, device.base_address[0], device.base_address[1], device.base_address[2], device.base_address[3], device.base_address[4]);
+            } else if (header->subclass == 0x02) {
+                floppy_init(device.header.prog_if, device.base_address[0], device.base_address[1], device.base_address[2], device.base_address[3], device.base_address[4]);
+            }
         }
         //dbgprint("\tVendor: %x\n", header.vendor);
         //dbgprint("\tDevice: %x\n", header.device);

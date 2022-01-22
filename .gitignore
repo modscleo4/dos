@@ -3,6 +3,7 @@ build/
 floppy_disk.img
 ata_disk.img
 ata_disk.vdi
+grub2.img
 
 .idea/
 .vscode/

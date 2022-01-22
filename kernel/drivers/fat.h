@@ -82,16 +82,12 @@ typedef struct fat_entry {
  * 0x05      In a FAT32 entry, 0x05 as the lead character is translated to 0xe5, a Kanji character, so that Japanese language versions work.
  */
 
-void fat_init(iodriver *);
+void fat_init(iodriver *, filesystem *);
 
-unsigned short int fat12_next_cluster(unsigned int, const unsigned char *, unsigned int);
+int fat_search_file(iodriver *, filesystem *, const char *, void *);
 
-unsigned short int fat16_next_cluster(unsigned int, const unsigned char *, unsigned int);
+void *fat_load_file_at(iodriver *, filesystem *, const void *, void *);
 
-int fat_search_file(iodriver *, const char *, void *, unsigned char);
-
-void *fat_load_file_at(iodriver *, const void *, void *, unsigned char);
-
-void fat_list_files(iodriver *, unsigned char);
+void fat_list_files(iodriver *, filesystem *);
 
 #endif //FAT_H

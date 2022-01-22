@@ -3,9 +3,9 @@
 import sys
 from typing import List
 
-HEADS = 4
-CYLINDERS = 256
-SECTORS_PER_TRACK = 32
+HEADS = 2
+CYLINDERS = 80
+SECTORS_PER_TRACK = 18
 SECTOR_SIZE = 512
 
 def lba2chs(lba: int) -> tuple:

@@ -4,8 +4,15 @@
 #include "../debug.h"
 #include "../drivers/screen.h"
 
-void panic(const char *msg) {
-    panic_handler(msg, NULL);
+void panic(const char *msg, ...) {
+    char buf[1024];
+
+    va_list args;
+    va_start(args, msg);
+    vsprintf(buf, msg, args);
+    va_end(args);
+
+    panic_handler(buf, NULL);
 }
 
 void panic_handler(const char *msg, registers *r) {

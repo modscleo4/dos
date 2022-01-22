@@ -18,6 +18,6 @@ typedef enum {
     io_write = 1
 } io_operation;
 
-iodriver io_driver;
+iodriver rootfs_io;
 
 #endif // IODRIVER_H

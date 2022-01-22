@@ -21,11 +21,12 @@
 #include "drivers/keyboard.h"
 #include "drivers/screen.h"
 #include "modules/timer.h"
+#include "modules/multiboot2.h"
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-void kernel_main(unsigned int, unsigned int, unsigned int, unsigned int);
+void kernel_main(unsigned long int, unsigned long int);
 
 #endif //KERNEL_H

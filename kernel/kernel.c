@@ -1,47 +1,81 @@
 #include "kernel.h"
 
-static void iodriver_init(unsigned int edx) {
+static void iodriver_init(unsigned int boot_drive) {
     iodriver *_tmpio;
-    edx >>= 16;
-    if (ISSET_BIT_INT(edx, 0x80)) {
-        _tmpio = ata_init(DISABLE_BIT_INT(edx, 0x80));
+    if (ISSET_BIT_INT(boot_drive, 0x80)) {
+        _tmpio = &ata_io;
+        boot_drive = DISABLE_BIT_INT(boot_drive, 0x80);
     } else {
-        _tmpio = floppy_init(edx);
+        if (floppy_io.device == -2) {
+            floppy_init(0, 0x3F0, 0x370, 0x000, 0x000, 0x000);
+        }
+        _tmpio = &floppy_io;
     }
 
-    if (!_tmpio) {
+    if (!_tmpio || _tmpio->device == -2) {
         panic("No I/O driver available");
     }
 
-    io_driver = *_tmpio;
+    rootfs_io = *_tmpio;
+    rootfs_io.device = boot_drive;
 
-    if (io_driver.reset && io_driver.reset(io_driver.device)) {
+    if (rootfs_io.reset && rootfs_io.reset(boot_drive)) {
         panic("Failed to reset device");
     }
 }
 
-static void fs_init(void) {
-    filesystem *_tmpfs = mbr_init(&io_driver);
+static void fs_init(unsigned int partition) {
+    filesystem *_tmpfs = mbr_init(&rootfs_io, partition);
     if (!_tmpfs) {
         panic("No filesystem available");
     }
 
-    fs = *_tmpfs;
+    rootfs = *_tmpfs;
 
-    fs.init(&io_driver);
+    rootfs.init(&rootfs_io, &rootfs);
 }
 
-void kernel_main(unsigned int eax, unsigned int ebx, unsigned int ecx, unsigned int edx) {
-    // Remove parameters from stack
-    asm volatile("add $4, %%esp" : : : "memory");
-    asm volatile("add $4, %%esp" : : : "memory");
-    asm volatile("add $4, %%esp" : : : "memory");
-    asm volatile("add $4, %%esp" : : : "memory");
+static void check_multiboot2(unsigned long int magic, unsigned long int addr) {
+    if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
+        panic("Invalid magic number: %x", magic);
+    }
 
-    video_init(edx);
+    if (addr & 7) {
+        panic("MBI not aligned: %x", addr);
+    }
+}
+
+void kernel_main(unsigned long int magic, unsigned long int addr) {
+    struct multiboot_tag *tag;
+    unsigned int size;
+
+    video_init(0);
     clear_screen();
     dbgprint("Kernel started\n");
-    dbgprint("_esp: 0x%x\n", _esp);
+    dbgprint("_esp: 0x%x\n", addr);
+
+    floppy_io.device = -2;
+    ata_io.device = -2;
+    check_multiboot2(magic, addr);
+
+    dbgprint("Multiboot2 magic number: %x\n", magic);
+
+    unsigned int boot_drive = -1;
+    unsigned int boot_partition = -1;
+    for (tag = (struct multiboot_tag *)(addr + 8); tag->type != MULTIBOOT_TAG_TYPE_END; tag = (struct multiboot_tag *)((unsigned int)tag + ((tag->size + 7) & ~7))) {
+        dbgprint("Tag: %x\n", tag->type);
+        switch (tag->type) {
+            case MULTIBOOT_TAG_TYPE_BOOTDEV:
+                boot_drive = ((struct multiboot_tag_bootdev *)tag)->biosdev;
+                boot_partition = ((struct multiboot_tag_bootdev *)tag)->slice;
+                break;
+        }
+    }
+
+    if (boot_drive == -1 || boot_partition == -1) {
+        panic("No boot device found from MBI.");
+    }
+
     if (!get_cpuid_info(&cpuid)) {
         panic("CPUID not available");
     }
@@ -61,10 +95,10 @@ void kernel_main(unsigned int eax, unsigned int ebx, unsigned int ecx, unsigned 
     dbgprint("Interruptions enabled\n");
     pci_init();
     dbgprint("Reading Master Boot Record...\n");
-    iodriver_init(edx);
-    fs_init();
+    iodriver_init(boot_drive);
+    fs_init(boot_partition);
     dbgprint("Reading Root Directory...\n");
-    fs.list_files(&io_driver, fs.type);
+    rootfs.list_files(&rootfs_io, &rootfs);
 
     dbgprint("Starting INIT\n");
     if (system("INIT.ELF")) {

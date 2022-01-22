@@ -1,10 +1,15 @@
 BUILD_DIR=build
 BOOTLOADER=$(BUILD_DIR)/bootloader/bootloader
+BIOSPARAMS=$(BUILD_DIR)/bootloader/biosparams
 KERNEL=$(BUILD_DIR)/kernel/kernel
 SYSTEM_INIT=$(BUILD_DIR)/system/init/init.elf
 FLOPPY_DISK_IMG=floppy_disk.img
 ATA_DISK_IMG=ata_disk.img
 VBOX_DISK_IMG=ata_disk.vdi
+GRUB2_BOOT_IMG=/usr/lib/grub/i386-pc/boot.img
+GRUB2_CORE_IMG=grub2.img
+FLOPPY_GRUB2_CORE_SECTOR=floppy_grub2_sector
+ATA_GRUB2_CORE_SECTOR=ata_grub2_sector
 
 all: dir disk
 
@@ -27,19 +32,35 @@ kernel:
 system:
 	make -C system
 
-floppy: bootloader_floppy kernel system
+grub2_ata:
+	grub-mkimage -o $(GRUB2_CORE_IMG) -O i386-pc -p /boot/grub -c grub_ata.cfg configfile fat multiboot2 part_msdos ls nativedisk biosdisk normal help
+
+grub2_floppy:
+	grub-mkimage -o $(GRUB2_CORE_IMG) -O i386-pc -p /boot/grub -c grub_floppy.cfg configfile fat multiboot2 part_msdos ls nativedisk biosdisk normal help
+
+floppy: bootloader_floppy kernel system grub2_floppy
 	dd if=/dev/zero of=$(FLOPPY_DISK_IMG) bs=512 count=2880
-	#mkfs.vfat $(FLOPPY_DISK_IMG)
 	dd conv=notrunc if=$(BOOTLOADER) of=$(FLOPPY_DISK_IMG) bs=512 count=1 seek=0
-	#dd conv=notrunc if=$(KERNEL) of=$(FLOPPY_DISK_IMG) bs=512 count=128 seek=33
+	MTOOLSRC=./mtoolsrc mformat a:
+	dd conv=notrunc if=$(GRUB2_BOOT_IMG) of=$(FLOPPY_DISK_IMG) bs=512 count=1 seek=1
+	dd conv=notrunc if=$(BIOSPARAMS) of=$(FLOPPY_DISK_IMG) bs=1 count=94 seek=515
+	dd conv=notrunc if=$(FLOPPY_GRUB2_CORE_SECTOR) of=$(GRUB2_CORE_IMG) bs=1 seek=500 count=1
+	MTOOLSRC=./mtoolsrc mlabel -n a:MARCOSLIRA
+	MTOOLSRC=./mtoolsrc mcopy $(GRUB2_CORE_IMG) a:
+	MTOOLSRC=./mtoolsrc mcopy rootfs/boot -s a:
 	MTOOLSRC=./mtoolsrc mcopy $(KERNEL) a:
 	MTOOLSRC=./mtoolsrc mcopy $(SYSTEM_INIT) a:
 
-ata: bootloader_ata kernel system
+ata: bootloader_ata kernel system grub2_ata
 	dd if=/dev/zero of=$(ATA_DISK_IMG) bs=512 count=32768
-	#mkfs.vfat $(ATA_DISK_IMG) -F 16
 	dd conv=notrunc if=$(BOOTLOADER) of=$(ATA_DISK_IMG) bs=512 count=1 seek=0
-	#dd conv=notrunc if=$(KERNEL) of=$(ATA_DISK_IMG) bs=512 count=128 seek=33
+	MTOOLSRC=./mtoolsrc mformat c:
+	dd conv=notrunc if=$(GRUB2_BOOT_IMG) of=$(ATA_DISK_IMG) bs=512 count=1 seek=1
+	dd conv=notrunc if=$(BIOSPARAMS) of=$(ATA_DISK_IMG) bs=1 count=94 seek=515
+	dd conv=notrunc if=$(ATA_GRUB2_CORE_SECTOR) of=$(GRUB2_CORE_IMG) bs=1 seek=500 count=1
+	MTOOLSRC=./mtoolsrc mlabel -n c:MARCOSLIRA
+	MTOOLSRC=./mtoolsrc mcopy $(GRUB2_CORE_IMG) c:
+	MTOOLSRC=./mtoolsrc mcopy rootfs/boot -s c:
 	MTOOLSRC=./mtoolsrc mcopy $(KERNEL) c:
 	MTOOLSRC=./mtoolsrc mcopy $(SYSTEM_INIT) c:
 

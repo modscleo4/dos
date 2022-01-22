@@ -6,16 +6,6 @@
 %define SECTOR_NUM cl
 %define NUM_OF_SECTORS al
 
-KERNEL_ADDR equ 0x10000
-KERNEL_START_ADDR equ 0x11000
-%define KERNEL_SEG    (KERNEL_ADDR >> 4)
-%define KERNEL_OFF    (KERNEL_ADDR & 0xf)
-KERNEL_ADDR_2 equ 0x17E00
-%define KERNEL_SEG_2    (KERNEL_ADDR_2 >> 4)
-%define KERNEL_OFF_2    (KERNEL_ADDR_2 & 0xf)
-CODE_SEG equ gdt_code - gdt_start
-DATA_SEG equ gdt_data - gdt_start
-
 section .text
 global boot
 
@@ -23,17 +13,32 @@ start:
     jmp boot
     nop
 
-os_name db "MVLIRA05"; OS Name
-
 %ifdef FLOPPY
-%include "floppy_biosparams.inc"
+%include "floppy_partitions.inc"
 %else
-%include "ata_biosparams.inc"
+%include "ata_partitions.inc"
 %endif
 
 boot:
     cli
     cld
+
+    xor ax, ax ; mov ax, 0
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, ax
+
+    .copy_lower:
+        mov cx, 0x1000
+        mov si, 0x7C00
+        mov di, 0x0600
+        rep movsb
+
+    jmp 0:low_start
+
+low_start:
+    sti
 
     mov [boot_drive], DRIVE_NUM
 
@@ -42,33 +47,19 @@ boot:
     mov ah, 0
     mov DRIVE_NUM, [boot_drive]
     int 0x13
-    jc boot
-
-    in al, 0x92
-    or al, 2
-    out 0x92, al
+    jc reset_fail
 
     mov bp, 0x9000
     mov sp, bp
 
-    call load_kernel
+    call find_bootable_partition
 
-    call getxy
+    mov si, no_bootable_partition
+    call puts
+    hlt
 
-    call switch_to_pm
-
-getxy:
-    push dx
-
-    mov ah, 0x03
-    mov bh, 0x0
-    int 0x10
-
-    mov [curr_y], dh
-    mov [curr_x], dl
-
-    pop dx
-    ret
+reset_fail:
+    hlt
 
 putchar:
     mov ah, 0x0E
@@ -89,19 +80,6 @@ puts:
     .done:
         ret
 
-memdump:
-    .loop:
-        lodsb
-        cmp cx, 0
-        je .done
-
-        dec cx
-        call putchar
-        jmp .loop
-
-    .done:
-        ret
-
 disk_reset:
     mov ah, 0x00
     int 0x13
@@ -115,11 +93,10 @@ disk_load:
 
     mov ah, 0x02
     mov DRIVE_NUM, [boot_drive]
-
     int 0x13
-    mov dh, al
     jc disk_error
 
+    mov dh, al
     pop ax
     cmp dh, al
     jne disk_error
@@ -131,86 +108,61 @@ disk_error:
     call puts
     jmp $
 
-[bits 32]
+find_bootable_partition:
+    mov bx, 0x01BE
+    add bx, 0x0600
+    .read_mbr:
+        .no_bootable:
+            add bx, 0x0010
+            cmp bx, 0x01FE
+            je .no_bootable_partition_found
 
-gdt_start:
-    gdt_null:
-        dd 0x0
-        dd 0x0
+        cmp byte [bx], 0x80
+        jne .no_bootable
 
-    gdt_code:
-        dw 0xFFFF
-        dw 0x0
-        db 0x0
-        db 10011010b
-        db 11001111b
-        db 0x0
+        mov si, loading_msg
+        call puts
 
-    gdt_data:
-        dw 0xFFFF
-        dw 0x0
-        db 0x0
-        db 10010010b
-        db 11001111b
-        db 0x0
-gdt_end:
+        ; Bootable partition found
+        ; Read first sector of partition
+        mov [_bx], bx
+        mov HEAD_NUM, [bx + 0x1]
+        mov SECTOR_NUM, [bx + 0x2]
+        mov CYLINDER_NUM, [bx + 0x3]
+        mov NUM_OF_SECTORS, 1
+        mov bx, 0
+        mov es, bx
+        mov bx, 0x7C00
+        call disk_load
 
-gdt:
-    dw gdt_end - gdt_start - 1
-    dd gdt_start
+        cmp word [0x7C00 + 0x1FE], 0xAA55
+        jne .invalid_mbr
 
-%ifdef FLOPPY
-%include "floppy_loadkernel.inc"
-%else
-%include "ata_loadkernel.inc"
-%endif
+        jmp 0x0:0x7C00
 
-switch_to_pm:
-    cli
-    lgdt [gdt]
+        .invalid_mbr:
+            mov bx, [_bx]
+            mov si, invalid_mbr_msg
+            call puts
+            jmp .no_bootable
 
-    mov eax, cr0
-    or eax, 0x1
-    mov cr0, eax
+    .no_bootable_partition_found:
 
-    jmp CODE_SEG:init_pm
+    ret
 
-[bits 32]
-
-init_pm:
-    mov ax, DATA_SEG
-    mov ds, ax
-    mov ss, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-
-    call begin_pm
-
-[bits 32]
-
-begin_pm:
-    pop ax
-    mov dx, 0
-    mov dl, [boot_drive]
-
-    shl edx, 16
-
-    mov dh, [curr_y]
-    mov dl, [curr_x]
-
-    jmp CODE_SEG:KERNEL_START_ADDR
-
-    hlt
-
-;section .data
+loading_msg db "Loading...", 0xD, 0xA, 0x00
 disk_error_msg db "Disk read error", 0xD, 0xA, 0x0
+no_bootable_partition db "No bootable partition found", 0xD, 0xA, 0x0
+invalid_mbr_msg db "Invalid MBR", 0xD, 0xA, 0x0
 user_data dw 0
 boot_drive db 0
 curr_y db 0
 curr_x db 0
+_bx dw 0
 
-times 446 - ($-$$) db 0
+times 440 - ($-$$) db 0
+dd 0x01020304
+dw 0x0000
 
 PARTITION1
 PARTITION2

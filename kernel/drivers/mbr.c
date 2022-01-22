@@ -5,7 +5,7 @@
 #include "fat.h"
 #include <string.h>
 
-filesystem *mbr_init(iodriver *driver) {
+filesystem *mbr_init(iodriver *driver, unsigned int partition) {
     driver->read_sector(driver->device, 0, driver->io_buffer, true);
 
     if (driver->io_buffer[510] != 0x55 || driver->io_buffer[511] != 0xAA) {
@@ -28,7 +28,7 @@ filesystem *mbr_init(iodriver *driver) {
         dbgprint("\tBootable: %d\n", ISSET_BIT_INT(partitions[i].bootable, 0x80));
     }
 
-    return mbr_get_fs(0);
+    return mbr_get_fs(partition);
 }
 
 filesystem *mbr_get_fs(int partition) {
@@ -38,6 +38,7 @@ filesystem *mbr_get_fs(int partition) {
             return NULL;
         case 0x01: {
             _fs.type = FS_FAT12;
+            _fs.start_lba = partitions[partition].start_lba;
             _fs.init = &fat_init;
             _fs.search_file = &fat_search_file;
             _fs.load_file_at = &fat_load_file_at;
@@ -46,6 +47,7 @@ filesystem *mbr_get_fs(int partition) {
         }
         case 0x04: {
             _fs.type = FS_FAT16;
+            _fs.start_lba = partitions[partition].start_lba;
             _fs.init = &fat_init;
             _fs.search_file = &fat_search_file;
             _fs.load_file_at = &fat_load_file_at;

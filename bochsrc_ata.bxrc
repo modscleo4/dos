@@ -7,7 +7,7 @@ romimage: file="C:\Program Files\Bochs-2.7/BIOS-bochs-latest", address=0x0000000
 vgaromimage: file="C:\Program Files\Bochs-2.7/VGABIOS-lgpl-latest"
 boot: disk
 floppy_bootsig_check: disabled=0
-floppya: type=1_44
+# no floppya
 # no floppyb
 ata0: enabled=true, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 ata0-master: type=disk, path="./ata_disk.img", mode=flat, cylinders=256, heads=4, spt=32, sect_size=512, model="ATAMVLIRA", biosdetect=auto, translation=auto

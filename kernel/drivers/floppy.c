@@ -22,25 +22,28 @@ static void floppy_handler(registers *r) {
     irq6_c++;
 }
 
-iodriver *floppy_init(unsigned int boot_drive) {
+iodriver *floppy_init(unsigned char prog_if, unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned int BAR3, unsigned int BAR4) {
     irq6_c = 0;
 
     memcpy(&floppy, (unsigned char *)DISK_PARAMETER_ADDRESS, sizeof(floppy_parameters));
     irq_install_handler(IRQ_FLOPPY, floppy_handler);
 
     floppy_detect_types();
-    dbgprint("Boot drive is #%d\n", boot_drive);
-    dbgprint("  Head settle time: %d\n", floppy.head_settle_time);
 
-    static iodriver driver;
-    driver.device = boot_drive;
-    driver.io_buffer = io_buffer;
-    driver.reset = &floppy_reset;
-    driver.start = &floppy_motor_on;
-    driver.stop = &floppy_motor_off;
-    driver.read_sector = &floppy_sector_read;
-    driver.write_sector = &floppy_sector_write;
-    return &driver;
+    unsigned char version = floppy_version(0);
+    if (version != 0x90) {
+        dbgprint("Floppy drive #%d is not supported: version %x.\n", 0, version);
+        return NULL;
+    }
+
+    floppy_io.device = -1;
+    floppy_io.io_buffer = io_buffer;
+    floppy_io.reset = &floppy_reset;
+    floppy_io.start = &floppy_motor_on;
+    floppy_io.stop = &floppy_motor_off;
+    floppy_io.read_sector = &floppy_sector_read;
+    floppy_io.write_sector = &floppy_sector_write;
+    return &floppy_io;
 }
 
 void floppy_detect_types(void) {
@@ -51,6 +54,29 @@ void floppy_detect_types(void) {
 
     dbgprint("Floppy 0: %d - %s\n", drives[0], drive_types[drives[0]]);
     dbgprint("Floppy 1: %d - %s\n", drives[1], drive_types[drives[1]]);
+}
+
+void floppy_configure(unsigned int drive) {
+    bool implied_seek_enable = false;
+    bool fifo_disable = false;
+    bool drive_polling_mode_disable = true;
+    unsigned char thresh_val = 8;
+    unsigned char precomp_val = 0;
+
+    floppy_send_byte(drive, FLOPPY_CONFIGURE);
+    floppy_send_byte(drive, 0x00);
+    floppy_send_byte(drive, (implied_seek_enable << 6) | (fifo_disable << 5) | (drive_polling_mode_disable << 4) | (thresh_val & 0xF));
+    floppy_send_byte(drive, precomp_val);
+}
+
+unsigned char floppy_version(unsigned int drive) {
+    floppy_send_byte(drive, FLOPPY_VERSION);
+    return floppy_recv_byte(drive);
+}
+
+bool floppy_lock(unsigned int drive, bool lock) {
+    floppy_send_byte(drive, FLOPPY_LOCK | lock << 7);
+    return ISSET_BIT(floppy_recv_byte(drive), 4);
 }
 
 void lba2chs(unsigned long int lba, chs *c, floppy_parameters fparams) {
@@ -65,7 +91,7 @@ void wait_irq6(void) {
 }
 
 int floppy_wait_until_ready(unsigned int drive) {
-    int base = (drive == 0) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
+    int base = (drive <= 1) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
 
     for(int counter = 0; counter < 10000; counter++) {
         int status;
@@ -146,9 +172,10 @@ int floppy_calibrate(unsigned int drive) {
 }
 
 int floppy_reset(unsigned int drive) {
-    int base = (drive == 0) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
+    int base = (drive <= 1) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
+    unsigned char dor = inb(base + FLOPPY_DIGITAL_INPUT_REGISTER);
     outb(base + FLOPPY_DIGITAL_OUTPUT_REGISTER, 0x00);
-    outb(base + FLOPPY_DIGITAL_OUTPUT_REGISTER, 0x0C);
+    outb(base + FLOPPY_DIGITAL_OUTPUT_REGISTER, ENABLE_BIT(dor, 2));
 
     wait_irq6();
 
@@ -215,7 +242,7 @@ int floppy_seek(unsigned int drive, unsigned char cylinder, unsigned char head) 
 }
 
 void floppy_motor_on(unsigned int drive) {
-    int base = (drive == 0) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
+    int base = (drive <= 1) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
     if (floppy_motor_state[drive] != 1) {
         outb(base + FLOPPY_DIGITAL_OUTPUT_REGISTER, 0x1C);
         timer_wait(50);
@@ -225,7 +252,7 @@ void floppy_motor_on(unsigned int drive) {
 }
 
 void floppy_motor_off(unsigned int drive) {
-    int base = (drive == 0) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
+    int base = (drive <= 1) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
     if (floppy_motor_state[drive] != 0) {
         outb(base + FLOPPY_DIGITAL_OUTPUT_REGISTER, 0x0C);
         timer_wait(50);

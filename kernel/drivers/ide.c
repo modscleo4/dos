@@ -119,7 +119,7 @@ iodriver *ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsi
     }
 
     static iodriver driver;
-    driver.device = 0;
+    driver.device = -1;
     driver.io_buffer = ide_buf;
     driver.reset = NULL;
     driver.start = &ide_motor_on;

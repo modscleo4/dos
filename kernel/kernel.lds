@@ -5,12 +5,16 @@ ENTRY(kernel_start);
 
 SECTIONS
 {
-    .text 0x11000 :
+    . = 0x100000;
+
+    .boot :
     {
-        . = 0x0;
-        *(.text.kernel_start)
-        *(.text.switch_ring3)
-        *(.text*)
+        *(.multiboot2_header)
+    }
+
+    .text :
+    {
+        *(.text)
     }
 
     .rodata :

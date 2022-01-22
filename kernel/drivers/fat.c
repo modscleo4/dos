@@ -7,15 +7,15 @@
 
 bios_params params;
 
-void buffer2struct(unsigned char *buffer, bios_params *p) {
+static void buffer2struct(unsigned char *buffer, bios_params *p) {
     memcpy(p, &buffer[11], sizeof(bios_params));
 }
 
-void buffer2fatentry(unsigned char *buffer, fat_entry *f) {
+static void buffer2fatentry(unsigned char *buffer, fat_entry *f) {
     memcpy(f, buffer, sizeof(fat_entry));
 }
 
-unsigned short int fat12_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
+static unsigned short int fat12_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
     unsigned short int table_value = *(unsigned short int *)&buffer[ent_offset];
 
     if (cluster & 0x0001) {
@@ -27,16 +27,16 @@ unsigned short int fat12_next_cluster(unsigned int cluster, const unsigned char 
     return table_value;
 }
 
-unsigned short int fat16_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
+static unsigned short int fat16_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
     unsigned short int table_value = *(unsigned short int *)&buffer[ent_offset];
 
     return table_value;
 }
 
-void fat_init(iodriver *driver) {
-    dbgprint("Reading File Allocation Table...\n");
+void fat_init(iodriver *driver, filesystem *fs) {
+    dbgprint("Reading File Allocation Table (sector %x)...\n", fs->start_lba);
 
-    driver->read_sector(driver->device, 0, driver->io_buffer, true);
+    driver->read_sector(driver->device, fs->start_lba + 0, driver->io_buffer, true);
 
     buffer2struct(driver->io_buffer, &params);
     char volume_label[12];
@@ -71,16 +71,16 @@ char *dos83toStr(const char *name, const char *ext) {
     return ret;
 }
 
-int fat_search_file(iodriver *driver, const char *filename, void *_f, unsigned char fs_type) {
+int fat_search_file(iodriver *driver, filesystem *fs, const char *filename, void *_f) {
     fat_entry *f = (fat_entry *)_f;
     unsigned char buffer[512];
 
-    int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
+    int rootdir_sector = fs->start_lba + params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
     int last_sector = params.rootdir_entries * sizeof(fat_entry);
 
     for (int i = 0; i < last_sector; i += sizeof(fat_entry)) {
         if (i % 512 == 0) {
-            driver->read_sector(driver->device, rootdir_sector++, buffer, i != last_sector / sizeof(fat_entry));
+            driver->read_sector(driver->device, rootdir_sector++, buffer, i != last_sector);
         }
 
         if (buffer[i % 512] == 0) {
@@ -97,37 +97,37 @@ int fat_search_file(iodriver *driver, const char *filename, void *_f, unsigned c
     return -1;
 }
 
-void *fat_load_file_at(iodriver *driver, const void *_f, void *addr, unsigned char fs_type) {
+void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *addr) {
     fat_entry *f = (fat_entry *)_f;
     if (!f) {
         return NULL;
     }
 
     unsigned short int cluster = f->cluster;
-    unsigned int first_fat_sector = params.reserved_sectors;
+    unsigned int first_fat_sector = fs->start_lba + params.reserved_sectors;
 
     unsigned int cl = 0;
     unsigned int last_fat_sector = 0;
 
     unsigned char fat_buffer[512];
 
-    unsigned int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
+    unsigned int rootdir_sector = fs->start_lba + params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
 
     unsigned int invalid;
-    if (fs_type == FS_FAT12) {
+    if (fs->type == FS_FAT12) {
         invalid = 0xFF8;
-    } else if (fs_type == FS_FAT16) {
+    } else if (fs->type == FS_FAT16) {
         invalid = 0xFFF8;
     }
 
-    while (cluster >= 2 && cluster < invalid) {
+    while (cluster < invalid) {
         unsigned int fat_offset;
         unsigned int fat_sector;
         unsigned int ent_offset;
 
-        if (fs.type == FS_FAT12) {
+        if (fs->type == FS_FAT12) {
             fat_offset = cluster + (cluster / 2);
-        } else if (fs.type == FS_FAT16) {
+        } else if (fs->type == FS_FAT16) {
             fat_offset = cluster * 2;
         }
 
@@ -147,9 +147,9 @@ void *fat_load_file_at(iodriver *driver, const void *_f, void *addr, unsigned ch
 
         last_fat_sector = fat_sector;
 
-        if (fs_type == FS_FAT12) {
+        if (fs->type == FS_FAT12) {
             cluster = fat12_next_cluster(cluster, fat_buffer, ent_offset);
-        } else if (fs_type == FS_FAT16) {
+        } else if (fs->type == FS_FAT16) {
             cluster = fat16_next_cluster(cluster, fat_buffer, ent_offset);
         }
     }
@@ -159,16 +159,17 @@ void *fat_load_file_at(iodriver *driver, const void *_f, void *addr, unsigned ch
     return addr;
 }
 
-void fat_list_files(iodriver *driver, unsigned char fs_type) {
+void fat_list_files(iodriver *driver, filesystem *fs) {
     printf("Files on disk: \n");
 
     fat_entry f;
 
-    int rootdir_sector = params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
+    int rootdir_sector = fs->start_lba + params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
+    int last_sector = params.rootdir_entries * sizeof(fat_entry);
 
-    for (int i = 0; i < params.rootdir_entries * sizeof(fat_entry); i += sizeof(fat_entry)) {
+    for (int i = 0; i < last_sector; i += sizeof(fat_entry)) {
         if (i % 512 == 0) {
-            driver->read_sector(driver->device, rootdir_sector++, driver->io_buffer, i != params.rootdir_entries * sizeof(fat_entry));
+            driver->read_sector(driver->device, rootdir_sector++, driver->io_buffer, i != last_sector);
         }
 
         if (driver->io_buffer[i % 512] == 0) {
@@ -178,8 +179,10 @@ void fat_list_files(iodriver *driver, unsigned char fs_type) {
         buffer2fatentry(&driver->io_buffer[i % 512], &f);
 
         printf("  Name: %s\n", dos83toStr(f.name, f.ext));
-        printf("    Size: %d\n", f.size);
-        printf("    First Cluster: %d\n", f.cluster);
+        if (f.attributes.archive) {
+            printf("    Size: %d\n", f.size);
+            printf("    First Cluster: %d\n", f.cluster);
+        }
         printf("\n");
     }
 }

@@ -11,12 +11,13 @@ enum FileSystem_Type {
 
 typedef struct filesystem {
     unsigned char type;
-    void (*init)(iodriver *);
-    int (*search_file)(iodriver *, const char *, void *, unsigned char);
-    void *(*load_file_at)(iodriver *, const void *, void *, unsigned char);
-    void (*list_files)(iodriver *, unsigned char);
+    unsigned int start_lba;
+    void (*init)(iodriver *, struct filesystem *);
+    int (*search_file)(iodriver *, struct filesystem *, const char *, void *);
+    void *(*load_file_at)(iodriver *, struct filesystem *, const void *, void *);
+    void (*list_files)(iodriver *, struct filesystem *);
 } filesystem;
 
-filesystem fs;
+filesystem rootfs;
 
 #endif // FILESYSTEM_H

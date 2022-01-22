@@ -5,19 +5,49 @@ global switch_ring3
 
 global sys_stack
 
+%include "multiboot2.inc"
+
+section .multiboot2_header
+
+multiboot_header:
+    align 8
+
+    dd MULTIBOOT2_HEADER_MAGIC
+    dd GRUB_MULTIBOOT_ARCHITECTURE_I386
+    dd multiboot_header_end - multiboot_header
+    dd -(MULTIBOOT2_HEADER_MAGIC + GRUB_MULTIBOOT_ARCHITECTURE_I386 + (multiboot_header_end - multiboot_header))
+framebuffer_tag_start:
+    align 8
+
+    ;dw MULTIBOOT_HEADER_TAG_FRAMEBUFFER
+    ;dw MULTIBOOT_HEADER_TAG_OPTIONAL
+    ;dd framebuffer_tag_end - framebuffer_tag_start
+    ;dd 800
+    ;dd 600
+    ;dd 32
+framebuffer_tag_end:
+    align 8
+
+    dw MULTIBOOT_HEADER_TAG_END
+    dw 0
+    dd 8
+multiboot_header_end:
+
 section .text
 
 kernel_start:
-    mov esp, sys_stack
     jmp stublet
 
 stublet:
     extern kernel_main
     extern _esp
 
+    mov esp, sys_stack
     mov [_esp], esp
-    push edx
-    push ecx
+
+    push 0
+    popf
+
     push ebx
     push eax
     call kernel_main

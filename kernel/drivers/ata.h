@@ -147,14 +147,14 @@ enum ATA_BusMaster_Register {
     ATAPI_SEND_DISC_STRUCTURE = 0xBF
 };*/
 
-void ata_load_bars(unsigned char, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int);
-
-iodriver *ata_init(unsigned int);
+iodriver *ata_init(unsigned char, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int);
 
 void ata_400ns_delay(unsigned char);
 
 void wait_irq14(void);
 
 void wait_irq15(void);
+
+iodriver ata_io;
 
 #endif // ATA_H
