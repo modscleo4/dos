@@ -89,6 +89,10 @@ int fat_search_file(iodriver *driver, filesystem *fs, const char *filename, void
 
         buffer2fatentry(&buffer[i % 512], f);
 
+        if (f->attributes.volume) { // Skip volume label
+            continue;
+        }
+
         if (strcmp(dos83toStr(f->name, f->ext), filename) == 0) {
             return 0;
         }
@@ -178,11 +182,61 @@ void fat_list_files(iodriver *driver, filesystem *fs) {
 
         buffer2fatentry(&driver->io_buffer[i % 512], &f);
 
-        printf("  Name: %s\n", dos83toStr(f.name, f.ext));
-        if (f.attributes.archive) {
-            printf("    Size: %d\n", f.size);
-            printf("    First Cluster: %d\n", f.cluster);
+        if (f.attributes.volume) { // Skip volume label
+            continue;
         }
+
+        char fname[9];
+        char fext[4];
+        strncpy(fname, f.name, 8);
+        strncpy(fext, f.ext, 3);
+        for (int i = 0; i < 8; i++) {
+            if (fname[i] == ' ') {
+                fname[i] = 0;
+                break;
+            }
+        }
+
+        for (int i = 0; i < 3; i++) {
+            if (fext[i] == ' ') {
+                fext[i] = 0;
+                break;
+            }
+        }
+
+        if (f.attributes.directory) {
+            printf("%-8s", fname);
+            printf("    <DIR>     ");
+        } else {
+            printf("%-8s %-4s % 8d", fname, fext, f.size);
+        }
+        printf("  %04u-%02u-%02u", (f.created_date.year) + 1980, f.created_date.month, f.created_date.day);
+        printf("  %02u:%02u:%02u", f.created_time.hour, f.created_time.minute, f.created_time.second);
+
+        if (*(unsigned char *)&f.attributes != 0) {
+            printf(" ");
+        }
+
+        if (f.attributes.read_only) {
+            printf(" R");
+        }
+
+        if (f.attributes.hidden) {
+            printf(" H");
+        }
+
+        if (f.attributes.system) {
+            printf(" S");
+        }
+
+        if (f.attributes.archive) {
+            printf(" A");
+        }
+
+        if (f.attributes.device) {
+            printf(" D");
+        }
+
         printf("\n");
     }
 }

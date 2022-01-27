@@ -3,6 +3,7 @@
 #include "../bits.h"
 #include "../cpu/irq.h"
 #include "ide.h"
+#include "../debug.h"
 #include <stddef.h>
 
 unsigned static char atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};

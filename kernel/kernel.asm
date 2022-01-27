@@ -80,10 +80,8 @@ switch_ring3:
 	push (3 * 8) | 3 ; code selector (ring 3 code with bottom 2 bits set for ring 3)
 
     mov eax, [__ring3_addr]
-    ;mov eax, [esp + 16]
     push eax
     iret
-    ret
 
 
 section .bss

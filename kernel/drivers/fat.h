@@ -48,15 +48,15 @@ typedef struct fat_entry_attributes {
 } __attribute__((packed)) fat_entry_attributes;
 
 typedef struct fat_entry_date {
-    unsigned char year: 7;
-    unsigned char month: 4;
     unsigned char day: 5;
+    unsigned char month: 4;
+    unsigned char year: 7;
 } __attribute__((packed)) fat_entry_date;
 
 typedef struct fat_entry_time {
-    unsigned char hour: 5;
-    unsigned char minute: 6;
     unsigned char second: 5;
+    unsigned char minute: 6;
+    unsigned char hour: 5;
 } __attribute__((packed)) fat_entry_time;
 
 typedef struct fat_entry {

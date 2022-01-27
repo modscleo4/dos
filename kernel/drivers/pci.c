@@ -72,7 +72,7 @@ void pci_read_pci_bridge(unsigned int bus, unsigned int slot, unsigned int func,
     }
 
     for (int i = 0; i < 2; i++) {
-        pci_fix_bar(&bridge->base_address, i);
+        pci_fix_bar(bridge->base_address, i);
     }
 }
 

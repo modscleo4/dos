@@ -119,13 +119,15 @@ int vsprintf(char *str, const char *format, va_list args) {
     int modifier = 0;
     char curr_mod = 0;
     bool padding = false;
-    int padding_size = 0;
+    char padding_char = 0;
+    int width = 0;
     int buf_len;
-    bool dec_count = false;
-    int dec_count_len = 0;
+    bool precision_toggle = false;
+    int precision = 0;
+    bool left_align = false;
 
     while (*format) {
-        if (modifier || padding || *format == '%') {
+        if (modifier || padding || curr_mod || *format == '%') {
             format++;
 
             switch (*format) {
@@ -134,10 +136,22 @@ int vsprintf(char *str, const char *format, va_list args) {
                     str++;
                     break;
 
+                case '-':
+                    curr_mod = *format;
+                    left_align = true;
+                    continue;
+
+                case ' ':
+                    curr_mod = *format;
+                    padding = true;
+                    padding_char = ' ';
+                    continue;
+
                 case '0':
                     if (!padding && !curr_mod) {
                         curr_mod = *format;
                         padding = true;
+                        padding_char = '0';
                         continue;
                     }
                 case '1':
@@ -149,18 +163,23 @@ int vsprintf(char *str, const char *format, va_list args) {
                 case '7':
                 case '8':
                 case '9':
-                    if (curr_mod == '0') {
-                        padding_size *= 10;
-                        padding_size += *format - '0';
-                    } else if (curr_mod == '.') {
-                        dec_count_len *= 10;
-                        dec_count_len += *format - '0';
+                    if (precision_toggle) {
+                        precision *= 10;
+                        precision += *format - '0';
+                    } else {
+                        if (!curr_mod) {
+                            curr_mod = ' ';
+                        }
+
+                        width *= 10;
+                        width += *format - '0';
                     }
+
                     continue;
 
                 case '.':
                     curr_mod = *format;
-                    dec_count = true;
+                    precision_toggle = true;
                     continue;
 
                 case 'l':
@@ -179,6 +198,19 @@ int vsprintf(char *str, const char *format, va_list args) {
                 case 's':
                     strcpy(buf, va_arg(args, char *));
 
+                    buf_len = strlen(buf);
+                    if (width > buf_len) {
+                        if (left_align) {
+                            for (int i = buf_len; i < width; i++) {
+                                buf[i] = ' ';
+                            }
+                            buf[width] = 0;
+                        } else {
+                            memmove(buf + width - buf_len, buf, buf_len + 1);
+                            memset(buf, ' ', width - buf_len);
+                        }
+                    }
+
                     str = strcat(str, buf);
                     str += strlen(buf);
                     break;
@@ -190,6 +222,12 @@ int vsprintf(char *str, const char *format, va_list args) {
                         utoa(va_arg(args, unsigned int), buf, 10);
                     } else if (modifier == -1) {
                         hutoa((unsigned short int)va_arg(args, unsigned int), buf, 10);
+                    }
+
+                    buf_len = strlen(buf);
+                    if (padding && width > buf_len) {
+                        memmove(buf + width - buf_len, buf, buf_len + 1);
+                        memset(buf, padding_char, width - buf_len);
                     }
 
                     str = strcat(str, buf);
@@ -207,9 +245,9 @@ int vsprintf(char *str, const char *format, va_list args) {
                     }
 
                     buf_len = strlen(buf);
-                    if (padding && padding_size > buf_len) {
-                        memmove(buf + padding_size - buf_len, buf, buf_len);
-                        memset(buf, '0', padding_size - buf_len);
+                    if (padding && width > buf_len) {
+                        memmove(buf + width - buf_len, buf, buf_len + 1);
+                        memset(buf, padding_char, width - buf_len);
                     }
 
                     str = strcat(str, buf);
@@ -226,9 +264,9 @@ int vsprintf(char *str, const char *format, va_list args) {
                     }
 
                     buf_len = strlen(buf);
-                    if (padding && padding_size > buf_len) {
-                        memmove(buf + padding_size - buf_len, buf, buf_len);
-                        memset(buf, '0', padding_size - buf_len);
+                    if (padding && width > buf_len) {
+                        memmove(buf + width - buf_len, buf, buf_len + 1);
+                        memset(buf, padding_char, width - buf_len);
                     }
 
                     str = strcat(str, buf);
@@ -245,9 +283,9 @@ int vsprintf(char *str, const char *format, va_list args) {
                     }
 
                     buf_len = strlen(buf);
-                    if (padding && padding_size > buf_len) {
-                        memmove(buf + padding_size - buf_len, buf, buf_len);
-                        memset(buf, '0', padding_size - buf_len);
+                    if (padding && width > buf_len) {
+                        memmove(buf + width - buf_len, buf, buf_len + 1);
+                        memset(buf, padding_char, width - buf_len);
                     }
 
                     str = strcat(str, buf);
@@ -264,9 +302,9 @@ int vsprintf(char *str, const char *format, va_list args) {
                     }
 
                     buf_len = strlen(buf);
-                    if (padding && padding_size > buf_len) {
-                        memmove(buf + padding_size - buf_len, buf, buf_len);
-                        memset(buf, '0', padding_size - buf_len);
+                    if (padding && width > buf_len) {
+                        memmove(buf + width - buf_len, buf, buf_len + 1);
+                        memset(buf, padding_char, width - buf_len);
                     }
 
                     str = strcat(str, buf);
@@ -283,9 +321,9 @@ int vsprintf(char *str, const char *format, va_list args) {
                     }
 
                     buf_len = strlen(buf);
-                    if (padding && padding_size > buf_len) {
-                        memmove(buf + padding_size - buf_len, buf, buf_len);
-                        memset(buf, '0', padding_size - buf_len);
+                    if (padding && width > buf_len) {
+                        memmove(buf + width - buf_len, buf, buf_len + 1);
+                        memset(buf, padding_char, width - buf_len);
                     }
 
                     str = strcat(str, strupr(buf));
@@ -294,15 +332,15 @@ int vsprintf(char *str, const char *format, va_list args) {
 
                 case 'f':
                     if (modifier == 1) {
-                        lftoa(va_arg(args, double), buf, dec_count ? dec_count_len : 6);
+                        lftoa(va_arg(args, double), buf, precision_toggle ? precision : 6);
                     } else if (modifier == 0) {
-                        ftoa((float)va_arg(args, double), buf, dec_count ? dec_count_len : 6);
+                        ftoa((float)va_arg(args, double), buf, precision_toggle ? precision : 6);
                     }
 
                     buf_len = strlen(buf);
-                    if (padding && padding_size > buf_len) {
-                        memmove(buf + padding_size - buf_len, buf, buf_len);
-                        memset(buf, '0', padding_size - buf_len);
+                    if (padding && width > buf_len) {
+                        memmove(buf + width - buf_len, buf, buf_len + 1);
+                        memset(buf, padding_char, width - buf_len);
                     }
 
                     str = strcat(str, buf);
@@ -314,9 +352,9 @@ int vsprintf(char *str, const char *format, va_list args) {
             curr_mod = 0;
             modifier = 0;
             padding = false;
-            padding_size = 0;
-            dec_count = false;
-            dec_count_len = 0;
+            width = 0;
+            precision_toggle = false;
+            precision = 0;
         } else {
             *str = *format;
             str++;

@@ -37,7 +37,26 @@ void panic_handler(const char *msg, registers *r) {
         printf("fs: %04hx\n", (short int)r->fs);
         printf("gs: %04hx\n", (short int)r->gs);
         printf("ss: %04hx\n", (short int)r->ss);
-        printf("eflags: %016b\n", r->eflags);
+
+        printf("eflags:");
+        if (r->eflags.carry) printf(" CF");
+        if (r->eflags.parity) printf(" PF");
+        if (r->eflags.adjust) printf(" AF");
+        if (r->eflags.zero) printf(" ZF");
+        if (r->eflags.sign) printf(" SF");
+        if (r->eflags.trap) printf(" TF");
+        if (r->eflags.interrupt) printf(" IF");
+        if (r->eflags.direction) printf(" DF");
+        if (r->eflags.overflow) printf(" OF");
+        if (r->eflags.iopl) printf(" IOPL");
+        if (r->eflags.nt) printf(" NT");
+        if (r->eflags.resume) printf(" RF");
+        if (r->eflags.virtual_86) printf(" VM");
+        if (r->eflags.alignment) printf(" AC");
+        if (r->eflags.virtual_interrupt) printf(" VIF");
+        if (r->eflags.virtual_interrupt_pending) printf(" VIP");
+        if (r->eflags.id) printf(" ID");
+        printf("\n");
     }
     for (;;) {}
 }

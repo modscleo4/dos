@@ -413,7 +413,9 @@ int ide_do_sector(io_operation direction, unsigned int drive, unsigned long int 
             wait_irq15();
         }
 
-        ide_motor_off(drive);
+        if (!keepOn) {
+            ide_motor_off(drive);
+        }
 
         ide_polling(ide_channel, 0);
 
@@ -429,6 +431,10 @@ int ide_do_sector(io_operation direction, unsigned int drive, unsigned long int 
 
         insm(ide_channels[ide_channel].base, buffer, 256);
         ide_polling(ide_channel, 0);
+
+        if (!keepOn) {
+            ide_motor_off(drive);
+        }
     }
 
     return 0;

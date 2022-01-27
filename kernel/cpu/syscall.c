@@ -14,15 +14,17 @@
 // This var is to store the current SYSCALL return value
 int __syscall_ret;
 
-long int syscall_exit(int exit_code) {
-    return 0;
+static long int syscall_exit(int exit_code) {
+    asm volatile("hlt");
+
+    return exit_code;
 }
 
-long int syscall_read(int fd, char *buf, size_t count) {
+static long int syscall_read(int fd, char *buf, size_t count) {
     return read(buf, count);
 }
 
-long int syscall_write(int fd, char *buf, size_t count) {
+static long int syscall_write(int fd, char *buf, size_t count) {
     return write(buf, count);
 }
 
@@ -174,12 +176,6 @@ int run_syscall(registers *r) {
     if (syscalls[no]) {
         long int (*syscall_fn)(long int, long int, long int, long int, long int, long int) = syscalls[no];
         ret = syscall_fn(arg0, arg1, arg2, arg3, arg4, arg5);
-        asm("add $4, %esp");
-        asm("add $4, %esp");
-        asm("add $4, %esp");
-        asm("add $4, %esp");
-        asm("add $4, %esp");
-        asm("add $4, %esp");
     } else {
         dbgprint("syscall: %x not implemented\n", no);
         ret = -1;
