@@ -9,7 +9,6 @@ void _main(void) {
 }
 
 int main(void) {
-    unsigned long int esp;
     char str[1024];
 
     while (true) {
@@ -25,7 +24,7 @@ int main(void) {
             printf("%f\n", 1.0F / .0F);
             printf("%f\n", -1.0F / .0F);
         } else if (strcmp(str, "panic") == 0) {
-            asm("hlt");
+            asm volatile("hlt");
         } else {
             printf("unknown command\n");
         }

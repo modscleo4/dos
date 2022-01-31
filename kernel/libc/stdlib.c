@@ -4,6 +4,7 @@
 #include "../ring3.h"
 #include "../cpu/gdt.h"
 #include "../drivers/fat.h"
+#include "../modules/elf.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,8 +37,12 @@ char *ltoa(long int value, char *str, int base) {
 
     rc = ptr = str;
 
-    if (value < 0 && base == 10) {
-        *ptr++ = '-';
+    if (value < 0) {
+        if (base == 10) {
+            *ptr++ = '-';
+        } else {
+            value = -value;
+        }
     }
 
     low = ptr;
@@ -200,30 +205,35 @@ char *getenv(const char *name) {
 }
 
 int system(const char *command) {
-    fat_entry f;
-    if (rootfs.search_file(&rootfs_io, &rootfs, command, &f)) {
+    fat_entry *f = rootfs.search_file(&rootfs_io, &rootfs, command);
+    if (!f) {
         dbgprint("Not found.\n");
         return -1;
     }
 
-    void *addr = malloc(f.size);
+    void *addr = malloc(f->size);
     if (!addr) {
         dbgprint("Allocation failed\n");
         return -1;
     }
 
-    if (!rootfs.load_file_at(&rootfs_io, &rootfs, &f, addr)) {
+    if (!rootfs.load_file_at(&rootfs_io, &rootfs, f, addr)) {
         dbgprint("Not found.\n");
         return -1;
     }
 
     dbgprint("%s loaded at address %x\n", command, addr);
 
-    static unsigned long int esp;
-    asm volatile("mov %%esp, %0" : "=r"(esp));
-    set_kernel_stack(esp);
+    elf32_header *exec_header = (elf32_header *) addr;
+    dbgprint("Entry point: %x\n", exec_header->entry);
 
-    switch_ring3(addr + 0x1000, addr + 0x10000);
+    elf32_section_header *section_text = elf32_find_section(exec_header, ".text");
+    if (!section_text) {
+        dbgprint("No .text section found\n");
+        return -1;
+    }
+
+    switch_ring3(addr + section_text->offset + exec_header->entry, addr + 0x10000);
 
     return 0;
 }

@@ -71,8 +71,8 @@ char *dos83toStr(const char *name, const char *ext) {
     return ret;
 }
 
-int fat_search_file(iodriver *driver, filesystem *fs, const char *filename, void *_f) {
-    fat_entry *f = (fat_entry *)_f;
+fat_entry *fat_search_file(iodriver *driver, filesystem *fs, const char *filename) {
+    static fat_entry f;
     unsigned char buffer[512];
 
     int rootdir_sector = fs->start_lba + params.reserved_sectors + params.number_of_fat * params.sectors_per_fat;
@@ -87,18 +87,18 @@ int fat_search_file(iodriver *driver, filesystem *fs, const char *filename, void
             continue;
         }
 
-        buffer2fatentry(&buffer[i % 512], f);
+        buffer2fatentry(&buffer[i % 512], &f);
 
-        if (f->attributes.volume) { // Skip volume label
+        if (f.attributes.volume) { // Skip volume label
             continue;
         }
 
-        if (strcmp(dos83toStr(f->name, f->ext), filename) == 0) {
-            return 0;
+        if (strcmp(dos83toStr(f.name, f.ext), filename) == 0) {
+            return &f;
         }
     }
 
-    return -1;
+    return NULL;
 }
 
 void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *addr) {

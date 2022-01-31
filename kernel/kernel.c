@@ -1,5 +1,32 @@
 #include "kernel.h"
 
+#include "ring3.h"
+#include "bits.h"
+#include "cpu/cpuid.h"
+#include "cpu/fpu.h"
+#include "cpu/gdt.h"
+#include "cpu/idt.h"
+#include "cpu/irq.h"
+#include "cpu/isr.h"
+#include "cpu/panic.h"
+#include "cpu/pic.h"
+#include "cpu/syscall.h"
+#include "debug.h"
+#include "drivers/pci.h"
+#include "drivers/ata.h"
+#include "drivers/fat.h"
+#include "drivers/floppy.h"
+#include "drivers/mbr.h"
+#include "drivers/keyboard.h"
+#include "drivers/screen.h"
+#include "modules/timer.h"
+#include "modules/kblayout/kb.h"
+#include "modules/multiboot2.h"
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 static void iodriver_init(unsigned int boot_drive) {
     iodriver *_tmpio;
     if (ISSET_BIT_INT(boot_drive, 0x80)) {

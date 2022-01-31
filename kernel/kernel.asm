@@ -50,6 +50,7 @@ stublet:
 
     push ebx
     push eax
+    mov ebp, 0
     call kernel_main
     cli
     hlt
@@ -57,11 +58,21 @@ stublet:
 
 switch_ring3:
     extern __ring3_addr
+    extern set_kernel_stack
 
     cli
+
+    mov ebx, [esp]
+
+    push esp
+    call set_kernel_stack
+    add esp, 4
+
     mov eax, [esp + 4]
     mov [__ring3_addr], eax
     mov esp, [esp + 8]
+
+    push ebx ; Return address when ring3 _start returns
 
     mov ax, (4 * 8) | 3 ; ring 3 data with bottom 2 bits set for ring 3
 	mov ds, ax
@@ -74,15 +85,12 @@ switch_ring3:
 	push (4 * 8) | 3 ; data selector
 	push eax ; current esp
 	pushf ; eflags
-    pop eax
-    or eax, 0x200 ; set IF
-    push eax ; new eflags
 	push (3 * 8) | 3 ; code selector (ring 3 code with bottom 2 bits set for ring 3)
 
     mov eax, [__ring3_addr]
     push eax
     iret
-
+    ret
 
 section .bss
 

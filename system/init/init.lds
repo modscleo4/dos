@@ -5,11 +5,9 @@ ENTRY(_main);
 
 SECTIONS
 {
-    .text 0x101000 :
+    .text :
     {
-        . = 0x0;
-        *(.text._main)
-        *(.text*)
+        *(.text)
     }
 
     .rodata :

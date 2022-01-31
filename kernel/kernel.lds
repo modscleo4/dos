@@ -27,6 +27,11 @@ SECTIONS
         *(.data)
     }
 
+    .debug_line :
+    {
+        *(.debug_line)
+    }
+
     .bss :
     {
         *(.bss)

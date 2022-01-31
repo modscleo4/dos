@@ -1,7 +1,7 @@
 BUILD_DIR=../build/kernel
 BIN=$(BUILD_DIR)/kernel
 
-CFLAGS=-ffreestanding -m32 -I libc/include -nostdlib -Wl,--stack,0x4000 -Wno-packed-bitfield-compat
+CFLAGS=-ffreestanding -g -m32 -I libc/include -fno-omit-frame-pointer -nostdlib -Wl,--stack,0x4000 -Wno-packed-bitfield-compat
 
 ASM_SRCS = $(wildcard *.asm cpu/*.asm)
 ASM_OBJS = $(patsubst %.asm, $(BUILD_DIR)/%.obj, $(ASM_SRCS))
@@ -25,7 +25,7 @@ $(BUILD_DIR)/%.o: %.c $(HDRS)
 	gcc $(CFLAGS) -c $< -o $@
 
 $(BIN): $(ASM_OBJS) $(OBJS)
-	ld -m elf_i386 -T kernel.lds $^ -o $@
+	ld -g -m elf_i386 -T kernel.lds $^ -o $@
 
 clean:
 	rm -f $(OBJS) $(ASM_OBJS)

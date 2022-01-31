@@ -84,6 +84,14 @@ int memcmp(const void *ptr1, const void *ptr2, size_t num) {
 }
 
 int strcmp(const char *str1, const char *str2) {
+    if (!*str1) {
+        return *str2;
+    }
+
+    if (!*str2) {
+        return -*str1;
+    }
+
     return memcmp(str1, str2, strlen(str1));
 }
 

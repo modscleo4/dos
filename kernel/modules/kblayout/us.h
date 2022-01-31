@@ -1,7 +1,7 @@
 #ifndef KERNEL_KBD_US_H
 #define KERNEL_KBD_US_H
 
-static const unsigned char kblayout[128] = {
+static const unsigned char kblayout_us[128] = {
     0, 27, '1', '2', '3', '4', '5', '6', '7', '8',    /* 9 */
     '9', '0', '-', '=', '\b',                         /* Backspace */
     '\t',                                             /* Tab */

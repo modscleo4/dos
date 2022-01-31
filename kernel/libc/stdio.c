@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../bits.h"
 #include "../drivers/keyboard.h"
+#include "../modules/kblayout/kb.h"
 #include "../drivers/screen.h"
 
 int fclose(FILE *stream) {
@@ -24,7 +26,8 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
 
 int getchar(void) {
     char ret;
-    while ((ret = keyboard_read()) == -1) { }
+    while (ISSET_BIT_INT(ret = keyboard_read(), 0x80)) {}
+    ret = kblayout[ret];
 
     return ret;
 }
@@ -292,6 +295,11 @@ int vsprintf(char *str, const char *format, va_list args) {
                     str += strlen(buf);
                     break;
 
+                case 'p':
+                    modifier = 1;
+                    padding = true;
+                    width = 8;
+                    padding_char = '0';
                 case 'x':
                     if (modifier == 1) {
                         ltoa(va_arg(args, long int), buf, 16);
