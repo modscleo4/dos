@@ -1,7 +1,11 @@
 #include "panic.h"
 
 #include <stdio.h>
+#include "gdt.h"
+#include "irq.h"
+#include "../bits.h"
 #include "../debug.h"
+#include "../drivers/filesystem.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/screen.h"
 
@@ -16,8 +20,22 @@ void panic(const char *msg, ...) {
     panic_handler(buf, NULL);
 }
 
+static void read_gdt_segment(unsigned short int segment) {
+    gdt_ptr gdt_ptr;
+    asm volatile("sgdt %0" : "=m"(gdt_ptr));
+
+    gdt_entry ss = ((gdt_entry *)gdt_ptr.base)[segment / 8];
+    printf("( %04x|% 2x|% 3x) %08x %08x %d %d\n", segment / 8, ss.bits.code, ss.bits.DPL, ss.bits.base_high << 16 | ss.bits.base_low, ss.bits.limit_high << 16 | ss.bits.limit_low, ss.bits.granularity, ss.bits.code_data_segment);
+}
+
 void panic_handler(const char *msg, registers *r) {
+    irq_uninstall_handler(IRQ_PIT);
+    irq_uninstall_handler(IRQ_FLOPPY);
+    irq_uninstall_handler(IRQ_CMOS);
+    irq_uninstall_handler(IRQ_ATA_PRIMARY);
+    irq_uninstall_handler(IRQ_ATA_SECONDARY);
     asm volatile("sti");
+
     char c = r ? 'I' : 'S';
     do {
         clear_screen();
@@ -28,6 +46,7 @@ void panic_handler(const char *msg, registers *r) {
         setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
         switch (c) {
+            default:
             case 'i':
             case 'I':
                 if (r) {
@@ -37,15 +56,20 @@ void panic_handler(const char *msg, registers *r) {
                     printf("esi: %08lx    edi: %08lx    ebp: %08lx    esp: %08lx\n", r->esi, r->edi, r->ebp, r->esp);
                     printf("eip: %08lx    useresp: %08lx\n\n", r->eip, r->useresp);
                     hexdump(r->esp, 0x40);
-                    printf("\n");
-                    printf("cs: %04hx\n", (short int)r->cs);
-                    printf("ds: %04hx\n", (short int)r->ds);
-                    printf("es: %04hx\n", (short int)r->es);
-                    printf("fs: %04hx\n", (short int)r->fs);
-                    printf("gs: %04hx\n", (short int)r->gs);
+                    printf("SEG sltr(index|cd|dpl)     base    limit G D\n");
+                    printf("cs: %04hx", (short int)r->cs);
+                    read_gdt_segment(r->cs);
+                    printf("ds: %04hx", (short int)r->ds);
+                    read_gdt_segment(r->ds);
+                    printf("es: %04hx", (short int)r->es);
+                    read_gdt_segment(r->es);
+                    printf("fs: %04hx", (short int)r->fs);
+                    read_gdt_segment(r->fs);
+                    printf("gs: %04hx", (short int)r->gs);
+                    read_gdt_segment(r->gs);
                     printf("ss: %04hx\n", (short int)r->ss);
 
-                    printf("eflags:");
+                    printf("eflags: %x", r->eflags);
                     if (r->eflags.carry) printf(" CF");
                     if (r->eflags.parity) printf(" PF");
                     if (r->eflags.adjust) printf(" AF");
@@ -71,13 +95,15 @@ void panic_handler(const char *msg, registers *r) {
 
             case 's':
             case 'S': {
-                unsigned long int ebp = 0;
-                if (r) {
-                    ebp = r->ebp;
-                } else {
-                    asm volatile("mov %%ebp, %0" : "=r" (ebp));
+                if (rootfs.type) {
+                    unsigned long int ebp = 0;
+                    if (r) {
+                        ebp = r->ebp;
+                    } else {
+                        asm volatile("mov %%ebp, %0" : "=r" (ebp));
+                    }
+                    callstack(ebp);
                 }
-                callstack(ebp);
                 break;
             }
         }
@@ -89,6 +115,8 @@ void panic_handler(const char *msg, registers *r) {
 
         c = getchar();
     } while (c != 'q' && c != 'Q');
+
+    asm volatile ("cli");
 
     keyboard_clear_buffer();
     outb(KB_DATA_REGISTER, KB_RESET);

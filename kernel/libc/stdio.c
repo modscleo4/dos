@@ -56,6 +56,7 @@ int read(char *buf, int size) {
         putchar(buf[i]);
 
         if (buf[i] == '\n') {
+            buf[i] = 0;
             break;
         }
 

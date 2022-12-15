@@ -1,5 +1,9 @@
 #include "kernel.h"
 
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "ring3.h"
 #include "bits.h"
 #include "cpu/cpuid.h"
@@ -14,25 +18,28 @@
 #include "debug.h"
 #include "drivers/pci.h"
 #include "drivers/ata.h"
-#include "drivers/fat.h"
 #include "drivers/floppy.h"
 #include "drivers/mbr.h"
 #include "drivers/keyboard.h"
 #include "drivers/screen.h"
+#include "drivers/serial.h"
 #include "modules/timer.h"
 #include "modules/kblayout/kb.h"
 #include "modules/multiboot2.h"
-#include <stdarg.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "modules/process.h"
 
 static void iodriver_init(unsigned int boot_drive) {
     iodriver *_tmpio;
     if (ISSET_BIT_INT(boot_drive, 0x80)) {
+        dbgprint("Booting from hard disk\n");
+        dbgwait();
+
         _tmpio = &ata_io;
         boot_drive = DISABLE_BIT_INT(boot_drive, 0x80);
     } else {
+        dbgprint("Booting from floppy disk\n");
+        dbgwait();
+
         if (floppy_io.device == -2) {
             floppy_init(0, 0x3F0, 0x370, 0x000, 0x000, 0x000);
         }
@@ -90,7 +97,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     unsigned int boot_drive = -1;
     unsigned int boot_partition = -1;
     for (tag = (struct multiboot_tag *)(addr + 8); tag->type != MULTIBOOT_TAG_TYPE_END; tag = (struct multiboot_tag *)((unsigned int)tag + ((tag->size + 7) & ~7))) {
-        dbgprint("Tag: %x\n", tag->type);
+        // dbgprint("Tag: %x\n", tag->type);
         switch (tag->type) {
             case MULTIBOOT_TAG_TYPE_BOOTDEV:
                 boot_drive = ((struct multiboot_tag_bootdev *)tag)->biosdev;
@@ -117,18 +124,26 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     fpu_init();
 
     timer_init();
+    if (serial_init(COM1, 1)) {
+        // panic("Failed to initialize serial port");
+    }
+    serial_write_str(COM1, "Serial port initialized.\r\n");
     keyboard_init();
     asm("sti");
     dbgprint("Interruptions enabled\n");
     pci_init();
+    dbgwait();
     dbgprint("Reading Master Boot Record...\n");
     iodriver_init(boot_drive);
     fs_init(boot_partition);
+    dbgwait();
     dbgprint("Reading Root Directory...\n");
     rootfs.list_files(&rootfs_io, &rootfs);
+    dbgwait();
 
     dbgprint("Starting INIT\n");
     if (system("INIT.ELF")) {
+        dbgwait();
         panic("INIT.ELF failed to load");
     }
 

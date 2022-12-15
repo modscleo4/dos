@@ -5,6 +5,8 @@
 #include "kernel.h"
 #include "drivers/iodriver.h"
 #include "drivers/filesystem.h"
+#include "drivers/keyboard.h"
+#include "drivers/screen.h"
 #include "modules/elf.h"
 
 #define DEBUG
@@ -16,6 +18,12 @@ void dbgprint(const char *msg, ...) {
     vprintf(msg, args);
 #endif
     va_end(args);
+}
+
+void dbgwait(void) {
+#ifdef DEBUG
+    getchar();
+#endif
 }
 
 void hexdump(void *ptr, size_t n) {
@@ -30,14 +38,23 @@ void hexdump(void *ptr, size_t n) {
                 }
             }
 
-            printf("\t");
+            printf("  ");
             for (int j = i - (i % 16); j <= i; j++) {
                 if (ptr_c[j] >= 32 && ptr_c[j] <= 126) {
+                    setcolor(COLOR_BLACK << 4 | COLOR_GREEN);
                     printf("%c", ptr_c[j]);
                 } else {
+                    setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
                     printf(".");
                 }
+
+                if (j == i - (i % 16) + 7) {
+                    setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+                    printf(" ");
+                }
             }
+
+            setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
             printf("\n");
         }
@@ -52,13 +69,22 @@ typedef struct stackframe {
 } stackframe;
 
 void callstack(unsigned long int ebp) {
-    printf("\n");
+    if (!rootfs.type) {
+        return;
+    }
 
-    rootfs.load_file_at(&rootfs_io, &rootfs, rootfs.search_file(&rootfs_io, &rootfs, "KERNEL"), 0x1000000);
+    void *kernel_file_inode = rootfs.search_file(&rootfs_io, &rootfs, "KERNEL");
+    if (!kernel_file_inode) {
+        return;
+    }
+
+    rootfs.load_file_at(&rootfs_io, &rootfs, kernel_file_inode, 0x1000000);
     elf32_header *kernel_header = (elf32_header *) 0x1000000;
     elf32_section_header *section_debuginfo = NULL;
     elf32_section_header *section_strtab = NULL;
     elf32_section_header *section_symtab = NULL;
+
+    printf("\n");
     //dbgprint("  type: %hx\n", kernel_header->type);
     //dbgprint("  machine: %hx\n", kernel_header->machine);
     //dbgprint("  version: %x\n", kernel_header->version);
@@ -116,7 +142,7 @@ void callstack(unsigned long int ebp) {
     printf("Call Stack:\n");
     while (stk) {
         printf("[%p]", stk->eip);
-        if (section_symtab) {
+        if (stk->eip >= kernel_header->entry && stk->eip <= kernel_header->entry + rootfs.get_file_size(&rootfs_io, kernel_file_inode) && section_symtab) {
             unsigned long int func_addr = NULL;
             elf32_symbol_table_entry *func = NULL;
 

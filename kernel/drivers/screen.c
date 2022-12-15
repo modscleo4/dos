@@ -5,12 +5,35 @@
 unsigned int curr_cursor_pos = 0;
 char color;
 
+static void enable_cursor_caret(void) {
+    outb(0x3D4, 0x0A);
+    outb(0x3D5, (inb(0x3D5) & 0xC0) | 12);
+
+    outb(0x3D4, 0x0B);
+    outb(0x3D5, (inb(0x3D5) & 0xE0) | 14);
+}
+
+static void disable_cursor_caret(void) {
+    outb(0x3D4, 0x0A);
+    outb(0x3D5, 0x20);
+}
+
+static void move_cursor_caret(void) {
+    outb(SCREEN_CONTROL, 0x0F);
+    outb(SCREEN_DATA, (unsigned char)(curr_cursor_pos / 2 & 0xFF));
+    outb(SCREEN_CONTROL, 0x0E);
+    outb(SCREEN_DATA, (unsigned char)((curr_cursor_pos / 2 >> 8) & 0xFF));
+}
+
 void video_init(int edx) {
     char x = 0;
     char y = 0;
 
     x = (edx & 0x00FF);
     y = (edx & 0xFF00) >> 8;
+
+    disable_cursor_caret();
+    enable_cursor_caret();
 
     gotoxy(x, y);
     setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
@@ -47,13 +70,6 @@ void handle_scroll(void) {
         video_memory[curr_cursor_pos + 2 * i] = ' ';
         video_memory[curr_cursor_pos + 2 * i + 1] = color;
     }
-}
-
-void move_cursor_caret(void) {
-    outb(SCREEN_CONTROL, 0x0F);
-    outb(SCREEN_DATA, (unsigned char)(curr_cursor_pos / 2 & 0xFF));
-    outb(SCREEN_CONTROL, 0x0E);
-    outb(SCREEN_DATA, (unsigned char)((curr_cursor_pos / 2 >> 8) & 0xFF));
 }
 
 void gotoxy(int x, int y) {

@@ -45,7 +45,7 @@ sound: waveoutdrv=win, waveout=none, waveindrv=win, wavein=none, midioutdrv=win,
 speaker: enabled=true, mode=sound, volume=15
 parport1: enabled=true, file=none
 parport2: enabled=false
-com1: enabled=true, mode=null
+com1: enabled=true, mode=file, dev="./serial.txt"
 com2: enabled=false
 com3: enabled=false
 com4: enabled=false

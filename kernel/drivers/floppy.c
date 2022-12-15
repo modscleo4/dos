@@ -6,7 +6,6 @@
 #include "../debug.h"
 #include "../modules/cmos.h"
 #include "../modules/timer.h"
-#include "fat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

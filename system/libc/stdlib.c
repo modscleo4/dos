@@ -4,6 +4,15 @@
 #include <stdio.h>
 #include <string.h>
 
+extern void _init_stdio(void);
+extern int main();
+
+volatile void _start(int argc, char *argv[]) {
+    _init_stdio();
+
+    syscall(0, main(argc, argv));
+}
+
 float atof(const char *str) {
     return 0.0F;
 }

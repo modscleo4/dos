@@ -5,7 +5,7 @@ extern void gdt_flush(unsigned long int);
 
 extern void tss_flush(void);
 
-typedef union GDT_entry {
+typedef union gdt_entry {
     struct {
         unsigned short int limit_low;
         unsigned short int base_low;
@@ -17,28 +17,28 @@ typedef union GDT_entry {
     struct {
         unsigned int limit_low : 16;
         unsigned int base_low : 24;
-        unsigned int accessed : 1;
-        unsigned int read_write : 1;             // readable for code, writable for data
-        unsigned int conforming_expand_down : 1; // conforming for code, expand down for data
-        unsigned int code : 1;                   // 1 for code, 0 for data
-        unsigned int code_data_segment : 1;      // should be 1 for everything but TSS and LDT
-        unsigned int DPL : 2;                    // privilege level
-        unsigned int present : 1;
-        unsigned int limit_high : 4;
-        unsigned int available : 1; // only used in software; has no effect on hardware
-        unsigned int long_mode : 1;
-        unsigned int big : 1;  // 32-bit opcodes for code, uint32_t stack for data
-        unsigned int gran : 1; // 1 to use 4k page addressing, 0 for byte addressing
-        unsigned int base_high : 8;
+        unsigned char accessed : 1;
+        unsigned char read_write : 1;             // readable for code, writable for data
+        unsigned char conforming_expand_down : 1; // conforming for code, expand down for data
+        unsigned char code : 1;                  // 1 for code, 0 for data
+        unsigned char code_data_segment : 1;     // should be 1 for everything but TSS and LDT
+        unsigned char DPL : 2;                    // privilege level
+        unsigned char present : 1;
+        unsigned char limit_high : 4;
+        unsigned char available : 1; // only used in software; has no effect on hardware
+        unsigned char long_mode : 1;
+        unsigned char big : 1; // 32-bit opcodes for code, uint32_t stack for data
+        unsigned char granularity : 1; // 1 to use 4k page addressing, 0 for byte addressing
+        unsigned char base_high : 8;
     } __attribute__((packed)) bits;
-} __attribute__((packed)) GDT_entry;
+} __attribute__((packed)) gdt_entry;
 
-typedef struct GDT_ptr {
+typedef struct gdt_ptr {
     unsigned short int limit;
     unsigned int base;
-} __attribute__((packed)) GDT_ptr;
+} __attribute__((packed)) gdt_ptr;
 
-typedef struct TSS_entry {
+typedef struct tss_entry {
     unsigned int prev_tss;
     unsigned int esp0;
     unsigned int ss0;
@@ -66,7 +66,7 @@ typedef struct TSS_entry {
     unsigned int ldt;
     unsigned short int trap;
     unsigned short int iomap_base;
-} __attribute__((packed)) TSS_entry;
+} __attribute__((packed)) tss_entry;
 
 void gdt_init(void);
 

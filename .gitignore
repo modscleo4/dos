@@ -1,9 +1,14 @@
 #build dir
 build/
+grub2.img
+rootfs/init.elf
+rootfs/kernel
+
 floppy_disk.img
 ata_disk.img
+ata_disk_ext2.img
 ata_disk.vdi
-grub2.img
+serial.txt
 
 .idea/
 .vscode/

@@ -15,8 +15,10 @@ start:
 
 %ifdef FLOPPY
 %include "floppy_partitions.inc"
-%else
+%elifdef ATA
 %include "ata_partitions.inc"
+%elifdef ATAEXT2
+%include "ata_ext2_partitions.inc"
 %endif
 
 boot:

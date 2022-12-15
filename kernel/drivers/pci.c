@@ -100,11 +100,12 @@ static void pci_device_found(unsigned char bus, unsigned char slot, unsigned cha
                 floppy_init(device.header.prog_if, device.base_address[0], device.base_address[1], device.base_address[2], device.base_address[3], device.base_address[4]);
             }
         }
-        //dbgprint("\tVendor: %x\n", header.vendor);
-        //dbgprint("\tDevice: %x\n", header.device);
-        //dbgprint("\tClass: %x\n", header.class);
-        //dbgprint("\tSubclass: %x\n", header.subclass);
-        //dbgprint("\tProgIF: %x\n", header.prog_if);
+
+        dbgprint("\tVendor: %x\n", header->vendor);
+        dbgprint("\tDevice: %x\n", header->device);
+        dbgprint("\tClass: %x\n", header->class);
+        dbgprint("\tSubclass: %x\n", header->subclass);
+        dbgprint("\tProgIF: %x\n", header->prog_if);
     }
 }
 

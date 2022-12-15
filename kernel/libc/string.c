@@ -92,7 +92,10 @@ int strcmp(const char *str1, const char *str2) {
         return -*str1;
     }
 
-    return memcmp(str1, str2, strlen(str1));
+    size_t len_1 = strlen(str1);
+    size_t len_2 = strlen(str2);
+
+    return memcmp(str1, str2, len_1 < len_2 ? len_1 : len_2) || (len_1 < len_2 ? str1[len_1] - str2[len_1] : str1[len_2] - str2[len_2]);
 }
 
 void *memchr(void *ptr, int value, size_t num) {

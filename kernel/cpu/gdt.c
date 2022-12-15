@@ -1,9 +1,9 @@
 #include "gdt.h"
 #include <string.h>
 
-GDT_entry entry[6];
-GDT_ptr gp;
-TSS_entry tss;
+gdt_entry entry[6];
+gdt_ptr gp;
+tss_entry tss;
 
 void gdt_set_gate(int num, unsigned long int base, unsigned long int limit, unsigned char access, unsigned char gran) {
     entry[num].entry.base_low = (base & 0xFFFF);

@@ -1,19 +1,22 @@
 #include "init.h"
 
-extern void _init_stdio();
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
-void _main(void) {
-    _init_stdio();
-
-    syscall(0, main());
-}
-
-int main(void) {
+int main(int argc, char *argv[]) {
     char str[1024];
 
     while (true) {
         printf("> ");
         gets(str);
+
+        if (strlen(str) == 0) {
+            continue;
+        }
+
+        char *cmd = str;
 
         if (strcmp(str, "ls") == 0) {
             printf("not implemented\n");
@@ -26,7 +29,7 @@ int main(void) {
         } else if (strcmp(str, "panic") == 0) {
             asm volatile("hlt");
         } else {
-            printf("unknown command\n");
+            printf("%s: unknown command\n", cmd);
         }
     }
 

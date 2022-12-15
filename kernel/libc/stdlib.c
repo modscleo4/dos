@@ -3,7 +3,7 @@
 #include "../debug.h"
 #include "../ring3.h"
 #include "../cpu/gdt.h"
-#include "../drivers/fat.h"
+#include "../drivers/filesystem.h"
 #include "../modules/elf.h"
 #include <math.h>
 #include <stdio.h>
@@ -205,35 +205,56 @@ char *getenv(const char *name) {
 }
 
 int system(const char *command) {
-    fat_entry *f = rootfs.search_file(&rootfs_io, &rootfs, command);
+    void *f = rootfs.search_file(&rootfs_io, &rootfs, command);
     if (!f) {
         dbgprint("Not found.\n");
         return -1;
     }
 
-    void *addr = malloc(f->size);
-    if (!addr) {
-        dbgprint("Allocation failed\n");
+    void *addr;
+    if (!(addr = rootfs.load_file(&rootfs_io, &rootfs, f))) {
+        dbgprint("Could not allocate or load file.\n");
         return -1;
     }
 
-    if (!rootfs.load_file_at(&rootfs_io, &rootfs, f, addr)) {
-        dbgprint("Not found.\n");
+    dbgprint("%s loaded at address 0x%x\n", command, addr);
+
+    elf_header *_header = (elf_header *) addr;
+    if (memcmp(_header->magic, elf_magic, 4)) {
+        dbgprint("Not an ELF file\n");
         return -1;
     }
 
-    dbgprint("%s loaded at address %x\n", command, addr);
+    if (_header->version == ELF_ARCH_X86) {
+        elf32_header *exec_header = (elf32_header *) addr;
 
-    elf32_header *exec_header = (elf32_header *) addr;
-    dbgprint("Entry point: %x\n", exec_header->entry);
+        dbgprint("x86 ELF file\n");
+        dbgprint("Entry point: %x\n", exec_header->entry);
 
-    elf32_section_header *section_text = elf32_find_section(exec_header, ".text");
-    if (!section_text) {
-        dbgprint("No .text section found\n");
+        elf32_section_header *section_text = elf32_find_section(exec_header, ".text");
+        if (!section_text) {
+            dbgprint("No .text section found\n");
+            return -1;
+        }
+
+        switch_ring3(addr + section_text->offset + exec_header->entry, addr + 0x10000);
+    } else if (_header->version == ELF_ARCH_X86_64) {
+        elf64_header *exec_header = (elf64_header *) addr;
+
+        dbgprint("x86_64 ELF file\n");
+        dbgprint("Entry point: %x\n", exec_header->entry);
+
+        elf64_section_header *section_text = elf64_find_section(exec_header, ".text");
+        if (!section_text) {
+            dbgprint("No .text section found\n");
+            return -1;
+        }
+
+        switch_ring3(addr + section_text->offset + exec_header->entry, addr + 0x10000);
+    } else {
+        dbgprint("Unsupported architecture: %x\n", _header->version);
         return -1;
     }
-
-    switch_ring3(addr + section_text->offset + exec_header->entry, addr + 0x10000);
 
     return 0;
 }

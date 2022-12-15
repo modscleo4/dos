@@ -28,7 +28,7 @@ db 0x02
 db 0x0A
 db 0x01
 
-db 0x04 ; Partittion type
+db 0x83 ; Partittion type
 
 ; CHS end
 db 0x0A

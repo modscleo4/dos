@@ -24,7 +24,7 @@ ext_bios_param:
     param_filesystem db "FAT12", 0x20, 0x20, 0x20; System ID
 
 %macro GRUB_BOOT_SECTOR 0
-db 0x22
+db 0x02
 %endmacro
 
 %endif

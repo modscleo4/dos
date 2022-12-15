@@ -1,8 +1,8 @@
 drive a:
     file="./floppy_disk.img"
-    partition=1 1.44m filter
+    partition=2 1.44m filter
 
 drive c:
     file="./ata_disk.img"
-    partition=1 fat_bits=16 cylinders=256 heads=4 sectors=32 filter
+    partition=2 fat_bits=16 cylinders=256 heads=4 sectors=32 filter
 mtools_skip_check=1

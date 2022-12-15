@@ -2,7 +2,8 @@
 
 #include "../debug.h"
 #include "../bits.h"
-#include "fat.h"
+#include "fs/fat.h"
+#include "fs/ext2.h"
 #include <string.h>
 
 filesystem *mbr_init(iodriver *driver, unsigned int partition) {
@@ -40,18 +41,34 @@ filesystem *mbr_get_fs(int partition) {
             _fs.type = FS_FAT12;
             _fs.start_lba = partitions[partition].start_lba;
             _fs.init = &fat_init;
+            _fs.get_file_size = &fat_get_file_size;
             _fs.search_file = &fat_search_file;
+            _fs.load_file = &fat_load_file;
             _fs.load_file_at = &fat_load_file_at;
             _fs.list_files = &fat_list_files;
             return &_fs;
         }
-        case 0x04: {
+        case 0x04:
+        case 0x06: {
             _fs.type = FS_FAT16;
             _fs.start_lba = partitions[partition].start_lba;
             _fs.init = &fat_init;
+            _fs.get_file_size = &fat_get_file_size;
             _fs.search_file = &fat_search_file;
+            _fs.load_file = &fat_load_file;
             _fs.load_file_at = &fat_load_file_at;
             _fs.list_files = &fat_list_files;
+            return &_fs;
+        }
+        case 0x83: {
+            _fs.type = FS_EXT2;
+            _fs.start_lba = partitions[partition].start_lba;
+            _fs.init = &ext2_init;
+            _fs.get_file_size = &ext2_get_file_size;
+            _fs.search_file = &ext2_search_file;
+            _fs.load_file = &ext2_load_file;
+            _fs.load_file_at = &ext2_load_file_at;
+            _fs.list_files = &ext2_list_files;
             return &_fs;
         }
         default:
