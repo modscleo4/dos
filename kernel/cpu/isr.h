@@ -71,6 +71,6 @@ extern void isr127(void);
 
 void isr_init(void);
 
-void isr_fault_handler(registers *);
+void isr_fault_handler(registers *r);
 
 #endif //KERNEL_ISR_H

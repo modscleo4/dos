@@ -2,8 +2,8 @@
 
 #include <string.h>
 
-bool get_cpuid_info(cpu_info *i) {
-    memset(i, 0, sizeof(cpu_info));
+bool get_cpuid_info(cpu_info *cpuinfo) {
+    memset(cpuinfo, 0, sizeof(cpu_info));
     if (cpuid_available()) {
         // Get Vendor ID
         unsigned int eax, ebx, ecx, edx;
@@ -30,7 +30,7 @@ bool get_cpuid_info(cpu_info *i) {
         // copy to cpu_info->edx
         memcpy(buf + 13 + 4, &edx, 4);
 
-        memcpy(i, buf, sizeof(cpu_info));
+        memcpy(cpuinfo, buf, sizeof(cpu_info));
 
         return true;
     }

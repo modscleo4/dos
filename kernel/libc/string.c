@@ -2,9 +2,9 @@
 
 #include <ctype.h>
 
-void memcpy(void *dest, const void *source, size_t n) {
+void memcpy(void *destination, const void *source, size_t n) {
     unsigned char *c_src = (unsigned char *)source;
-    unsigned char *c_dest = (unsigned char *)dest;
+    unsigned char *c_dest = (unsigned char *)destination;
 
     for (int i = 0; i < n; i++) {
         c_dest[i] = c_src[i];

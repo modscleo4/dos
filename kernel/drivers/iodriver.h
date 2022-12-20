@@ -6,11 +6,12 @@
 typedef struct iodriver {
     unsigned int device;
     unsigned char *io_buffer;
-    int (*reset)(unsigned int);
-    void (*start)(unsigned int);
-    void (*stop)(unsigned int);
-    int (*read_sector)(unsigned int, unsigned long int, unsigned char *, bool);
-    int (*write_sector)(unsigned int, unsigned long int, unsigned char *, bool);
+    unsigned int sector_size;
+    int (*reset)(struct iodriver *driver);
+    void (*start)(struct iodriver *driver);
+    void (*stop)(struct iodriver *driver);
+    int (*read_sector)(struct iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
+    int (*write_sector)(struct iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
 } iodriver;
 
 typedef enum {

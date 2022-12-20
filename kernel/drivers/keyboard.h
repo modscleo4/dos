@@ -14,9 +14,9 @@ enum KeyboardRegisters {
 
 void keyboard_init(void);
 
-void keyboard_handler(registers *);
+void keyboard_handler(registers *r);
 
-void wait_irq1(void);
+void keyboard_wait_irq(void);
 
 char keyboard_read(void);
 

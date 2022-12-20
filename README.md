@@ -6,12 +6,13 @@ A Simple x86 Operating System written in C
 - [x] Multiboot 2
 - [x] MBR Parsing
 - [x] FAT12/16
+- [-] Ext2
 - [ ] Syscalls
 - [ ] Multitasking
 - [ ] Virtual Memory
-- [ ] ELF parsing
+- [-] ELF parsing
 - [ ] Kernel Modules
-- [ ] Networking
+- [-] Networking
 - [ ] Virtual File System
 - [ ] Init System
 - [ ] Shell

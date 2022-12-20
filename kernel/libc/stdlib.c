@@ -176,12 +176,15 @@ void free(void *ptr) {
     //
 }
 
+uint32_t __last_malloc_addr = 0x1000000;
 void *malloc(size_t size) {
     if (size == 0) {
         return NULL;
     }
 
-    return (void *)0x1000000;
+    __last_malloc_addr += size;
+
+    return __last_malloc_addr;
 }
 
 void *realloc(void *ptr, size_t size) {
@@ -237,7 +240,7 @@ int system(const char *command) {
             return -1;
         }
 
-        switch_ring3(addr + section_text->offset + exec_header->entry, addr + 0x10000);
+        switch_ring3((uint32_t)(addr + section_text->offset + exec_header->entry), (uint32_t)(addr + 0x10000));
     } else if (_header->version == ELF_ARCH_X86_64) {
         elf64_header *exec_header = (elf64_header *) addr;
 
@@ -250,7 +253,7 @@ int system(const char *command) {
             return -1;
         }
 
-        switch_ring3(addr + section_text->offset + exec_header->entry, addr + 0x10000);
+        switch_ring3((uint32_t)(addr + section_text->offset + exec_header->entry), (uint32_t)(addr + 0x10000));
     } else {
         dbgprint("Unsupported architecture: %x\n", _header->version);
         return -1;

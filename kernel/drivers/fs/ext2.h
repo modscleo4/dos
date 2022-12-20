@@ -169,16 +169,16 @@ enum Ext2DirectoryEntryType {
     EXT2_DIRECTORY_ENTRY_SYMBOLIC_LINK,
 };
 
-void ext2_init(iodriver *, filesystem *);
+void ext2_init(iodriver *driver, filesystem *fs);
 
-unsigned long int ext2_get_file_size(iodriver *, const void *);
+unsigned long int ext2_get_file_size(iodriver *driver, const void *_f);
 
-ext2_inode *ext2_search_file(iodriver *, filesystem *, const char *);
+ext2_inode *ext2_search_file(iodriver *driver, filesystem *fs, const char *filename);
 
-void *ext2_load_file(iodriver *, filesystem *, const void *);
+void *ext2_load_file(iodriver *driver, filesystem *fs, const void *_f);
 
-void *ext2_load_file_at(iodriver *, filesystem *, const void *, void *);
+void *ext2_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *addr);
 
-void ext2_list_files(iodriver *, filesystem *);
+void ext2_list_files(iodriver *driver, filesystem *fs);
 
 #endif // EXT2_H

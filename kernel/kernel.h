@@ -5,6 +5,6 @@
 
 extern void restore_segment_selector(void);
 
-void kernel_main(unsigned long int, unsigned long int);
+void kernel_main(unsigned long int magic, unsigned long int addr);
 
 #endif //KERNEL_H

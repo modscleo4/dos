@@ -3,6 +3,7 @@
 #include "../../cpu/panic.h"
 #include "../../debug.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 bios_params params;
@@ -36,7 +37,7 @@ static unsigned short int fat16_next_cluster(unsigned int cluster, const unsigne
 void fat_init(iodriver *driver, filesystem *fs) {
     dbgprint("Reading File Allocation Table (sector %x)...\n", fs->start_lba);
 
-    driver->read_sector(driver->device, fs->start_lba + 0, driver->io_buffer, true);
+    driver->read_sector(driver, fs->start_lba + 0, driver->io_buffer, true);
 
     buffer2struct(driver->io_buffer, &params);
     char volume_label[12];
@@ -86,7 +87,7 @@ fat_entry *fat_search_file(iodriver *driver, filesystem *fs, const char *filenam
 
     for (int i = 0; i < last_sector; i += sizeof(fat_entry)) {
         if (i % 512 == 0) {
-            driver->read_sector(driver->device, rootdir_sector++, buffer, i != last_sector);
+            driver->read_sector(driver, rootdir_sector++, buffer, i != last_sector);
         }
 
         if (buffer[i % 512] == 0) {
@@ -157,10 +158,10 @@ void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *a
         unsigned int sector = (cluster - 2) * params.sectors_per_cluster + rootdir_sector + (params.rootdir_entries * sizeof(fat_entry) / params.bytes_per_sector);
 
         if (!last_fat_sector || last_fat_sector != fat_sector) {
-            driver->read_sector(driver->device, fat_sector, fat_buffer, true);
+            driver->read_sector(driver, fat_sector, fat_buffer, true);
         }
 
-        driver->read_sector(driver->device, sector, driver->io_buffer, true);
+        driver->read_sector(driver, sector, driver->io_buffer, true);
 
         memcpy(addr + cl, driver->io_buffer, params.bytes_per_sector);
         cl += params.bytes_per_sector;
@@ -174,7 +175,7 @@ void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *a
         }
     }
 
-    driver->stop(driver->device);
+    driver->stop(driver);
 
     return addr;
 }
@@ -261,7 +262,7 @@ void fat_list_files(iodriver *driver, filesystem *fs) {
 
     for (int i = 0; i < last_sector; i += sizeof(fat_entry)) {
         if (i % 512 == 0) {
-            driver->read_sector(driver->device, sector++, driver->io_buffer, i != last_sector);
+            driver->read_sector(driver, sector++, driver->io_buffer, i != last_sector);
         }
 
         if (driver->io_buffer[i % 512] == 0) {
@@ -274,7 +275,7 @@ void fat_list_files(iodriver *driver, filesystem *fs) {
 
         if (f.attributes.directory) {
             fat_list_files_in_dir(driver, fs, &f, 1);
-            driver->read_sector(driver->device, sector - 1, driver->io_buffer, i != last_sector);
+            driver->read_sector(driver, sector - 1, driver->io_buffer, i != last_sector);
         }
     }
 }
@@ -289,7 +290,7 @@ void fat_list_files_in_dir(iodriver *driver, filesystem *fs, fat_entry *d, int l
 
     for (int i = 0; i < 512; i += sizeof(fat_entry)) {
         if (i % 512 == 0) {
-            driver->read_sector(driver->device, dir_sector++, driver->io_buffer, i != last_sector);
+            driver->read_sector(driver, dir_sector++, driver->io_buffer, i != last_sector);
         }
 
         if (driver->io_buffer[i % 512] == 0) {
@@ -302,7 +303,7 @@ void fat_list_files_in_dir(iodriver *driver, filesystem *fs, fat_entry *d, int l
 
         if (f.attributes.directory && i >= 2 * sizeof(fat_entry)) {
             fat_list_files_in_dir(driver, fs, &f, level + 1);
-            //driver->read_sector(driver->device, dir_sector - 1, driver->io_buffer, i != last_sector);
+            //driver->read_sector(driver, dir_sector - 1, driver->io_buffer, i != last_sector);
         }
     }
 }

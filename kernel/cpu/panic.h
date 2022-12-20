@@ -4,8 +4,8 @@
 #include "system.h"
 #include <stdarg.h>
 
-void panic(const char *, ...);
+void panic(const char *msg, ...);
 
-void panic_handler(const char *, registers *);
+void panic_handler(const char *msg, registers *r);
 
 #endif // PANIC_H

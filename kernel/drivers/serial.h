@@ -25,12 +25,12 @@ enum SerialRegisters {
     SERIAL_REG_SCRATCH = 7,
 };
 
-int serial_init(unsigned int, unsigned short int);
+int serial_init(unsigned int port, unsigned short int baud_divisor);
 
-char serial_read(unsigned int);
+char serial_read(unsigned int port);
 
-void serial_write(unsigned int, char);
+void serial_write(unsigned int port, char c);
 
-void serial_write_str(unsigned int, const char *);
+void serial_write_str(unsigned int port, const char *str);
 
 #endif // SERIAL_H

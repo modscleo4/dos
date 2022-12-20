@@ -3,6 +3,7 @@
 
 #include "../cpu/system.h"
 #include "iodriver.h"
+#include "pci.h"
 #include <stdbool.h>
 
 #define DISK_PARAMETER_ADDRESS 0x000FEFC7
@@ -26,10 +27,6 @@ typedef struct {
     unsigned char head_settle_time; /*specified in milliseconds*/
     unsigned char motor_start_time; /*specified in 1/8 second*/
 } __attribute__((packed)) floppy_parameters;
-
-#define FLOPPY_PRIMARY_BASE 0x03F0
-#define FLOPPY_SECONDARY_BASE 0x0370
-#define FLOPPY_TERTIARY_BASE 0x0360
 
 enum Floppy_Registers {
     FLOPPY_STATUS_REGISTER_A = 0x000, // read-only
@@ -88,47 +85,47 @@ static const char *drive_types[6] = {
     "2.88MB 3.5in floppy"
 };
 
-iodriver *floppy_init(unsigned char, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int);
+iodriver *floppy_init(pci_device *device);
 
 void floppy_detect_types(void);
 
-void floppy_configure(unsigned int);
+void floppy_configure(iodriver *driver);
 
-unsigned char floppy_version(unsigned int);
+unsigned char floppy_version(iodriver *driver);
 
-bool floppy_lock(unsigned int, bool);
+bool floppy_lock(iodriver *driver, bool lock);
 
-void lba2chs(unsigned long int, chs *, floppy_parameters);
+void lba2chs(unsigned long int lba, chs *c, floppy_parameters fparams);
 
-void wait_irq6(void);
+void floppy_wait_irq(void);
 
-int floppy_wait_until_ready(unsigned int);
+int floppy_wait_until_ready(iodriver *driver);
 
-int floppy_recv_byte(unsigned int);
+unsigned char floppy_recv_byte(iodriver *driver);
 
-int floppy_send_byte(unsigned int, unsigned char);
+int floppy_send_byte(iodriver *driver, unsigned char b);
 
-void floppy_check_interrupt(unsigned int, int *, int *);
+void floppy_check_interrupt(iodriver *driver, int *st0, int *cylinder);
 
-int floppy_calibrate(unsigned int);
+int floppy_calibrate(iodriver *driver);
 
-int floppy_reset(unsigned int);
+int floppy_reset(iodriver *driver);
 
-void floppy_specify(unsigned int);
+void floppy_specify(iodriver *driver);
 
-int floppy_seek(unsigned int, unsigned char, unsigned char);
+int floppy_seek(iodriver *driver, unsigned char cylinder, unsigned char head);
 
-void floppy_motor_on(unsigned int);
+void floppy_motor_on(iodriver *driver);
 
-void floppy_motor_off(unsigned int);
+void floppy_motor_off(iodriver *driver);
 
-static void floppy_dma_init(io_operation, unsigned char *);
+static void floppy_dma_init(io_operation direction, unsigned char *buffer);
 
-int floppy_do_sector(unsigned int, unsigned long int, unsigned char *, io_operation, bool);
+int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buffer, io_operation direction, bool keepOn);
 
-int floppy_sector_read(unsigned int, unsigned long int, unsigned char *, bool);
+int floppy_sector_read(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
 
-int floppy_sector_write(unsigned int, unsigned long int, unsigned char *, bool);
+int floppy_sector_write(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
 
 iodriver floppy_io;
 

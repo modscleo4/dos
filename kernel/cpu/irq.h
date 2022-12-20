@@ -56,12 +56,12 @@ extern void irq15(void);
 
 void irq_remap(void);
 
-void irq_install_handler(int, void (*)(registers*));
+void irq_install_handler(int irq, void (*handler)(registers *));
 
-void irq_uninstall_handler(int);
+void irq_uninstall_handler(int irq);
 
 void irq_init(void);
 
-void irq_handler(registers *);
+void irq_handler(registers *r);
 
 #endif //KERNEL_IRQ_H

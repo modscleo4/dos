@@ -23,76 +23,76 @@ typedef struct ldiv_t {
     long int rem;
 } ldiv_t;
 
-float atof(const char *);
+float atof(const char *str);
 
-int atoi(const char *);
+int atoi(const char *str);
 
-char *htoa(short int, char *, int);
+char *htoa(short int value, char *str, int base);
 
-char *itoa(int, char *, int);
+char *itoa(int value, char *str, int base);
 
-char *ltoa(long int, char *, int);
+char *ltoa(long int value, char *str, int base);
 
-char *hutoa(unsigned short int, char *, int);
+char *hutoa(unsigned short int value, char *str, int base);
 
-char *utoa(unsigned int, char *, int);
+char *utoa(unsigned int value, char *str, int base);
 
-char *lutoa(unsigned long int, char *, int);
+char *lutoa(unsigned long int value, char *str, int base);
 
-char *ftoa(float, char *, int);
+char *ftoa(float value, char *str, int precision);
 
-char *lftoa(double, char *, int);
+char *lftoa(double value, char *str, int precision);
 
-long int atol(const char *);
+long int atol(const char *str);
 
-double strtod(const char *, char **);
+double strtod(const char *str, char **endptr);
 
-long int strtol(const char *, char **, int);
+long int strtol(const char *str, char **endptr, int base);
 
-unsigned long int strtoul(const char *, char **, int);
+unsigned long int strtoul(const char *str, char **endptr, int base);
 
-void *calloc(size_t, size_t);
+void *calloc(size_t num, size_t size);
 
-void free(void *);
+void free(void *ptr);
 
-void *malloc(size_t);
+void *malloc(size_t size);
 
-void *realloc(void *, size_t);
+void *realloc(void *ptr, size_t size);
 
 void abort(void);
 
-int atexit(void (*)(void));
+int atexit(void (*func)(void));
 
-void exit(int);
+void exit(int status);
 
-char *getenv(const char *);
+char *getenv(const char *name);
 
-int system(const char *);
+int system(const char *command);
 
-void *bsearch(const void *, const void *, size_t, size_t, int (*)(const void *, const void *));
+void *bsearch(const void *key, const void *base, size_t num, size_t size, int (*compar)(const void *, const void *));
 
-void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
+void qsort(void *base, size_t num, size_t size, int (*compar)(const void *, const void *));
 
-int abs(int);
+div_t div(int numer, int denom);
 
-div_t div(int, int);
+ldiv_t ldiv(long int numer, long int denom);
 
-ldiv_t ldiv(long int, long int);
+int abs(int x);
 
-long int labs(long int);
+long int labs(long int x);
 
 int rand(void);
 
 void srand(unsigned int seed);
 
-int mblen(const char *, size_t);
+int mblen(const char *pmb, size_t max);
 
-size_t mbstowcs(wchar_t *, const char *, size_t);
+size_t mbstowcs(wchar_t *dest, const char *src, size_t max);
 
-int mbtowc(wchar_t *, const char *, size_t);
+int mbtowc(wchar_t *pwc, const char *pmb, size_t max);
 
-size_t wcstombs(char *, const wchar_t *, size_t);
+size_t wcstombs(char *dest, const wchar_t *src, size_t max);
 
-int wctomb(char *, wchar_t);
+int wctomb(char *pmb, wchar_t wc);
 
 #endif //STDLIB_H

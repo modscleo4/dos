@@ -9,6 +9,7 @@ ata_disk.img
 ata_disk_ext2.img
 ata_disk.vdi
 serial.txt
+slirp-pktlog.txt
 
 .idea/
 .vscode/

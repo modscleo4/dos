@@ -8,6 +8,6 @@ typedef struct uuid {
     unsigned int superhigh;
 } uuid;
 
-const char *printuuid(uuid);
+const char *printuuid(uuid id);
 
 #endif // UUID_H

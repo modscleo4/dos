@@ -148,6 +148,8 @@ enum ELFSymbolTableType {
     ELF_SYMBOLTABLE_TYPE_HIPROC = 15
 };
 
-elf32_section_header *elf32_find_section(elf32_header *, const char *);
+elf32_section_header *elf32_find_section(elf32_header *header, const char *name);
+
+elf64_section_header *elf64_find_section(elf64_header *header, const char *name);
 
 #endif // ELF_H

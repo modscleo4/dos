@@ -1,0 +1,278 @@
+#ifndef E1000_H
+#define E1000_H
+
+#include <stdint.h>
+#include "pci.h"
+#include "ethernet.h"
+
+typedef struct e1000_receive_descriptor {
+    uint32_t buffer_address_low;
+    uint32_t buffer_address_high;
+    uint16_t length;
+    uint16_t checksum;
+    uint8_t status;
+    uint8_t errors;
+    uint16_t special;
+} e1000_receive_descriptor;
+
+typedef struct e1000_transmit_descriptor {
+    uint32_t buffer_address_low;
+    uint32_t buffer_address_high;
+    uint16_t length;
+    uint8_t cso;
+    uint8_t cmd;
+    uint8_t status;
+    uint8_t css;
+    uint16_t special;
+} e1000_transmit_descriptor;
+
+enum E1000GeneralRegister {
+    E1000_REG_CTRL = 0x00000,
+    E1000_REG_STATUS = 0x00008,
+    E1000_REG_EECD = 0x00010,
+    E1000_REG_EERD = 0x00014,
+    E1000_REG_CTRL_EXT = 0x00018,
+    E1000_REG_MDIC = 0x00020,
+    E1000_REG_FCAL = 0x00028,
+    E1000_REG_FCAH = 0x0002C,
+    E1000_REG_FCT = 0x00030,
+    E1000_REG_VET = 0x00038,
+    E1000_REG_FCTTV = 0x00170,
+    E1000_REG_TXCW = 0x00178,
+    E1000_REG_RXCW = 0x00180,
+    E1000_REG_LEDCTL = 0x00E00,
+};
+
+enum E1000DMARegister {
+    E1000_REG_PBA = 0x01000,
+};
+
+enum E1000InterruptRegister {
+    E1000_REG_ICR = 0x000C0,
+    E1000_REG_ITR = 0x000C4,
+    E1000_REG_ICS = 0x000C8,
+    E1000_REG_IMS = 0x000D0,
+    E1000_REG_IMC = 0x000D8,
+};
+
+enum E1000ReceiveRegister {
+    E1000_REG_RCTL = 0x00100,
+    E1000_REG_FCRTL = 0x02160,
+    E1000_REG_FCRTH = 0x02168,
+    E1000_REG_RDBAL = 0x02800,
+    E1000_REG_RDBAH = 0x02804,
+    E1000_REG_RDLEN = 0x02808,
+    E1000_REG_RDH = 0x02810,
+    E1000_REG_RDT = 0x02818,
+    E1000_REG_RDTR = 0x02820,
+    E1000_REG_RADV = 0x0282C,
+    E1000_REG_RSRPD = 0x02C00,
+
+    E1000_REG_MTA = 0x05200,
+    E1000_REG_RAL = 0x05400,
+    E1000_REG_RAH = 0x05404,
+    E1000_REG_VFTA = 0x05600,
+};
+
+enum E1000TransmitRegister {
+    E1000_REG_TCTL = 0x00400,
+    E1000_REG_TIPG = 0x00410,
+    E1000_REG_AIFS = 0x00458,
+    E1000_REG_TDBAL = 0x03800,
+    E1000_REG_TDBAH = 0x03804,
+    E1000_REG_TDLEN = 0x03808,
+    E1000_REG_TDH = 0x03810,
+    E1000_REG_TDT = 0x03818,
+    E1000_REG_TIDV = 0x03820,
+};
+
+enum E1000TXDMARegister {
+    E1000_REG_TXDMAC = 0x03000,
+    E1000_REG_TXDCTL = 0x03828,
+    E1000_REG_TADV = 0x0282C,
+    E1000_REG_TSPMT = 0x03830,
+};
+
+enum E1000RXDMARegister {
+    E1000_REG_RXDCTL = 0x02828,
+    E1000_REG_RXCSUM = 0x05000,
+};
+
+enum E1000RegisterBitCTRL {
+    E1000_REGBIT_CTRL_FD = 1 << 0,
+    E1000_REGBIT_CTRL_LRST = 1 << 3,
+    E1000_REGBIT_CTRL_ASDE = 1 << 5,
+    E1000_REGBIT_CTRL_SLU = 1 << 6,
+    E1000_REGBIT_CTRL_ILOS = 1 << 7,
+    E1000_REGBIT_CTRL_SPEED_10 = 0,
+    E1000_REGBIT_CTRL_SPEED_100 = 1 << 8,
+    E1000_REGBIT_CTRL_SPEED_1000 = 1 << 9,
+    E1000_REGBIT_CTRL_FRCSPD = 1 << 11,
+    E1000_REGBIT_CTRL_FRCDPX = 1 << 12,
+    E1000_REGBIT_CTRL_SDP0_DATA = 1 << 18,
+    E1000_REGBIT_CTRL_SDP1_DATA = 1 << 19,
+    E1000_REGBIT_CTRL_ADVD3WUC = 1 << 20,
+    E1000_REGBIT_CTRL_EN_PHY_PWR_MGMT = 1 << 21,
+    E1000_REGBIT_CTRL_SDP0_IODIR = 1 << 22,
+    E1000_REGBIT_CTRL_SDP1_IODIR = 1 << 23,
+};
+
+enum E1000RegisterBitEECD {
+    E1000_REGBIT_EECD_SK = 1 << 0,
+    E1000_REGBIT_EECD_CS = 1 << 1,
+    E1000_REGBIT_EECD_DI = 1 << 2,
+    E1000_REGBIT_EECD_DO = 1 << 3,
+    E1000_REGBIT_EECD_FWE_D = 1 << 4,
+    E1000_REGBIT_EECD_FWE_E = 1 << 5,
+    E1000_REGBIT_EECD_REQ = 1 << 6,
+    E1000_REGBIT_EECD_GNT = 1 << 7,
+    E1000_REGBIT_EECD_PRES = 1 << 8,
+    E1000_REGBIT_EECD_SIZE = 1 << 9,
+
+    E1000_REGBIT_EECD_TYPE = 1 << 13,
+};
+
+enum E1000RegisterBitEERD {
+    E1000_REGBIT_EERD_START = 1 << 0,
+    E1000_REGBIT_EERD_DONE = 1 << 4,
+};
+
+enum E1000RegisterBitRAH {
+    E1000_REGBIT_RAH_AS_SOURCE = 1 << 16,
+    E1000_REGBIT_RAH_AV = 1 << 31,
+};
+
+enum E1000RegisterBitICR {
+    E1000_REGBIT_ICR_TXDW = 1 << 0,
+    E1000_REGBIT_ICR_TXQE = 1 << 1,
+    E1000_REGBIT_ICR_LSC = 1 << 2,
+    E1000_REGBIT_ICR_RXSEQ = 1 << 3,
+    E1000_REGBIT_ICR_RXDMT0 = 1 << 4,
+    E1000_REGBIT_ICR_RXO = 1 << 6,
+    E1000_REGBIT_ICR_RXT0 = 1 << 7,
+    E1000_REGBIT_ICR_MDAC = 1 << 9,
+    E1000_REGBIT_ICR_RXCFG = 1 << 10,
+    E1000_REGBIT_ICR_PHYINT = 1 << 12,
+    E1000_REGBIT_ICR_GPI = 1 << 13,
+    E1000_REGBIT_ICR_ECCER = 1 << 14,
+    E1000_REGBIT_ICR_TS = 1 << 15,
+    E1000_REGBIT_ICR_MNG = 1 << 16,
+    E1000_REGBIT_ICR_DOCK = 1 << 17,
+    E1000_REGBIT_ICR_INT_ASSERTED = 1 << 31,
+};
+
+enum E1000RegisterBitIMS {
+    E1000_REGBIT_IMS_TXDW = 1 << 0,
+    E1000_REGBIT_IMS_TXQE = 1 << 1,
+    E1000_REGBIT_IMS_LSC = 1 << 2,
+    E1000_REGBIT_IMS_RXSEQ = 1 << 3,
+    E1000_REGBIT_IMS_RXDMT0 = 1 << 4,
+
+    E1000_REGBIT_IMS_RXO = 1 << 6,
+    E1000_REGBIT_IMS_RXT0 = 1 << 7,
+
+    E1000_REGBIT_IMS_MDAC = 1 << 9,
+    E1000_REGBIT_IMS_RXCFG = 1 << 10,
+
+    E1000_REGBIT_IMS_PHYINT = 1 << 12,
+    E1000_REGBIT_IMS_GPI = 1 << 13,
+    E1000_REGBIT_IMS_TXD_LOW = 1 << 15,
+    E1000_REGBIT_IMS_SRPD = 1 << 16,
+};
+
+enum E1000RegisterBitRCTL {
+
+    E1000_REGBIT_RCTL_EN = 1 << 1,
+    E1000_REGBIT_RCTL_SBP = 1 << 2,
+    E1000_REGBIT_RCTL_UPE = 1 << 3,
+    E1000_REGBIT_RCTL_MPE = 1 << 4,
+    E1000_REGBIT_RCTL_LPE = 1 << 5,
+    E1000_REGBIT_RCTL_LBM_NO = 0 << 6,
+    E1000_REGBIT_RCTL_LBM_PHY = 1 << 7 | 1 << 6,
+    E1000_REGBIT_RCTL_RDMTS_1_2 = 0 << 8,
+    E1000_REGBIT_RCTL_RDMTS_1_4 = 1 << 8,
+    E1000_REGBIT_RCTL_RDMTS_1_8 = 1 << 9,
+
+    E1000_REGBIT_RCTL_MO_36 = 0 << 12,
+    E1000_REGBIT_RCTL_MO_35 = 1 << 12,
+    E1000_REGBIT_RCTL_MO_34 = 1 << 13,
+    E1000_REGBIT_RCTL_MO_32 = 1 << 13 | 1 << 12,
+
+    E1000_REGBIT_RCTL_BAM = 1 << 15,
+    E1000_REGBIT_RCTL_BSIZE_2048 = 0 << 16,
+    E1000_REGBIT_RCTL_BSIZE_1024 = 1 << 16,
+    E1000_REGBIT_RCTL_BSIZE_512 = 1 << 17,
+    E1000_REGBIT_RCTL_BSIZE_256 = 1 << 17 | 1 << 16,
+    E1000_REGBIT_RCTL_BSIZE_16384 = 1 << 16,
+    E1000_REGBIT_RCTL_BSIZE_8192 = 1 << 17,
+    E1000_REGBIT_RCTL_BSIZE_4096 = 1 << 17 | 1 << 16,
+    E1000_REGBIT_RCTL_VFE = 1 << 18,
+    E1000_REGBIT_RCTL_CFIEN = 1 << 19,
+    E1000_REGBIT_RCTL_CFI = 1 << 20,
+
+    E1000_REGBIT_RCTL_DPF = 1 << 22,
+    E1000_REGBIT_RCTL_PMCF = 1 << 23,
+
+    E1000_REGBIT_RCTL_BSEX = 1 << 25,
+    E1000_REGBIT_RCTL_SECRC = 1 << 26,
+
+};
+
+enum E1000RegisterBitTCTL {
+
+    E1000_REGBIT_TCTL_EN = 1 << 1,
+
+    E1000_REGBIT_TCTL_PSP = 1 << 3,
+    E1000_REGBIT_TCTL_CT_10 = 0x10 << 4,
+
+    E1000_REGBIT_TCTL_COLD_HALF = 0x200 << 12,
+    E1000_REGBIT_TCTL_COLD_FULL = 0x40 << 12,
+    E1000_REGBIT_TCTL_SWXOFF = 1 << 22,
+
+    E1000_REGBIT_TCTL_RTLC = 1 << 24,
+    E1000_REGBIT_TCTL_NRTU = 1 << 25,
+
+};
+
+enum E1000RegisterBitAddressTIPG {
+    E1000_REGBITADDR_TIPG_IPGT = 0,
+    E1000_REGBITADDR_TIPG_IPGR1 = 10,
+    E1000_REGBITADDR_TIPG_IPGR2 = 20,
+};
+
+enum E1000RegisterBitTransmissionDescriptorCommand {
+    E1000_REGBIT_TXD_CMD_EOP = 1 << 0,
+    E1000_REGBIT_TXD_CMD_IFCS = 1 << 1,
+    E1000_REGBIT_TXD_CMD_IC = 1 << 2,
+    E1000_REGBIT_TXD_CMD_RS = 1 << 3,
+    E1000_REGBIT_TXD_CMD_RPS = 1 << 4,
+    E1000_REGBIT_TXD_CMD_DEXT = 1 << 5,
+    E1000_REGBIT_TXD_CMD_VLE = 1 << 6,
+    E1000_REGBIT_TXD_CMD_IDE = 1 << 7,
+};
+
+enum E1000RegisterBitTransmissionDescriptorStatus {
+    E1000_REGBIT_TXD_STAT_DD = 1 << 0,
+    E1000_REGBIT_TXD_STAT_EC = 1 << 1,
+    E1000_REGBIT_TXD_STAT_LC = 1 << 2,
+    E1000_REGBIT_TXD_STAT_TU = 1 << 3,
+};
+
+enum E1000RegisterBitReceiveDescriptorStatus {
+    E1000_REGBIT_RXD_STAT_DD = 1 << 0,
+    E1000_REGBIT_RXD_STAT_EOP = 1 << 1,
+    E1000_REGBIT_RXD_STAT_IXSM = 1 << 2,
+    E1000_REGBIT_RXD_STAT_VP = 1 << 3,
+
+    E1000_REGBIT_RXD_STAT_TCPCS = 1 << 5,
+    E1000_REGBIT_RXD_STAT_IPCS = 1 << 6,
+    E1000_REGBIT_RXD_STAT_PIF = 1 << 7,
+};
+
+ethernet_driver *e1000_init(pci_device *device);
+
+unsigned int e1000_send_packet(ethernet_driver *driver, ethernet_packet *packet, size_t data_size);
+
+void e1000_int_handler(ethernet_driver *driver);
+
+#endif // E1000_H

@@ -7,7 +7,7 @@
 #include "../modules/kblayout/kb.h"
 
 unsigned char scancode;
-int irq1_c = 0;
+int irq_c = 0;
 bool pressed[256];
 
 static void _keyboard_reset(void) {
@@ -18,7 +18,7 @@ static void _keyboard_reset(void) {
 }
 
 void keyboard_init(void) {
-    irq1_c = 0;
+    irq_c = 0;
     irq_install_handler(IRQ_KEYBOARD, keyboard_handler);
     _keyboard_reset();
     kblayout = kblayout_us;
@@ -27,7 +27,7 @@ void keyboard_init(void) {
 
 void keyboard_handler(registers *r) {
     while (ISSET_BIT_INT(inb(KB_STATUS_REGISTER), 2)) { }
-    irq1_c++;
+    irq_c++;
     scancode = inb(KB_DATA_REGISTER);
 
     /*if (!ISSET_BIT_INT(scancode, 0x80)) {
@@ -42,13 +42,13 @@ void keyboard_handler(registers *r) {
     }*/
 }
 
-void wait_irq1(void) {
-    while (irq1_c <= 0) {}
-    irq1_c--;
+void keyboard_wait_irq(void) {
+    while (irq_c <= 0) {}
+    irq_c--;
 }
 
 char keyboard_read(void) {
-    wait_irq1();
+    keyboard_wait_irq();
     return scancode;
 }
 

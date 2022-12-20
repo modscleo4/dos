@@ -27,6 +27,7 @@
 #include "modules/kblayout/kb.h"
 #include "modules/multiboot2.h"
 #include "modules/process.h"
+#include "modules/net/arp.h"
 
 static void iodriver_init(unsigned int boot_drive) {
     iodriver *_tmpio;
@@ -41,7 +42,9 @@ static void iodriver_init(unsigned int boot_drive) {
         dbgwait();
 
         if (floppy_io.device == -2) {
-            floppy_init(0, 0x3F0, 0x370, 0x000, 0x000, 0x000);
+            if (!floppy_init(NULL)) {
+                dbgwait();
+            }
         }
         _tmpio = &floppy_io;
     }
@@ -53,7 +56,7 @@ static void iodriver_init(unsigned int boot_drive) {
     rootfs_io = *_tmpio;
     rootfs_io.device = boot_drive;
 
-    if (rootfs_io.reset && rootfs_io.reset(boot_drive)) {
+    if (rootfs_io.reset && rootfs_io.reset(&rootfs_io)) {
         panic("Failed to reset device");
     }
 }
@@ -131,6 +134,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     keyboard_init();
     asm("sti");
     dbgprint("Interruptions enabled\n");
+    dbgwait();
     pci_init();
     dbgwait();
     dbgprint("Reading Master Boot Record...\n");

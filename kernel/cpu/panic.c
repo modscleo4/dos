@@ -55,7 +55,7 @@ void panic_handler(const char *msg, registers *r) {
                     printf("eax: %08lx    ebx: %08lx    ecx: %08lx    edx: %08lx\n", r->eax, r->ebx, r->ecx, r->edx);
                     printf("esi: %08lx    edi: %08lx    ebp: %08lx    esp: %08lx\n", r->esi, r->edi, r->ebp, r->esp);
                     printf("eip: %08lx    useresp: %08lx\n\n", r->eip, r->useresp);
-                    hexdump(r->esp, 0x40);
+                    hexdump((void *)r->esp, 0x40);
                     printf("SEG sltr(index|cd|dpl)     base    limit G D\n");
                     printf("cs: %04hx", (short int)r->cs);
                     read_gdt_segment(r->cs);

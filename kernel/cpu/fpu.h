@@ -38,9 +38,9 @@ enum CR4 {
     CR4_SMAP = 1 << 21
 };
 
-void fpu_load_control_word(const unsigned short int);
-
 extern bool fpu_available(void);
+
+void fpu_load_control_word(const unsigned short int control);
 
 void fpu_init(void);
 

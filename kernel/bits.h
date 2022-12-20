@@ -1,25 +1,31 @@
 #ifndef BITS_H
 #define BITS_H
 
-void outb(unsigned int, unsigned char);
+#include <stdint.h>
 
-unsigned char inb(unsigned int);
+void outb(uint16_t addr, uint8_t val);
 
-void outw(unsigned int, unsigned short int);
+uint8_t inb(uint16_t addr);
 
-unsigned short int inw(unsigned int);
+void outw(uint16_t addr, uint16_t val);
 
-void outl(unsigned int, unsigned int);
+uint16_t inw(uint16_t addr);
 
-unsigned int inl(unsigned int);
+void outl(uint16_t addr, uint32_t val);
 
-void insl(unsigned int, unsigned int *, int);
+uint32_t inl(uint16_t addr);
 
-void outsm(unsigned int, unsigned char *, unsigned long int);
+void insl(uint16_t addr, uint32_t *buffer, unsigned int quads);
 
-void insm(unsigned int, unsigned char *, unsigned long int);
+void outsm(uint16_t addr, uint8_t *buffer, uint32_t size);
+
+void insm(uint16_t addr, uint8_t *buffer, uint32_t size);
 
 void io_wait(void);
+
+uint16_t switch_endian_16(uint16_t val);
+
+uint32_t switch_endian_32(uint32_t val);
 
 #define DISABLE_BIT(reg, bit) ((reg) &= ~(1 << bit))
 #define ENABLE_BIT(reg, bit) ((reg) |= (1 << bit))

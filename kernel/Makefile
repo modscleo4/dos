@@ -5,8 +5,8 @@ CFLAGS=-ffreestanding -g -m32 -I libc/include -fno-omit-frame-pointer -nostdlib 
 
 ASM_SRCS = $(wildcard *.asm cpu/*.asm)
 ASM_OBJS = $(patsubst %.asm, $(BUILD_DIR)/%.obj, $(ASM_SRCS))
-SRCS := $(wildcard *.c libc/*.c drivers/*.c drivers/fs/*.c cpu/*.c modules/*.c)
-HDRS := $(wildcard *.h libc/include/*.h drivers/*.h drivers/fs/*.h cpu/*.h modules/*.h modules/kblayout/*.h)
+SRCS := $(wildcard *.c libc/*.c drivers/*.c drivers/fs/*.c cpu/*.c modules/*.c modules/net/*.c)
+HDRS := $(wildcard *.h libc/include/*.h drivers/*.h drivers/fs/*.h cpu/*.h modules/*.h modules/kblayout/*.h modules/net/*.h)
 OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRCS))
 
 all: dir $(BIN)
@@ -18,6 +18,7 @@ dir:
 	mkdir -p $(BUILD_DIR)/libc
 	mkdir -p $(BUILD_DIR)/cpu
 	mkdir -p $(BUILD_DIR)/modules
+	mkdir -p $(BUILD_DIR)/modules/net
 
 $(BUILD_DIR)/%.obj: %.asm
 	nasm -f elf32 $< -o $@

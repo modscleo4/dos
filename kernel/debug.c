@@ -27,36 +27,50 @@ void dbgwait(void) {
 }
 
 void hexdump(void *ptr, size_t n) {
-    unsigned char *ptr_c = ptr;
+    const uintptr_t ptr_i = (uintptr_t)ptr;
+    unsigned char *ptr_c = ptr - ptr_i % 16;
 
     for (int i = 0; i < n; i++) {
-        printf("%02x ", ptr_c[i]);
-        if (i % 16 == 15 || i == n - 1) {
-            if (i % 16 < 15) {
-                for (int j = i % 16; j < 15; j++) {
-                    printf("   ");
+        if (i % 16 == 0) {
+            printf("%08x  ", ptr_i - ptr_i % 16 + i);
+        }
+
+        if (i < ptr_i % 16) {
+            printf("   ");
+        } else {
+            printf("%02x ", ptr_c[i]);
+            if (i % 16 == 15 || i == n - 1) {
+                if (i % 16 < 15) {
+                    for (int j = i % 16; j < 15; j++) {
+                        printf("   ");
+                    }
                 }
+
+                printf("  ");
+                for (int j = i - (i % 16); j <= i; j++) {
+                    if (j < ptr_i % 16) {
+                        setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+                        printf(" ");
+                    } else {
+                        if (ptr_c[j] >= 32 && ptr_c[j] <= 126) {
+                            setcolor(COLOR_BLACK << 4 | COLOR_GREEN);
+                            printf("%c", ptr_c[j]);
+                        } else {
+                            setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+                            printf(".");
+                        }
+                    }
+
+                    if (j == i - (i % 16) + 7) {
+                        setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+                        printf(" ");
+                    }
+                }
+
+                setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+
+                printf("\n");
             }
-
-            printf("  ");
-            for (int j = i - (i % 16); j <= i; j++) {
-                if (ptr_c[j] >= 32 && ptr_c[j] <= 126) {
-                    setcolor(COLOR_BLACK << 4 | COLOR_GREEN);
-                    printf("%c", ptr_c[j]);
-                } else {
-                    setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
-                    printf(".");
-                }
-
-                if (j == i - (i % 16) + 7) {
-                    setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
-                    printf(" ");
-                }
-            }
-
-            setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
-
-            printf("\n");
         }
     }
 
@@ -65,10 +79,10 @@ void hexdump(void *ptr, size_t n) {
 
 typedef struct stackframe {
     struct stackframe *ebp;
-    unsigned long int eip;
+    uint32_t eip;
 } stackframe;
 
-void callstack(unsigned long int ebp) {
+void callstack(uint32_t ebp) {
     if (!rootfs.type) {
         return;
     }
@@ -78,7 +92,7 @@ void callstack(unsigned long int ebp) {
         return;
     }
 
-    rootfs.load_file_at(&rootfs_io, &rootfs, kernel_file_inode, 0x1000000);
+    rootfs.load_file_at(&rootfs_io, &rootfs, kernel_file_inode, (void *)0x1000000);
     elf32_header *kernel_header = (elf32_header *) 0x1000000;
     elf32_section_header *section_debuginfo = NULL;
     elf32_section_header *section_strtab = NULL;
@@ -142,13 +156,13 @@ void callstack(unsigned long int ebp) {
     printf("Call Stack:\n");
     while (stk) {
         printf("[%p]", stk->eip);
-        if (stk->eip >= kernel_header->entry && stk->eip <= kernel_header->entry + rootfs.get_file_size(&rootfs_io, kernel_file_inode) && section_symtab) {
-            unsigned long int func_addr = NULL;
+        if (stk->eip >= kernel_header->entry && stk->eip <= kernel_header->entry + rootfs.get_file_size(&rootfs, kernel_file_inode) && section_symtab) {
+            uint32_t func_addr = 0;
             elf32_symbol_table_entry *func = NULL;
 
             elf32_symbol_table_entry *symbol_table = (elf32_symbol_table_entry *) ((void *)kernel_header + section_symtab->offset);
             for (int i = 1; i <= section_symtab->size; i++) {
-                unsigned char *symbol_name = (unsigned char *)((void *)kernel_header) + section_strtab->offset + symbol_table->name;
+                uint8_t *symbol_name = (uint8_t *)((void *)kernel_header) + section_strtab->offset + symbol_table->name;
 
                 if (symbol_table->name) {
                     unsigned long int symbol_address = symbol_table->value;

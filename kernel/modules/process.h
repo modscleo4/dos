@@ -8,4 +8,8 @@ typedef struct process {
     unsigned int entry;
 } process;
 
+unsigned long int create_process(unsigned int entry, unsigned int stack);
+
+void destroy_process(unsigned long int pid);
+
 #endif // PROCESS_H

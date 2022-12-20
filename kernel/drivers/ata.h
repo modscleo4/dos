@@ -2,6 +2,7 @@
 #define ATA_H
 
 #include "iodriver.h"
+#include "pci.h"
 
 enum ATA_IO_Registers {
     ATA_REG_DATA = 0x000,
@@ -147,14 +148,14 @@ enum ATA_BusMaster_Register {
     ATAPI_SEND_DISC_STRUCTURE = 0xBF
 };*/
 
-iodriver *ata_init(unsigned char, unsigned int, unsigned int, unsigned int, unsigned int, unsigned int);
-
-void ata_400ns_delay(unsigned char);
-
-void wait_irq14(void);
-
-void wait_irq15(void);
-
 iodriver ata_io;
+
+iodriver *ata_init(pci_device *device);
+
+void ata_400ns_delay(unsigned char channel);
+
+void ata_wait_irq_primary(void);
+
+void ata_wait_irq_secondary(void);
 
 #endif // ATA_H

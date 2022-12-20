@@ -12,22 +12,22 @@ unsigned char ide_buf[2048] = {0};
 volatile unsigned static char ide_irq_invoked = 0;
 bool support_dma;
 
-iodriver *ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned int BAR3, unsigned int BAR4) {
+iodriver *ide_init(pci_device *device) {
     dbgprint("IDE: Initializing IDE controller...\n");
     support_dma = false;
 
     int count = 0;
 
-    if (BAR4) {
+    if (device->base_address[4]) {
         support_dma = false;
     }
 
-    ide_channels[ATA_PRIMARY].base = (BAR0 & 0xFFFFFFFC) + 0x1F0 * (!BAR0);
-    ide_channels[ATA_PRIMARY].ctrl = (BAR1 & 0xFFFFFFFC) + 0x3F6 * (!BAR1);
-    ide_channels[ATA_SECONDARY].base = (BAR2 & 0xFFFFFFFC) + 0x170 * (!BAR2);
-    ide_channels[ATA_SECONDARY].ctrl = (BAR3 & 0xFFFFFFFC) + 0x376 * (!BAR3);
-    ide_channels[ATA_PRIMARY].bmide = (BAR4 & 0xFFFFFFFC) + 0;
-    ide_channels[ATA_SECONDARY].bmide = (BAR4 & 0xFFFFFFFC) + 8;
+    ide_channels[ATA_PRIMARY].base = (device->base_address[0] & 0xFFFFFFFC) + 0x1F0 * (!device->base_address[0]);
+    ide_channels[ATA_PRIMARY].ctrl = (device->base_address[1] & 0xFFFFFFFC) + 0x3F6 * (!device->base_address[1]);
+    ide_channels[ATA_SECONDARY].base = (device->base_address[2] & 0xFFFFFFFC) + 0x170 * (!device->base_address[2]);
+    ide_channels[ATA_SECONDARY].ctrl = (device->base_address[3] & 0xFFFFFFFC) + 0x376 * (!device->base_address[3]);
+    ide_channels[ATA_PRIMARY].bmide = (device->base_address[4] & 0xFFFFFFFC) + 0;
+    ide_channels[ATA_SECONDARY].bmide = (device->base_address[4] & 0xFFFFFFFC) + 8;
 
     // Disable interrupts
     ide_write(ATA_PRIMARY, ATA_REG_CONTROL, !support_dma + 2);
@@ -121,6 +121,7 @@ iodriver *ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsi
     static iodriver driver;
     driver.device = -1;
     driver.io_buffer = ide_buf;
+    driver.sector_size = 512;
     driver.reset = NULL;
     driver.start = &ide_motor_on;
     driver.stop = &ide_motor_off;
@@ -219,64 +220,62 @@ unsigned char ide_polling(unsigned char channel, unsigned int advanced_check) {
     return 0;
 }
 
-unsigned char ide_print_error(unsigned int drive, unsigned char err) {
+unsigned char ide_print_error(iodriver *driver, unsigned char err) {
     if (!err) {
         return 0;
     }
 
-    const char *fn = "ide_print_error";
-
     if (err == 1) {
-        printf("%s: Device Fault\n", fn);
+        printf("%s: Device Fault\n", __func__);
         err = 19;
     } else if (err == 2) {
-        unsigned char st = ide_read(ide_devices[drive].channel, ATA_REG_ERROR);
+        unsigned char st = ide_read(ide_devices[driver->device].channel, ATA_REG_ERROR);
 
         if (ISSET_BIT_INT(st, ATA_ERR_AMNT)) {
-            printf("%s: No Address Mark Found\n", fn);
+            printf("%s: No Address Mark Found\n", __func__);
             err = 7;
         } else if (ISSET_BIT_INT(st, ATA_ERR_TKZNF)) {
-            printf("%s: No Media or Media Error\n", fn);
+            printf("%s: No Media or Media Error\n", __func__);
             err = 3;
         } else if (ISSET_BIT_INT(st, ATA_ERR_ABRT)) {
-            printf("%s: Command Aborted\n", fn);
+            printf("%s: Command Aborted\n", __func__);
             err = 20;
         } else if (ISSET_BIT_INT(st, ATA_ERR_MCR)) {
-            printf("%s: No Media or Media Error\n", fn);
+            printf("%s: No Media or Media Error\n", __func__);
             err = 3;
         } else if (ISSET_BIT_INT(st, ATA_ERR_IDNF)) {
-            printf("%s: ID mark Not Found\n", fn);
+            printf("%s: ID mark Not Found\n", __func__);
             err = 21;
         } else if (ISSET_BIT_INT(st, ATA_ERR_MC)) {
-            printf("%s: No Media or Media Error\n", fn);
+            printf("%s: No Media or Media Error\n", __func__);
             err = 3;
         } else if (ISSET_BIT_INT(st, ATA_ERR_UNC)) {
-            printf("%s: Uncorrectable Data Error\n", fn);
+            printf("%s: Uncorrectable Data Error\n", __func__);
             err = 22;
         } else if (ISSET_BIT_INT(st, ATA_ERR_BBK)) {
-            printf("%s: Bad Block\n", fn);
+            printf("%s: Bad Block\n", __func__);
             err = 13;
         }
     } else if (err == 3) {
-        printf("%s: Reads Nothing\n", fn);
+        printf("%s: Reads Nothing\n", __func__);
         err = 23;
     } else if (err == 4) {
-        printf("%s: Write Protected\n", fn);
+        printf("%s: Write Protected\n", __func__);
         err = 8;
     }
 
     printf("%s: [%s %s] %s\n",
-        fn,
-        (const char *[]){"Primary", "Secondary"}[ide_devices[drive].channel],
-        (const char *[]){"Master", "Slave"}[ide_devices[drive].drive],
-        ide_devices[drive].model
+        __func__,
+        (const char *[]){"Primary", "Secondary"}[ide_devices[driver->device].channel],
+        (const char *[]){"Master", "Slave"}[ide_devices[driver->device].drive],
+        ide_devices[driver->device].model
     );
 
     return err;
 }
 
-void ide_motor_on(unsigned int drive) {
-    unsigned int ide_channel = ide_devices[drive].channel;
+void ide_motor_on(iodriver *driver) {
+    unsigned int ide_channel = ide_devices[driver->device].channel;
 
     if (support_dma) {
         char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_Command);
@@ -286,8 +285,8 @@ void ide_motor_on(unsigned int drive) {
     }
 }
 
-void ide_motor_off(unsigned int drive) {
-    unsigned int ide_channel = ide_devices[drive].channel;
+void ide_motor_off(iodriver *driver) {
+    unsigned int ide_channel = ide_devices[driver->device].channel;
 
     if (support_dma) {
         char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_Command);
@@ -296,9 +295,9 @@ void ide_motor_off(unsigned int drive) {
     }
 }
 
-int ide_do_sector(io_operation direction, unsigned int drive, unsigned long int lba, unsigned int number_of_sectors, unsigned char *buffer, bool keepOn) {
-    unsigned int ide_channel = ide_devices[drive].channel;
-    unsigned int ide_drive = ide_devices[drive].drive;
+int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, unsigned char *buffer, bool keepOn) {
+    unsigned int ide_channel = ide_devices[driver->device].channel;
+    unsigned int ide_drive = ide_devices[driver->device].drive;
 
     unsigned int lba_mode = 0;
     unsigned char _lba[6];
@@ -316,7 +315,7 @@ int ide_do_sector(io_operation direction, unsigned int drive, unsigned long int 
         _lba[4] = 0;
         _lba[5] = 0;
         head = 0;
-    } else if (ISSET_BIT_INT(ide_devices[drive].capabilities, 0x200)) {
+    } else if (ISSET_BIT_INT(ide_devices[driver->device].capabilities, 0x200)) {
         lba_mode = 1;
         _lba[0] = (lba & 0xFF) >> 0;
         _lba[1] = (lba & 0xFF00) >> 8;
@@ -405,16 +404,16 @@ int ide_do_sector(io_operation direction, unsigned int drive, unsigned long int 
     ide_write(ide_channel, ATA_REG_COMMAND, cmd);
 
     if (support_dma) {
-        ide_motor_on(drive);
+        ide_motor_on(driver);
 
         if (ide_channel == 0) {
-            wait_irq14();
+            ata_wait_irq_primary();
         } else {
-            wait_irq15();
+            ata_wait_irq_secondary();
         }
 
         if (!keepOn) {
-            ide_motor_off(drive);
+            ide_motor_off(driver);
         }
 
         ide_polling(ide_channel, 0);
@@ -425,7 +424,7 @@ int ide_do_sector(io_operation direction, unsigned int drive, unsigned long int 
             outb(ide_channels[ide_channel].bmide + ATA_BMR_Status, status_register);
         }
     } else {
-        if (ide_print_error(drive, ide_polling(ide_channel, 1))) {
+        if (ide_print_error(driver, ide_polling(ide_channel, 1))) {
             return 1;
         }
 
@@ -433,17 +432,17 @@ int ide_do_sector(io_operation direction, unsigned int drive, unsigned long int 
         ide_polling(ide_channel, 0);
 
         if (!keepOn) {
-            ide_motor_off(drive);
+            ide_motor_off(driver);
         }
     }
 
     return 0;
 }
 
-int ide_sector_read(unsigned int drive, unsigned long int lba, unsigned char *buffer, bool keepOn) {
-    return ide_do_sector(io_read, drive, lba, 1, buffer, keepOn);
+int ide_sector_read(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn) {
+    return ide_do_sector(io_read, driver, lba, 1, buffer, keepOn);
 }
 
-int ide_sector_write(unsigned int drive, unsigned long int lba, unsigned char *buffer, bool keepOn) {
-    return ide_do_sector(io_write, drive, lba, 1, buffer, keepOn);
+int ide_sector_write(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn) {
+    return ide_do_sector(io_write, driver, lba, 1, buffer, keepOn);
 }

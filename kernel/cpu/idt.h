@@ -1,22 +1,24 @@
 #ifndef KERNEL_IDT_H
 #define KERNEL_IDT_H
 
-extern void load_idt(unsigned long int);
+#include <stdint.h>
 
-typedef struct IDT_entry {
-    unsigned short int base_low;
-    unsigned short int selector;
-    unsigned char zero;
-    unsigned char flags;
-    unsigned short int base_high;
-} __attribute__ ((packed)) IDT_entry;
+typedef struct idt_entry {
+    uint16_t base_low;
+    uint16_t selector;
+    uint8_t zero;
+    uint8_t flags;
+    uint16_t base_high;
+} __attribute__ ((packed)) idt_entry;
 
-typedef struct IDT_ptr {
-    unsigned short int limit;
-    unsigned int base;
-} __attribute__ ((packed)) IDT_ptr;
+typedef struct idt_ptr {
+    uint16_t limit;
+    uint32_t base;
+} __attribute__((packed)) idt_ptr;
 
-void idt_set_gate(unsigned char, unsigned long int, unsigned short int, unsigned char);
+extern void load_idt(idt_ptr *ptr);
+
+void idt_set_gate(uint8_t num, uint32_t base, uint16_t sel, uint8_t flags);
 
 void idt_init(void);
 

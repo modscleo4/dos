@@ -31,14 +31,14 @@ enum Screen_Registers {
     SCREEN_DATA = 0x3D5
 };
 
-void video_init(int);
+void video_init(int edx);
 
-void setcolor(char);
+void setcolor(char c);
 
 void clear_screen(void);
 
-void gotoxy(int, int);
+void gotoxy(int x, int y);
 
-int screen_write(char);
+int screen_write(char c);
 
 #endif //SCREEN_H

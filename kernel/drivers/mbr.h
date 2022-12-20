@@ -19,8 +19,8 @@ typedef struct mbr_partition {
 
 mbr_partition partitions[4];
 
-filesystem *mbr_init(iodriver *, unsigned int);
+filesystem *mbr_init(iodriver *driver, unsigned int partition);
 
-filesystem *mbr_get_fs(int);
+filesystem *mbr_get_fs(int partition);
 
 #endif // MBR_H

@@ -7,7 +7,7 @@
 #include <string.h>
 
 filesystem *mbr_init(iodriver *driver, unsigned int partition) {
-    driver->read_sector(driver->device, 0, driver->io_buffer, true);
+    driver->read_sector(driver, 0, driver->io_buffer, true);
 
     if (driver->io_buffer[510] != 0x55 || driver->io_buffer[511] != 0xAA) {
         dbgprint("MBR signature not found: expected 0x55 0xAA, got 0x%x 0x%x\n", driver->io_buffer[510], driver->io_buffer[511]);

@@ -5,7 +5,7 @@ gdt_entry entry[6];
 gdt_ptr gp;
 tss_entry tss;
 
-void gdt_set_gate(int num, unsigned long int base, unsigned long int limit, unsigned char access, unsigned char gran) {
+void gdt_set_gate(int num, uint32_t base, uint32_t limit, uint8_t access, uint8_t gran) {
     entry[num].entry.base_low = (base & 0xFFFF);
     entry[num].entry.base_middle = (base >> 16) & 0xFF;
     entry[num].entry.base_high = (base >> 24) & 0xFF;
@@ -37,13 +37,13 @@ void gdt_init(void) {
     //gdt_set_gate(6, 0, 0xFFFFFFFF, 0x92, 0x0);
     //gdt_set_gate(7, 0, 0xFFFFFFFF, 0x9A, 0x0);
 
-    gdt_flush((unsigned long int)&gp);
+    gdt_flush(&gp);
     tss_flush();
 }
 
-void install_tss(int num, unsigned short int ss0, unsigned int esp0) {
-    unsigned int base = (unsigned int)&tss;
-    unsigned int limit = base + sizeof(tss);
+void install_tss(int num, uint16_t ss0, uint32_t esp0) {
+    uint32_t base = (uint32_t)&tss;
+    uint32_t limit = base + sizeof(tss);
 
     gdt_set_gate(num, base, limit, 0xE9, 0x00);
 

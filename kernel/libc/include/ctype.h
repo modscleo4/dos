@@ -1,8 +1,8 @@
 #ifndef CTYPE_H
 #define CTYPE_H
 
-int toupper(int);
+int toupper(int c);
 
-int tolower(int);
+int tolower(int c);
 
 #endif //CTYPE_H

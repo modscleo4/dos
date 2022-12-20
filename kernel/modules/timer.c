@@ -32,7 +32,7 @@ void timer_phase(int hz) {
     outb(0x40, (divisor >> 8) & 0xFF);
 }
 
-static void irq0_handler(registers *r) {
+static void timer_irq_handler(registers *r) {
     timer_ticks += 10;
 
     if (timer_ticks % 1000 == 0) {
@@ -48,5 +48,5 @@ void timer_wait(int ms) {
 void timer_init(void) {
     rtc_init();
     timer_phase(100);
-    irq_install_handler(IRQ_PIT, irq0_handler);
+    irq_install_handler(IRQ_PIT, timer_irq_handler);
 }

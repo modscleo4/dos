@@ -23,32 +23,32 @@ FILE *stdin;
 FILE *stdout;
 FILE *stderr;
 
-int fclose(FILE *);
+int fclose(FILE *stream);
 
-int fflush(FILE *);
+int fflush(FILE *stream);
 
-FILE *fopen(const char *, const char *);
+FILE *fopen(const char *filename, const char *mode);
 
-FILE *freopen(const char *, const char *, FILE *);
+FILE *freopen(const char *filename, const char *mode, FILE *stream);
 
 int getchar(void);
 
-int putchar(char);
+int putchar(char c);
 
-int read(char *, int);
+int read(char *buf, int size);
 
-int write(const char *, int);
+int write(const char *buf, int size);
 
-int puts(const char *);
+int puts(const char *str);
 
-int vprintf(const char *, va_list);
+int vprintf(const char *format, va_list args);
 
-int printf(const char *, ...);
+int printf(const char *format, ...);
 
-int vsprintf(char *, const char *, va_list);
+int vsprintf(char *str, const char *format, va_list args);
 
-int sprintf(char *, const char *, ...);
+int sprintf(char *str, const char *format, ...);
 
-int scanf(const char *, ...);
+int scanf(const char *format, ...);
 
 #endif //STDIO_H

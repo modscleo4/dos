@@ -7,28 +7,28 @@
 #define NAN (0.0 / 0.0)
 #define INFINITY (1e300 * 1e300)
 
-float fabs(float);
+float fabs(float x);
 
-double fabsl(double);
+double fabsl(double x);
 
-float powf(float, float);
+float powf(float base, float power);
 
-double powl(double, double);
+double powl(double base, double power);
 
-float exp(float);
+float exp(float x);
 
-double expl(double);
+double expl(double x);
 
-float log(float);
+float log(float x);
 
-double logl(double);
+double logl(double x);
 
-int isnanf(float);
+int isnanf(float x);
 
-int isnanl(double);
+int isnanl(double x);
 
-int isinff(float);
+int isinff(float x);
 
-int isinfl(double);
+int isinfl(double x);
 
 #endif //MATH_H

@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-unsigned long int _esp;
+uint32_t _esp;
 
-extern void switch_ring3(unsigned long int, unsigned long int);
+extern void switch_ring3(uint32_t addr, uint32_t stack);
 
 #endif // RING3_H
