@@ -1,5 +1,5 @@
-#ifndef KERNEL_KBD_US_H
-#define KERNEL_KBD_US_H
+#ifndef KB_US_H
+#define KB_US_H
 
 static const unsigned char kblayout_us[128] = {
     0, 27, '1', '2', '3', '4', '5', '6', '7', '8',    /* 9 */
@@ -40,4 +40,4 @@ static const unsigned char kblayout_us[128] = {
     0, /* All other keys are undefined */
 };
 
-#endif //KERNEL_KBD_US_H
+#endif //KB_US_H

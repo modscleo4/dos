@@ -63,7 +63,7 @@ typedef struct pci_header {
     uint8_t latency_timer;
     pci_header_type header_type;
     pci_bist_reg bist;
-} __attribute__((packed)) pci_header;
+} pci_header;
 
 typedef struct pci_device {
     pci_header header;
@@ -79,7 +79,7 @@ typedef struct pci_device {
     uint8_t interrupt_pin;
     uint8_t min_grant;
     uint8_t max_latency;
-} __attribute__((packed)) pci_device;
+} pci_device;
 
 typedef struct pci_pci_bridge {
     pci_header header;
@@ -105,7 +105,7 @@ typedef struct pci_pci_bridge {
     uint8_t interrupt_line;
     uint8_t interrupt_pin;
     uint16_t bridge_control;
-} __attribute__((packed)) pci_pci_bridge;
+} pci_pci_bridge;
 
 typedef struct pci_cardbus_bridge {
     pci_header header;
@@ -131,7 +131,7 @@ typedef struct pci_cardbus_bridge {
     uint16_t subsystem_device_id;
     uint16_t subsystem_vendor_id;
     uint32_t legacy_base_address;
-} __attribute__((packed)) pci_cardbus_bridge;
+} pci_cardbus_bridge;
 
 void pci_init(void);
 

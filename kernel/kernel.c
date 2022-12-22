@@ -6,12 +6,14 @@
 #include <stdlib.h>
 #include "ring3.h"
 #include "bits.h"
+#include "rootfs.h"
 #include "cpu/cpuid.h"
 #include "cpu/fpu.h"
 #include "cpu/gdt.h"
 #include "cpu/idt.h"
 #include "cpu/irq.h"
 #include "cpu/isr.h"
+#include "cpu/mmu.h"
 #include "cpu/panic.h"
 #include "cpu/pic.h"
 #include "cpu/syscall.h"
@@ -24,10 +26,11 @@
 #include "drivers/screen.h"
 #include "drivers/serial.h"
 #include "modules/timer.h"
-#include "modules/kblayout/kb.h"
 #include "modules/multiboot2.h"
 #include "modules/process.h"
+#include "modules/kblayout/kb.h"
 #include "modules/net/arp.h"
+#include "modules/net/udp.h"
 
 static void iodriver_init(unsigned int boot_drive) {
     iodriver *_tmpio;
@@ -113,28 +116,32 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
         panic("No boot device found from MBI.");
     }
 
-    if (!get_cpuid_info(&cpuid)) {
+    cpu_info cpuinfo;
+    if (!get_cpuid_info(&cpuinfo)) {
         panic("CPUID not available");
     }
-    dbgprint("CPUID Vendor ID: %s\n", cpuid.vendor_id);
+    dbgprint("CPUID Vendor ID: %s\n", cpuinfo.vendor_id);
 
     gdt_init();
     idt_init();
     isr_init();
     irq_init();
+    mmu_init();
     syscall_init();
     pic_remap(32, 40);
-    fpu_init();
+    fpu_init(&cpuinfo);
 
     timer_init();
-    if (serial_init(COM1, 1)) {
-        // panic("Failed to initialize serial port");
+    serial_device *com1 = serial_init(SERIAL_COM1, 1);
+    if (!com1) {
+        dbgprint("Failed to initialize serial port COM1.\n");
     }
-    serial_write_str(COM1, "Serial port initialized.\r\n");
+    serial_write_str(com1, "Serial port initialized.\r\n");
     keyboard_init();
     asm("sti");
     dbgprint("Interruptions enabled\n");
     dbgwait();
+    udp_init();
     pci_init();
     dbgwait();
     dbgprint("Reading Master Boot Record...\n");

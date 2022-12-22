@@ -1,11 +1,11 @@
 #include "timer.h"
 
+#include "cmos.h"
 #include "../bits.h"
 #include "../debug.h"
 #include "../cpu/irq.h"
 #include "../cpu/pic.h"
 #include "../cpu/system.h"
-#include "cmos.h"
 
 time t;
 date d;
@@ -32,7 +32,7 @@ void timer_phase(int hz) {
     outb(0x40, (divisor >> 8) & 0xFF);
 }
 
-static void timer_irq_handler(registers *r) {
+static void timer_irq_handler(registers *r, uint32_t int_no) {
     timer_ticks += 10;
 
     if (timer_ticks % 1000 == 0) {

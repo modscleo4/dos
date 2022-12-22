@@ -1,6 +1,7 @@
 #ifndef BITS_H
 #define BITS_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 void outb(uint16_t addr, uint8_t val);
@@ -15,7 +16,7 @@ void outl(uint16_t addr, uint32_t val);
 
 uint32_t inl(uint16_t addr);
 
-void insl(uint16_t addr, uint32_t *buffer, unsigned int quads);
+void insl(uint16_t addr, uint32_t *buffer, size_t quads);
 
 void outsm(uint16_t addr, uint8_t *buffer, uint32_t size);
 

@@ -2,6 +2,8 @@
 #define KERNEL_FPU_H
 
 #include <stdbool.h>
+#include <stdint.h>
+#include "cpuid.h"
 
 enum CR0 {
     CR0_MP = 1 << 1,
@@ -40,12 +42,10 @@ enum CR4 {
 
 extern bool fpu_available(void);
 
-void fpu_load_control_word(const unsigned short int control);
+void fpu_load_control_word(const uint16_t control);
 
-void fpu_init(void);
+void fpu_init(cpu_info *cpuinfo);
 
-bool sse_available(void);
-
-void sse_init(void);
+void sse_init(cpu_info *cpuinfo);
 
 #endif // KERNEL_FPU_H

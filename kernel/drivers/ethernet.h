@@ -35,6 +35,7 @@ typedef struct ethernet_driver {
     unsigned int tx_buffer_size;
     unsigned int tx_tail;
     unsigned int (*write)(struct ethernet_driver *driver, ethernet_packet *packet, size_t data_size);
+    int int_no;
     void (*int_handler)(struct ethernet_driver *driver);
     void (*int_enable)(struct ethernet_driver *driver);
 } ethernet_driver;

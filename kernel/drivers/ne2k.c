@@ -1,5 +1,6 @@
 #include "ne2k.h"
 
+#include <stdlib.h>
 #include <string.h>
 #include "../bits.h"
 #include "../debug.h"
@@ -38,25 +39,25 @@ ethernet_driver *ne2k_init(pci_device *device) {
 
     // outb(iobase + NE2K_REG_COMMAND, (1 << 5) | 1); // page 0, no DMA, stop
 
-    static ethernet_driver driver;
-    driver.mmiobase = device->base_address[0];
-    driver.iobase = iobase;
-    memcpy(&driver.mac, prom, 6);
-    driver.ipv4.ip[0] = 192;
-    driver.ipv4.ip[1] = 168;
-    driver.ipv4.ip[2] = 10;
-    driver.ipv4.ip[3] = 15;
-    driver.ipv4.subnet[0] = 255;
-    driver.ipv4.subnet[1] = 255;
-    driver.ipv4.subnet[2] = 255;
-    driver.ipv4.subnet[3] = 0;
-    driver.ipv4.gateway[0] = 192;
-    driver.ipv4.gateway[1] = 168;
-    driver.ipv4.gateway[2] = 10;
-    driver.ipv4.gateway[3] = 1;
-    driver.write = &ne2k_send_packet;
-    driver.int_handler = NULL;
-    return &driver;
+    ethernet_driver *driver = malloc(sizeof(ethernet_driver));
+    driver->mmiobase = device->base_address[0];
+    driver->iobase = iobase;
+    memcpy(&driver->mac, prom, 6);
+    driver->ipv4.ip[0] = 192;
+    driver->ipv4.ip[1] = 168;
+    driver->ipv4.ip[2] = 10;
+    driver->ipv4.ip[3] = 15;
+    driver->ipv4.subnet[0] = 255;
+    driver->ipv4.subnet[1] = 255;
+    driver->ipv4.subnet[2] = 255;
+    driver->ipv4.subnet[3] = 0;
+    driver->ipv4.gateway[0] = 192;
+    driver->ipv4.gateway[1] = 168;
+    driver->ipv4.gateway[2] = 10;
+    driver->ipv4.gateway[3] = 1;
+    driver->write = &ne2k_send_packet;
+    driver->int_handler = NULL;
+    return driver;
 }
 
 unsigned int ne2k_send_packet(ethernet_driver *driver, ethernet_packet *packet, size_t data_size) {

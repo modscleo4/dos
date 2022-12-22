@@ -1,5 +1,5 @@
-#ifndef CPUID_H
-#define CPUID_H
+#ifndef KERNEL_CPUID_H
+#define KERNEL_CPUID_H
 
 #include <stdbool.h>
 
@@ -72,10 +72,8 @@ typedef struct cpu_info {
         bool pbe: 1;
 } __attribute__((packed)) cpu_info;
 
-cpu_info cpuid;
-
 extern bool cpuid_available(void);
 
 bool get_cpuid_info(cpu_info *cpuinfo);
 
-#endif // CPUID_H
+#endif // KERNEL_CPUID_H

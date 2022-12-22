@@ -3,8 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "kernel.h"
-#include "drivers/iodriver.h"
-#include "drivers/filesystem.h"
+#include "rootfs.h"
 #include "drivers/keyboard.h"
 #include "drivers/screen.h"
 #include "modules/elf.h"
@@ -30,7 +29,7 @@ void hexdump(void *ptr, size_t n) {
     const uintptr_t ptr_i = (uintptr_t)ptr;
     unsigned char *ptr_c = ptr - ptr_i % 16;
 
-    for (int i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
         if (i % 16 == 0) {
             printf("%08x  ", ptr_i - ptr_i % 16 + i);
         }
@@ -165,7 +164,7 @@ void callstack(uint32_t ebp) {
                 uint8_t *symbol_name = (uint8_t *)((void *)kernel_header) + section_strtab->offset + symbol_table->name;
 
                 if (symbol_table->name) {
-                    unsigned long int symbol_address = symbol_table->value;
+                    uint32_t symbol_address = symbol_table->value;
                     //if (ELF32_ST_TYPE(symbol_table->info) == ELF_SYMBOLTABLE_TYPE_FUNC) {
                         if (symbol_table->value > func_addr && symbol_table->value < stk->eip) {
                             func_addr = symbol_table->value;

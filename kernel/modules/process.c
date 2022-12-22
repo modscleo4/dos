@@ -2,11 +2,11 @@
 
 process processes[10];
 
-unsigned long int create_process(unsigned int entry, unsigned int stack) {
+uint32_t create_process(uint32_t entry, uint32_t stack) {
     //
 }
 
-void destroy_process(unsigned long int pid) {
+void destroy_process(uint32_t pid) {
     if (pid < 10) {
         processes[pid].return_address = 0;
         processes[pid].stack_pointer = 0;

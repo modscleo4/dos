@@ -1,0 +1,48 @@
+#ifndef KERNEL_MMU_H
+#define KERNEL_MMU_H
+
+#include <stdbool.h>
+#include <stdint.h>
+
+typedef struct page_directory {
+    bool present : 1;
+    bool rw : 1;
+    bool user : 1;
+    bool write_through : 1;
+    bool cache_disabled : 1;
+    bool accessed : 1;
+    bool dirty : 1;
+    bool page_size : 1;
+    uint8_t available : 4;
+    uint32_t address : 20; // -> page_table
+} __attribute__((packed)) page_directory;
+
+typedef struct page {
+    bool present : 1;
+    bool rw : 1;
+    bool user : 1;
+    bool write_through : 1;
+    bool cache_disabled : 1;
+    bool accessed : 1;
+    bool dirty : 1;
+    bool pat : 1;
+    bool global : 1;
+    uint8_t available : 3;
+    uint32_t address : 20; // -> physical address
+} __attribute__((packed)) page;
+
+typedef struct page_directory_table {
+    page_directory entries[1024];
+} __attribute__((packed)) page_directory_table;
+
+typedef struct page_table {
+    page entries[1024];
+} __attribute__((packed)) page_table;
+
+extern void mmu_enable_paging(page_directory_table *pdt);
+
+void mmu_init(void);
+
+void mmu_invalidate_page(uint32_t addr);
+
+#endif // KERNEL_MMU_H

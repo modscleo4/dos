@@ -1,15 +1,14 @@
 #include "syscall.h"
 
-#include "../cpu/gdt.h"
-#include "../debug.h"
-#include "../ring3.h"
-#include "../drivers/keyboard.h"
-#include "../drivers/screen.h"
-#include "idt.h"
-#include "system.h"
-
 #include <stdarg.h>
 #include <stdio.h>
+#include "idt.h"
+#include "system.h"
+#include "../debug.h"
+#include "../ring3.h"
+#include "../cpu/gdt.h"
+#include "../drivers/keyboard.h"
+#include "../drivers/screen.h"
 
 // This var is to store the current SYSCALL return value
 int __syscall_ret;
@@ -170,21 +169,21 @@ static void *syscalls[] = {
 };
 
 int run_syscall(registers *r) {
-    unsigned long int esp;
+    uint32_t esp;
     int ret = -1;
     asm("sti");
-    long int no = r->eax;
+    uint32_t no = r->eax;
 
-    long int arg0 = r->ebx;
-    long int arg1 = r->ecx;
-    long int arg2 = r->edx;
-    long int arg3 = r->esi;
-    long int arg4 = r->edi;
-    long int arg5 = r->ebp;
+    uint32_t arg0 = r->ebx;
+    uint32_t arg1 = r->ecx;
+    uint32_t arg2 = r->edx;
+    uint32_t arg3 = r->esi;
+    uint32_t arg4 = r->edi;
+    uint32_t arg5 = r->ebp;
     //dbgprint("syscall: %x(%x %x %x %x %x %x)\n", no, arg0, arg1, arg2, arg3, arg4, arg5);
 
     if (syscalls[no]) {
-        long int (*syscall_fn)(registers *, long int, long int, long int, long int, long int, long int) = syscalls[no];
+        uint32_t (*syscall_fn)(registers *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) = syscalls[no];
         ret = syscall_fn(r, arg0, arg1, arg2, arg3, arg4, arg5);
     } else {
         dbgprint("syscall: %x not implemented\n", no);
@@ -195,5 +194,5 @@ int run_syscall(registers *r) {
 }
 
 void syscall_init(void) {
-    idt_set_gate(128, (unsigned int)syscall_handler, 0x08, 0x8E);
+    idt_set_gate(128, (uint32_t)syscall_handler, 0x08, 0x8E);
 }

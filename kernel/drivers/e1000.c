@@ -10,15 +10,15 @@
  * e1000 Ethernet driver
  */
 
-void e1000_mmio_write(ethernet_driver *driver, uint32_t reg, uint32_t value) {
+static void e1000_mmio_write(ethernet_driver *driver, uint32_t reg, uint32_t value) {
     *(uint32_t *)(driver->mmiobase + reg) = value;
 }
 
-uint32_t e1000_mmio_read(ethernet_driver *driver, uint32_t reg) {
+static uint32_t e1000_mmio_read(ethernet_driver *driver, uint32_t reg) {
     return *(uint32_t *)(driver->mmiobase + reg);
 }
 
-void e1000_io_write(ethernet_driver *driver, uint32_t reg, uint32_t value) {
+static void e1000_io_write(ethernet_driver *driver, uint32_t reg, uint32_t value) {
     if (driver->iobase == 0) {
         return;
     }
@@ -27,7 +27,7 @@ void e1000_io_write(ethernet_driver *driver, uint32_t reg, uint32_t value) {
     outl(driver->iobase + 0x04, value);
 }
 
-uint32_t e1000_io_read(ethernet_driver *driver, uint32_t reg) {
+static uint32_t e1000_io_read(ethernet_driver *driver, uint32_t reg) {
     if (driver->iobase == 0) {
         return 0;
     }
@@ -36,13 +36,13 @@ uint32_t e1000_io_read(ethernet_driver *driver, uint32_t reg) {
     return inl(driver->iobase + 0x04);
 }
 
-uint16_t e1000_read_eeprom(ethernet_driver *driver, unsigned char address) {
+static uint16_t e1000_read_eeprom(ethernet_driver *driver, unsigned char address) {
     e1000_mmio_write(driver, E1000_REG_EERD, E1000_REGBIT_EERD_START | (address << 8));
     while (!(e1000_mmio_read(driver, E1000_REG_EERD) & E1000_REGBIT_EERD_DONE));
     return (e1000_mmio_read(driver, E1000_REG_EERD) >> 16);
 }
 
-void e1000_lock_eeprom(ethernet_driver *driver) {
+static void e1000_lock_eeprom(ethernet_driver *driver) {
     if (e1000_mmio_read(driver, E1000_REG_EECD) & E1000_REGBIT_EECD_REQ) {
         return;
     }
@@ -50,11 +50,11 @@ void e1000_lock_eeprom(ethernet_driver *driver) {
     e1000_mmio_write(driver, E1000_REG_EECD, e1000_mmio_read(driver, E1000_REG_EECD) | E1000_REGBIT_EECD_REQ);
 }
 
-void e1000_unlock_eeprom(ethernet_driver *driver) {
+static void e1000_unlock_eeprom(ethernet_driver *driver) {
     e1000_mmio_write(driver, E1000_REG_EECD, e1000_mmio_read(driver, E1000_REG_EECD) & ~E1000_REGBIT_EECD_REQ);
 }
 
-void e1000_read_mac(ethernet_driver *driver) {
+static void e1000_read_mac(ethernet_driver *driver) {
     e1000_lock_eeprom(driver);
     *(uint16_t *)&driver->mac[0] = e1000_read_eeprom(driver, 0);
     *(uint16_t *)&driver->mac[2] = e1000_read_eeprom(driver, 1);
@@ -62,7 +62,7 @@ void e1000_read_mac(ethernet_driver *driver) {
     e1000_unlock_eeprom(driver);
 }
 
-void e1000_receive_init(ethernet_driver *driver) {
+static void e1000_receive_init(ethernet_driver *driver) {
     e1000_mmio_write(driver, E1000_REG_RAL, *(uint32_t *)&driver->mac[0]);
     e1000_mmio_write(driver, E1000_REG_RAH, *(uint16_t *)&driver->mac[4] | E1000_REGBIT_RAH_AV);
 
@@ -91,7 +91,7 @@ void e1000_receive_init(ethernet_driver *driver) {
     e1000_mmio_write(driver, E1000_REG_RCTL, E1000_REGBIT_RCTL_EN | E1000_REGBIT_RCTL_UPE | E1000_REGBIT_RCTL_MPE | E1000_REGBIT_RCTL_LBM_NO | E1000_REGBIT_RCTL_RDMTS_1_2 | E1000_REGBIT_RCTL_MO_36 | E1000_REGBIT_RCTL_BAM | E1000_REGBIT_RCTL_BSEX | E1000_REGBIT_RCTL_BSIZE_4096 | E1000_REGBIT_RCTL_SECRC);
 }
 
-void e1000_transmit_init(ethernet_driver *driver) {
+static void e1000_transmit_init(ethernet_driver *driver) {
     static e1000_transmit_descriptor buffer[256];
     driver->tx_buffer = (uint8_t *)buffer;
     driver->tx_buffer_size = sizeof(buffer);
@@ -129,36 +129,36 @@ ethernet_driver *e1000_init(pci_device *device) {
         dbgprint("e1000: No I/O base address found\n");
     }
 
-    static ethernet_driver driver;
-    driver.mmiobase = device->base_address[0];
-    driver.iobase = iobase;
-    driver.ipv4.ip[0] = 10;
-    driver.ipv4.ip[1] = 0;
-    driver.ipv4.ip[2] = 2;
-    driver.ipv4.ip[3] = 15;
-    driver.ipv4.subnet[0] = 255;
-    driver.ipv4.subnet[1] = 255;
-    driver.ipv4.subnet[2] = 255;
-    driver.ipv4.subnet[3] = 0;
-    driver.ipv4.gateway[0] = 10;
-    driver.ipv4.gateway[1] = 0;
-    driver.ipv4.gateway[2] = 2;
-    driver.ipv4.gateway[3] = 1;
-    driver.write = &e1000_send_packet;
-    driver.int_handler = &e1000_int_handler;
-    driver.int_enable = &e1000_int_enable;
+    ethernet_driver *driver = malloc(sizeof(ethernet_driver));
+    driver->mmiobase = device->base_address[0];
+    driver->iobase = iobase;
+    driver->ipv4.ip[0] = 0;
+    driver->ipv4.ip[1] = 0;
+    driver->ipv4.ip[2] = 0;
+    driver->ipv4.ip[3] = 0;
+    driver->ipv4.subnet[0] = 0;
+    driver->ipv4.subnet[1] = 0;
+    driver->ipv4.subnet[2] = 0;
+    driver->ipv4.subnet[3] = 0;
+    driver->ipv4.gateway[0] = 0;
+    driver->ipv4.gateway[1] = 0;
+    driver->ipv4.gateway[2] = 0;
+    driver->ipv4.gateway[3] = 0;
+    driver->write = &e1000_send_packet;
+    driver->int_handler = &e1000_int_handler;
+    driver->int_enable = &e1000_int_enable;
 
-    e1000_mmio_write(&driver, E1000_REG_EECD, E1000_REGBIT_EECD_SK | E1000_REGBIT_EECD_CS | E1000_REGBIT_EECD_DI);
+    e1000_mmio_write(driver, E1000_REG_EECD, E1000_REGBIT_EECD_SK | E1000_REGBIT_EECD_CS | E1000_REGBIT_EECD_DI);
 
-    e1000_read_mac(&driver);
+    e1000_read_mac(driver);
 
     // Auto-Speed Detection
-    e1000_mmio_write(&driver, E1000_REG_CTRL, E1000_REGBIT_CTRL_ASDE | E1000_REGBIT_CTRL_SLU);
+    e1000_mmio_write(driver, E1000_REG_CTRL, E1000_REGBIT_CTRL_ASDE | E1000_REGBIT_CTRL_SLU);
 
-    e1000_receive_init(&driver);
-    e1000_transmit_init(&driver);
+    e1000_receive_init(driver);
+    e1000_transmit_init(driver);
 
-    return &driver;
+    return driver;
 }
 
 void e1000_write_transmit_descriptor(ethernet_driver *driver, unsigned int ptr, void *addr, size_t packet_size, uint8_t cso, uint8_t cmd, uint8_t status, uint8_t css) {
@@ -176,15 +176,15 @@ void e1000_write_transmit_descriptor(ethernet_driver *driver, unsigned int ptr, 
 
 unsigned int e1000_send_packet(ethernet_driver *driver, ethernet_packet *packet, size_t data_size) {
     dbgprint("e1000: Sending packet len %d\n", data_size);
-    unsigned int tdt = e1000_mmio_read(driver, E1000_REG_TDT);
-    unsigned int tdh = e1000_mmio_read(driver, E1000_REG_TDH);
+    uint32_t tdt = e1000_mmio_read(driver, E1000_REG_TDT);
+    uint32_t tdh = e1000_mmio_read(driver, E1000_REG_TDH);
     dbgprint("e1000: TDT: %d, TDH: %d\n", tdt, tdh);
-    if ((tdh + 1) * 16 == driver->tx_buffer) {
+    if ((tdh + 1) * 16 == (uint32_t)driver->tx_buffer) {
         dbgprint("e1000: Transmit buffer full\n");
-        return;
+        return 1;
     }
 
-    static unsigned char packet_data[48];
+    static uint8_t packet_data[48];
     if (sizeof(ethernet_header) + data_size < 48) {
         dbgprint("e1000: packet too small.\n");
         memcpy(packet_data, packet->data, data_size);
@@ -199,12 +199,12 @@ unsigned int e1000_send_packet(ethernet_driver *driver, ethernet_packet *packet,
     return 0;
 }
 
-bool e1000_read_receive_descriptor(ethernet_driver *driver, unsigned int ptr) {
+static bool e1000_read_receive_descriptor(ethernet_driver *driver, unsigned int ptr) {
     e1000_receive_descriptor *descriptor = &((e1000_receive_descriptor *)driver->rx_buffer)[ptr];
-    dbgprint("e1000: Reading packet %d\n", ptr);
+    //dbgprint("e1000: Reading packet %d\n", ptr);
     //dbgprint("\tDescriptor: %x\n", descriptor);
     //dbgprint("\tStatus: %x\n", descriptor->status);
-    dbgprint("\tLength: %d\n", descriptor->length);
+    //dbgprint("\tLength: %d\n", descriptor->length);
     //dbgprint("\tChecksum: %x\n", descriptor->checksum);
     //dbgprint("\tSpecial: %x\n", descriptor->special);
     //dbgprint("\tBuffer: %x\n", descriptor->buffer_address_low);
@@ -230,10 +230,10 @@ bool e1000_read_receive_descriptor(ethernet_driver *driver, unsigned int ptr) {
     return false;
 }
 
-void e1000_read_packet(ethernet_driver *driver) {
+static void e1000_read_packet(ethernet_driver *driver) {
     unsigned int rdt = e1000_mmio_read(driver, E1000_REG_RDT);
     unsigned int rdh = e1000_mmio_read(driver, E1000_REG_RDH);
-    dbgprint("e1000: RDT: %d, RDH: %d\n", rdt, rdh);
+    //dbgprint("e1000: RDT: %d, RDH: %d\n", rdt, rdh);
     if (rdt == rdh) {
         dbgprint("e1000: No packets to read\n");
         return;
@@ -248,72 +248,72 @@ void e1000_read_packet(ethernet_driver *driver) {
 
 void e1000_int_handler(ethernet_driver *driver) {
     uint32_t icr = e1000_mmio_read(driver, E1000_REG_ICR);
-    dbgprint("e1000 int_handler: %x\n", icr);
+    //dbgprint("e1000 int_handler: %x\n", icr);
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_TXDW)) {
-        dbgprint("e1000: Transmit done\n");
+        //dbgprint("e1000: Transmit done\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_TXQE)) {
-        dbgprint("e1000: Transmit queue empty\n");
+        //dbgprint("e1000: Transmit queue empty\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_LSC)) {
-        dbgprint("e1000: Link status changed\n");
+        //dbgprint("e1000: Link status changed\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXSEQ)) {
-        dbgprint("e1000: Receive sequence error\n");
+        //dbgprint("e1000: Receive sequence error\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXDMT0)) {
-        dbgprint("e1000: Receive descriptor minimum threshold\n");
+        //dbgprint("e1000: Receive descriptor minimum threshold\n");
         e1000_read_packet(driver);
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXO)) {
-        dbgprint("e1000: Receive overrun\n");
+        //dbgprint("e1000: Receive overrun\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXT0)) {
-        dbgprint("e1000: Receive done\n");
+        //dbgprint("e1000: Receive done\n");
         e1000_read_packet(driver);
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_MDAC)) {
-        dbgprint("e1000: MDIO access complete\n");
+        //dbgprint("e1000: MDIO access complete\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_RXCFG)) {
-        dbgprint("e1000: Receive config\n");
+        //dbgprint("e1000: Receive config\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_PHYINT)) {
-        dbgprint("e1000: PHY interrupt\n");
+        //dbgprint("e1000: PHY interrupt\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_GPI)) {
-        dbgprint("e1000: GPI\n");
+        //dbgprint("e1000: GPI\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_ECCER)) {
-        dbgprint("e1000: ECC error\n");
+        //dbgprint("e1000: ECC error\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_TS)) {
-        dbgprint("e1000: Timestamp\n");
+        //dbgprint("e1000: Timestamp\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_MNG)) {
-        dbgprint("e1000: Manageability\n");
+        //dbgprint("e1000: Manageability\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_DOCK)) {
-        dbgprint("e1000: Dock\n");
+        //dbgprint("e1000: Dock\n");
     }
 
     if (ISSET_BIT_INT(icr, E1000_REGBIT_ICR_INT_ASSERTED)) {
-        dbgprint("e1000: Interrupt asserted\n");
+        //dbgprint("e1000: Interrupt asserted\n");
     }
 
     e1000_mmio_read(driver, E1000_REG_ICR);

@@ -171,7 +171,7 @@ enum Ext2DirectoryEntryType {
 
 void ext2_init(iodriver *driver, filesystem *fs);
 
-unsigned long int ext2_get_file_size(iodriver *driver, const void *_f);
+size_t ext2_get_file_size(filesystem *fs, const void *_f);
 
 ext2_inode *ext2_search_file(iodriver *driver, filesystem *fs, const char *filename);
 

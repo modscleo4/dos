@@ -56,7 +56,7 @@ void clear_screen(void) {
     gotoxy(0, 0);
 }
 
-void handle_scroll(void) {
+static void handle_scroll(void) {
     volatile char *video_memory = (volatile char *)VIDEO_ADDRESS;
 
     for (int i = 1; i < MAX_ROWS; i++) {

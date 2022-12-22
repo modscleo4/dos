@@ -20,7 +20,7 @@ unsigned char io_buffer[512];
 unsigned int FLOPPY_PRIMARY_BASE = 0x3F0;
 unsigned int FLOPPY_SECONDARY_BASE = 0x370;
 
-static void floppy_handler(registers *r) {
+static void floppy_handler(registers *r, uint32_t int_no) {
     irq_c++;
 }
 

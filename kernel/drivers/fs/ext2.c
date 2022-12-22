@@ -5,40 +5,42 @@
 #include <string.h>
 #include "../../debug.h"
 
-ext2_extended_superblock superblock;
-
 void ext2_init(iodriver *driver, filesystem *fs) {
     dbgprint("Reading Superblock (sector %x)...\n", fs->start_lba);
 
-    driver->read_sector(driver, fs->start_lba + 2, driver->io_buffer, true);
-    memcpy(&superblock, driver->io_buffer, sizeof(ext2_extended_superblock) / 2);
-    driver->read_sector(driver, fs->start_lba + 3, driver->io_buffer, true);
-    memcpy(&superblock + sizeof(ext2_extended_superblock) / 2, driver->io_buffer, sizeof(ext2_extended_superblock) / 2);
+    ext2_extended_superblock *superblock = malloc(sizeof(ext2_extended_superblock));
 
-    if (superblock.base.ext2_signature != EXT2_SIGNATURE) {
-        dbgprint("Invalid signature: %x\n", superblock.base.ext2_signature);
+    driver->read_sector(driver, fs->start_lba + 2, driver->io_buffer, true);
+    memcpy(superblock, driver->io_buffer, sizeof(ext2_extended_superblock) / 2);
+    driver->read_sector(driver, fs->start_lba + 3, driver->io_buffer, true);
+    memcpy(superblock + sizeof(ext2_extended_superblock) / 2, driver->io_buffer, sizeof(ext2_extended_superblock) / 2);
+
+    if (superblock->base.ext2_signature != EXT2_SIGNATURE) {
+        dbgprint("Invalid signature: %x\n", superblock->base.ext2_signature);
         return;
     }
 
-    printf("Volume label is %s\n", superblock.volume_name);
+    fs->params = superblock;
+
+    printf("Volume label is %s\n", superblock->volume_name);
     printf("File system is %s\n", "EXT2");
-    printf("Serial number is %s\n", printuuid(superblock.filesystem_id));
+    printf("Serial number is %s\n", printuuid(superblock->filesystem_id));
 
-    dbgprint("Inodes: %d\n", superblock.base.inodes);
-    dbgprint("Blocks: %d\n", superblock.base.blocks);
-    dbgprint("Reserved blocks: %d\n", superblock.base.reserved_blocks);
-    dbgprint("Free blocks: %d\n", superblock.base.free_blocks);
-    dbgprint("Free inodes: %d\n", superblock.base.free_inodes);
+    dbgprint("Inodes: %d\n", superblock->base.inodes);
+    dbgprint("Blocks: %d\n", superblock->base.blocks);
+    dbgprint("Reserved blocks: %d\n", superblock->base.reserved_blocks);
+    dbgprint("Free blocks: %d\n", superblock->base.free_blocks);
+    dbgprint("Free inodes: %d\n", superblock->base.free_inodes);
 
-    dbgprint("Block size: %d\n", 1024 << superblock.base.log2_block_size);
-    dbgprint("Fragment size: %d\n", 1024 << superblock.base.log2_fragment_size);
+    dbgprint("Block size: %d\n", 1024 << superblock->base.log2_block_size);
+    dbgprint("Fragment size: %d\n", 1024 << superblock->base.log2_fragment_size);
 
-    dbgprint("Blocks per group: %d\n", superblock.base.blocks_per_group);
-    dbgprint("Fragments per group: %d\n", superblock.base.fragments_per_group);
-    dbgprint("Inodes per group: %d\n", superblock.base.inodes_per_group);
+    dbgprint("Blocks per group: %d\n", superblock->base.blocks_per_group);
+    dbgprint("Fragments per group: %d\n", superblock->base.fragments_per_group);
+    dbgprint("Inodes per group: %d\n", superblock->base.inodes_per_group);
 }
 
-unsigned long int ext2_get_file_size(iodriver *driver, const void *_f) {
+size_t ext2_get_file_size(filesystem *fs, const void *_f) {
     ext2_inode *f = (ext2_inode *)_f;
     if (!f) {
         return 0;
@@ -71,12 +73,14 @@ void *ext2_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *
 }
 
 void ext2_read_block(int block, iodriver *driver, filesystem *fs) {
-    int block_size = 1024 << superblock.base.log2_block_size;
+    ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
+    int block_size = 1024 << superblock->base.log2_block_size;
     driver->read_sector(driver, fs->start_lba + block * block_size / driver->sector_size, driver->io_buffer, true);
 }
 
 void ext2_read_bgd(ext2_block_group_descriptor *bgd, iodriver *driver, filesystem *fs) {
-    int block_size = 1024 << superblock.base.log2_block_size;
+    ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
+    int block_size = 1024 << superblock->base.log2_block_size;
     int bgd_block = block_size == 1024 ? 2 : 1;
 
     ext2_read_block(bgd_block, driver, fs);
@@ -92,10 +96,11 @@ void ext2_read_bgd(ext2_block_group_descriptor *bgd, iodriver *driver, filesyste
 }
 
 void ext2_read_inode(ext2_inode *inode, int index, ext2_block_group_descriptor *bgd, iodriver *driver, filesystem *fs) {
-    int block_size = 1024 << superblock.base.log2_block_size;
+    ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
+    int block_size = 1024 << superblock->base.log2_block_size;
 
-    int block_group = (index - 1) / superblock.base.inodes_per_group;
-    int inode_index = (index - 1) % superblock.base.inodes_per_group;
+    int block_group = (index - 1) / superblock->base.inodes_per_group;
+    int inode_index = (index - 1) % superblock->base.inodes_per_group;
     int block = bgd->inode_table_block + (inode_index * sizeof(ext2_inode)) / block_size;
     dbgprint("inode: %d\n", index);
     dbgprint("block group: %d\n", block_group);
@@ -142,7 +147,8 @@ void ext2_read_directory_entry(ext2_directory_entry *entry, ext2_inode *inode, i
 }
 
 void ext2_list_files(iodriver *driver, filesystem *fs) {
-    int block_size = 1024 << superblock.base.log2_block_size;
+    ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
+    int block_size = 1024 << superblock->base.log2_block_size;
     int bgd_block = block_size == 1024 ? 2 : 1;
 
     ext2_block_group_descriptor bgd;

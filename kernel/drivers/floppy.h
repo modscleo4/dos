@@ -28,7 +28,7 @@ typedef struct {
     unsigned char motor_start_time; /*specified in 1/8 second*/
 } __attribute__((packed)) floppy_parameters;
 
-enum Floppy_Registers {
+enum FloppyRegisters {
     FLOPPY_STATUS_REGISTER_A = 0x000, // read-only
     FLOPPY_STATUS_REGISTER_B = 0x001, // read-only
     FLOPPY_DIGITAL_OUTPUT_REGISTER = 0x002,
@@ -40,7 +40,7 @@ enum Floppy_Registers {
     FLOPPY_CONFIGURATION_CONTROL_REGISTER = 0x007 // write-only
 };
 
-enum Floppy_Commands {
+enum FloppyCommands {
     FLOPPY_READ_TRACK = 2, // generates IRQ6
     FLOPPY_SPECIFY = 3,    // * set drive parameters
     FLOPPY_SENSE_DRIVE_STATUS = 4,
@@ -65,7 +65,7 @@ enum Floppy_Commands {
     FLOPPY_LOCK = 0x94
 };
 
-enum Floppy_MSR_Flags {
+enum FloppyMSRFlags {
     FLOPPY_MSR_MRQ = 0x80,
     FLOPPY_MSR_DIO = 0x40,
     FLOPPY_MSR_NON_DMA = 0x20,
@@ -84,6 +84,8 @@ static const char *drive_types[6] = {
     "1.44MB 3.5in floppy",
     "2.88MB 3.5in floppy"
 };
+
+iodriver floppy_io;
 
 iodriver *floppy_init(pci_device *device);
 
@@ -126,7 +128,5 @@ int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buf
 int floppy_sector_read(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
 
 int floppy_sector_write(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
-
-iodriver floppy_io;
 
 #endif //FLOPPY_H

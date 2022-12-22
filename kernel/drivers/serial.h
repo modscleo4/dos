@@ -1,15 +1,23 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
+typedef struct serial_device {
+    uint16_t port;
+    uint16_t baud_divisor;
+} serial_device;
+
 enum SerialPorts {
-    COM1 = 0x3F8,
-    COM2 = 0x2F8,
-    COM3 = 0x3E8,
-    COM4 = 0x2E8,
-    COM5 = 0x5F8,
-    COM6 = 0x4F8,
-    COM7 = 0x5E8,
-    COM8 = 0x4E8,
+    SERIAL_COM1 = 0x3F8,
+    SERIAL_COM2 = 0x2F8,
+    SERIAL_COM3 = 0x3E8,
+    SERIAL_COM4 = 0x2E8,
+    SERIAL_COM5 = 0x5F8,
+    SERIAL_COM6 = 0x4F8,
+    SERIAL_COM7 = 0x5E8,
+    SERIAL_COM8 = 0x4E8,
 };
 
 enum SerialRegisters {
@@ -25,12 +33,14 @@ enum SerialRegisters {
     SERIAL_REG_SCRATCH = 7,
 };
 
-int serial_init(unsigned int port, unsigned short int baud_divisor);
+bool is_serial_enabled(uint16_t port);
 
-char serial_read(unsigned int port);
+serial_device *serial_init(uint16_t port, uint16_t baud_divisor);
 
-void serial_write(unsigned int port, char c);
+bool serial_read(serial_device *device, char *c);
 
-void serial_write_str(unsigned int port, const char *str);
+bool serial_write(serial_device *device, char c);
+
+bool serial_write_str(serial_device *device, const char *str);
 
 #endif // SERIAL_H

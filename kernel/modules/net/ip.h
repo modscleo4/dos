@@ -2,22 +2,22 @@
 #define IP_H
 
 #include <stdint.h>
+#include "../../drivers/ethernet.h"
 
 typedef struct ipv4_packet {
-    uint8_t version: 4;
     uint8_t ihl: 4;
-    uint8_t dscp: 6;
+    uint8_t version: 4;
     uint8_t ecn: 2;
+    uint8_t dscp: 6;
     uint16_t total_length;
     uint16_t identification;
-    uint16_t flags: 3;
     uint16_t fragment_offset: 13;
+    uint8_t flags: 3;
     uint8_t ttl;
     uint8_t protocol;
     uint16_t header_checksum;
     uint8_t source_ip[4];
     uint8_t destination_ip[4];
-    void *data;
 } __attribute__((packed)) ipv4_packet;
 
 enum IPProtocol {
@@ -167,5 +167,9 @@ enum IPProtocol {
     IP_PROTOCOL_ROHC = 0x8E,
     IP_PROTOCOL_ETHERNET = 0x8F,
 };
+
+void ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], uint8_t protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size);
+
+void ipv4_receive_packet(ethernet_driver *driver, ipv4_packet *packet, void *data, size_t data_size);
 
 #endif // IP_H

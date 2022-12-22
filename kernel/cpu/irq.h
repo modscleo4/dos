@@ -1,6 +1,7 @@
 #ifndef KERNEL_IRQ_H
 #define KERNEL_IRQ_H
 
+#include <stdint.h>
 #include "system.h"
 
 enum IRQ {
@@ -56,7 +57,7 @@ extern void irq15(void);
 
 void irq_remap(void);
 
-void irq_install_handler(int irq, void (*handler)(registers *));
+void irq_install_handler(int irq, void (*handler)(registers *, uint32_t));
 
 void irq_uninstall_handler(int irq);
 

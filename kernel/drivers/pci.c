@@ -12,13 +12,13 @@ void pci_init(void) {
 }
 
 uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset) {
-    unsigned int address = 0x80000000 | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
+    uint32_t address = 0x80000000 | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
     outl(PCI_CONFIG_ADDRESS, address);
     return (uint16_t) (inl(PCI_CONFIG_DATA) >> ((offset & 2) * 8)) & 0xFFFF;
 }
 
 void pci_write_word(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset, uint16_t value) {
-    unsigned int address = 0x80000000 | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
+    uint32_t address = 0x80000000 | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
     outl(PCI_CONFIG_ADDRESS, address);
     outl(PCI_CONFIG_DATA, value);
 }
@@ -30,7 +30,7 @@ void pci_read_header(uint8_t bus, uint8_t slot, uint8_t func, pci_header *header
     }
 }
 
-static void pci_fix_bar(uint32_t bar[], unsigned int x) {
+static void pci_fix_bar(uint32_t bar[], int x) {
     // Retrieve the actual address of the BAR
 
     // If the BAR is a memory BAR (bit 0 is not set)
@@ -42,7 +42,7 @@ static void pci_fix_bar(uint32_t bar[], unsigned int x) {
             bar[x] &= 0xFFFFFFF0;
         } else if (type == 0x02) {
             // Retrieve the 64-bit BAR
-            bar[x] = (bar[x] & 0xFFFFFFF0) | ((bar[x + 1] & 0xFFFFFFF0) << 32);
+            bar[x] = (bar[x] & 0xFFFFFFF0) | ((uint64_t)(bar[x + 1] & 0xFFFFFFF0) << 32);
         }
     } else {
         bar[x] &= 0xFFFFFFFC;

@@ -1,9 +1,10 @@
 #include <stdlib.h>
 
 #include "../debug.h"
+#include "../kernel.h"
 #include "../ring3.h"
+#include "../rootfs.h"
 #include "../cpu/gdt.h"
-#include "../drivers/filesystem.h"
 #include "../modules/elf.h"
 #include <math.h>
 #include <stdio.h>
@@ -168,23 +169,31 @@ unsigned long int strtoul(const char *str, char **endptr, int base) {
     return 0;
 }
 
+uint32_t __curr_malloc_addr = 0x1000000;
+
 void *calloc(size_t num, size_t size) {
-    return NULL;
+    void *addr = malloc(num * size);
+    if (addr) {
+        memset(addr, 0, num * size);
+    }
+
+    return addr;
 }
 
 void free(void *ptr) {
     //
 }
 
-uint32_t __last_malloc_addr = 0x1000000;
 void *malloc(size_t size) {
     if (size == 0) {
         return NULL;
     }
 
-    __last_malloc_addr += size;
+    void *addr = (void *)__curr_malloc_addr;
 
-    return __last_malloc_addr;
+    __curr_malloc_addr += size;
+
+    return addr;
 }
 
 void *realloc(void *ptr, size_t size) {

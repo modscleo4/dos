@@ -1,9 +1,10 @@
 #include "ide.h"
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "../bits.h"
 #include "../debug.h"
 #include "../modules/timer.h"
-#include <stdio.h>
 
 ide_channel_registers ide_channels[2];
 ide_device ide_devices[4];
@@ -118,16 +119,16 @@ iodriver *ide_init(pci_device *device) {
         );
     }
 
-    static iodriver driver;
-    driver.device = -1;
-    driver.io_buffer = ide_buf;
-    driver.sector_size = 512;
-    driver.reset = NULL;
-    driver.start = &ide_motor_on;
-    driver.stop = &ide_motor_off;
-    driver.read_sector = &ide_sector_read;
-    driver.write_sector = &ide_sector_write;
-    return &driver;
+    iodriver *driver = malloc(sizeof(struct iodriver));
+    driver->device = -1;
+    driver->io_buffer = ide_buf;
+    driver->sector_size = 512;
+    driver->reset = NULL;
+    driver->start = &ide_motor_on;
+    driver->stop = &ide_motor_off;
+    driver->read_sector = &ide_sector_read;
+    driver->write_sector = &ide_sector_write;
+    return driver;
 }
 
 unsigned char ide_read(unsigned char channel, unsigned char reg) {
@@ -278,10 +279,10 @@ void ide_motor_on(iodriver *driver) {
     unsigned int ide_channel = ide_devices[driver->device].channel;
 
     if (support_dma) {
-        char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_Command);
+        char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND);
         command_register = ENABLE_BIT(command_register, 0);
         dbgprint("enabling motor, command_register = %x\n", command_register);
-        outb(ide_channels[ide_channel].bmide + ATA_BMR_Command, command_register);
+        outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, command_register);
     }
 }
 
@@ -289,9 +290,9 @@ void ide_motor_off(iodriver *driver) {
     unsigned int ide_channel = ide_devices[driver->device].channel;
 
     if (support_dma) {
-        char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_Command);
+        char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND);
         command_register = DISABLE_BIT(command_register, 0);
-        outb(ide_channels[ide_channel].bmide + ATA_BMR_Command, command_register);
+        outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, command_register);
     }
 }
 
@@ -356,12 +357,12 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
         ide_polling(ide_channel, 0);
     } else {
         prd_table prdt;
-        prdt.addr = buffer;
+        prdt.addr = (uint32_t)buffer;
         prdt.size = number_of_sectors;
         prdt.reserved = 0;
         prdt.last = 1;
 
-        outb(ide_channels[ide_channel].bmide + ATA_BMR_Command, 0);
+        outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, 0);
 
         outl(ide_channels[ide_channel].bmide + ATA_BMR_PRDT, (unsigned int)&prdt);
 
@@ -373,14 +374,14 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
         } else {
             command_register = DISABLE_BIT(command_register, 3);
         }
-        outb(ide_channels[ide_channel].bmide + ATA_BMR_Command, command_register);
+        outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, command_register);
 
         ide_polling(ide_channel, 0);
 
-        unsigned char status_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_Status);
+        unsigned char status_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS);
         status_register = DISABLE_BIT(status_register, 1);
         status_register = DISABLE_BIT(status_register, 2);
-        outb(ide_channels[ide_channel].bmide + ATA_BMR_Status, status_register);
+        outb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS, status_register);
     }
 
     if (lba_mode == 0) {
@@ -418,10 +419,10 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
 
         ide_polling(ide_channel, 0);
 
-        unsigned char status_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_Status);
+        unsigned char status_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS);
         if (ISSET_BIT_INT(status_register, 1)) {
             status_register = DISABLE_BIT(status_register, 1);
-            outb(ide_channels[ide_channel].bmide + ATA_BMR_Status, status_register);
+            outb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS, status_register);
         }
     } else {
         if (ide_print_error(driver, ide_polling(ide_channel, 1))) {

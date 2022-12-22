@@ -69,6 +69,10 @@ extern void isr31(void);
 
 extern void isr127(void);
 
+void isr_install_handler(int isr, void (*handler)(registers *, uint32_t));
+
+void isr_uninstall_handler(int isr);
+
 void isr_init(void);
 
 void isr_fault_handler(registers *r);

@@ -1,49 +1,44 @@
 #include "fpu.h"
 
-#include "../bits.h"
-#include "cpuid.h"
-#include "../debug.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include "../bits.h"
+#include "../debug.h"
 
-void fpu_load_control_word(const unsigned short int control) {
+void fpu_load_control_word(const uint16_t control) {
     asm volatile("fldcw %0;"
                  :
                  : "m"(control));
 }
 
-void fpu_init(void) {
-    long int cr0;
+void fpu_init(cpu_info *cpuinfo) {
+    uint32_t cr0;
     asm volatile("mov %%cr0, %0;"
                  : "=r"(cr0));
     DISABLE_BIT_INT(cr0, CR0_EM);
     DISABLE_BIT_INT(cr0, CR0_TS);
-    if (cpuid.fpu || fpu_available()) {
+    if (cpuinfo->fpu || fpu_available()) {
         dbgprint("FPU available\n");
         //fpu_load_control_word(0x37F);
         //fpu_load_control_word(0x37E);
         //fpu_load_control_word(0x37A);
 
-        sse_init();
+        sse_init(cpuinfo);
     } else {
         dbgprint("FPU not available\n");
         ENABLE_BIT_INT(cr0, CR0_EM);
     }
 }
 
-bool sse_available(void) {
-    return cpuid.sse;
-}
-
-void sse_init(void) {
-    long int cr0;
-    long int cr4;
+void sse_init(cpu_info *cpuinfo) {
+    uint32_t cr0;
+    uint32_t cr4;
     asm volatile("mov %%cr0, %0;"
                  : "=r"(cr0));
     asm volatile("mov %%cr4, %0;"
                  : "=r"(cr4));
-    if (sse_available()) {
+    if (cpuinfo->sse) {
         dbgprint("SSE available\n");
         ENABLE_BIT_INT(cr0, CR0_MP);
         ENABLE_BIT_INT(cr4, CR4_OSFXSR);

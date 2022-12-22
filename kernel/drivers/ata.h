@@ -4,7 +4,7 @@
 #include "iodriver.h"
 #include "pci.h"
 
-enum ATA_IO_Registers {
+enum ATAIORegisters {
     ATA_REG_DATA = 0x000,
     ATA_REG_ERROR = 0x001,
     ATA_REG_FEATURES = 0x001,
@@ -24,13 +24,13 @@ enum ATA_IO_Registers {
     ATA_REG_DEVADDRESS = 0x00D
 };
 
-enum ATA_CR_Registers {
+enum ATACRRegisters {
     ATA_CR_ALTERNATE = 0x000,
     ATA_CR_DEVICE = 0x000,
     ATA_CR_HEAD = 0x001,
 };
 
-enum ATA_Error_Registers {
+enum ATAErrorRegisters {
     ATA_ERR_AMNT = 0x00,
     ATA_ERR_TKZNF = 0x01,
     ATA_ERR_ABRT = 0x04,
@@ -41,7 +41,7 @@ enum ATA_Error_Registers {
     ATA_ERR_BBK = 0x80
 };
 
-enum ATA_Status_Registers {
+enum ATAStatusRegisters {
     ATA_SR_BSY = 0x80,
     ATA_SR_DRDY = 0x40,
     ATA_SR_DF = 0x20,
@@ -52,7 +52,7 @@ enum ATA_Status_Registers {
     ATA_SR_ERR = 0x01
 };
 
-enum ATA_Commands {
+enum ATACommands {
     ATA_CMD_READ_PIO = 0x20,
     ATA_CMD_READ_PIO_EXT = 0x24,
     ATA_CMD_READ_DMA = 0xC8,
@@ -68,7 +68,7 @@ enum ATA_Commands {
     ATA_CMD_IDENTIFY = 0xEC
 };
 
-enum ATA_Identify {
+enum ATAIdentify {
     ATA_ID_DEVICETYPE = 0,
     ATA_ID_CYLINDERS = 2,
     ATA_ID_HEADS = 6,
@@ -82,9 +82,9 @@ enum ATA_Identify {
     ATA_ID_MAX_LBA_EXT = 200
 };
 
-enum ATA_BusMaster_Register {
-    ATA_BMR_Command = 0x000,
-    ATA_BMR_Status = 0x002,
+enum ATABusMasterRegisters {
+    ATA_BMR_COMMAND = 0x000,
+    ATA_BMR_STATUS = 0x002,
     ATA_BMR_PRDT = 0x004,
 };
 
@@ -97,7 +97,7 @@ enum ATA_BusMaster_Register {
 #define ATA_READ 0x00
 #define ATA_WRITE 0x01
 
-/*enum ATAPI_Commands {
+/*Commands {
     ATAPI_TEST_UNIT_READY = 0x00,
     ATAPI_REQUEST_SENSE = 0x03,
     ATAPI_FORMAT_UNIT = 0x04,

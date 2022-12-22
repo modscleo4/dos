@@ -11,12 +11,12 @@ unsigned static char atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 int irq_primary_c;
 int irq_secondary_c;
 
-static void ata_primary_handler(registers *r) {
+static void ata_primary_handler(registers *r, uint32_t int_no) {
     dbgprint("irq14");
     irq_primary_c++;
 }
 
-static void ata_secondary_handler(registers *r) {
+static void ata_secondary_handler(registers *r, uint32_t int_no) {
     dbgprint("irq14");
     irq_secondary_c++;
 }
@@ -52,9 +52,7 @@ iodriver *ata_init(pci_device *device) {
 }
 
 void ata_400ns_delay(unsigned char channel) {
-    int i;
-
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         ide_read(channel, ATA_REG_ALTSTATUS);
     }
 }

@@ -1,10 +1,12 @@
 #include "panic.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include "gdt.h"
 #include "irq.h"
 #include "../bits.h"
 #include "../debug.h"
+#include "../rootfs.h"
 #include "../drivers/filesystem.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/screen.h"
@@ -20,7 +22,7 @@ void panic(const char *msg, ...) {
     panic_handler(buf, NULL);
 }
 
-static void read_gdt_segment(unsigned short int segment) {
+static void read_gdt_segment(uint16_t segment) {
     gdt_ptr gdt_ptr;
     asm volatile("sgdt %0" : "=m"(gdt_ptr));
 
@@ -57,17 +59,17 @@ void panic_handler(const char *msg, registers *r) {
                     printf("eip: %08lx    useresp: %08lx\n\n", r->eip, r->useresp);
                     hexdump((void *)r->esp, 0x40);
                     printf("SEG sltr(index|cd|dpl)     base    limit G D\n");
-                    printf("cs: %04hx", (short int)r->cs);
+                    printf("cs: %04hx", r->cs);
                     read_gdt_segment(r->cs);
-                    printf("ds: %04hx", (short int)r->ds);
+                    printf("ds: %04hx", r->ds);
                     read_gdt_segment(r->ds);
-                    printf("es: %04hx", (short int)r->es);
+                    printf("es: %04hx", r->es);
                     read_gdt_segment(r->es);
-                    printf("fs: %04hx", (short int)r->fs);
+                    printf("fs: %04hx", r->fs);
                     read_gdt_segment(r->fs);
-                    printf("gs: %04hx", (short int)r->gs);
+                    printf("gs: %04hx", r->gs);
                     read_gdt_segment(r->gs);
-                    printf("ss: %04hx\n", (short int)r->ss);
+                    printf("ss: %04hx\n", r->ss);
 
                     printf("eflags: %x", r->eflags);
                     if (r->eflags.carry) printf(" CF");
@@ -96,7 +98,7 @@ void panic_handler(const char *msg, registers *r) {
             case 's':
             case 'S': {
                 if (rootfs.type) {
-                    unsigned long int ebp = 0;
+                    uint32_t ebp = 0;
                     if (r) {
                         ebp = r->ebp;
                     } else {

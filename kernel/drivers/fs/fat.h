@@ -84,7 +84,7 @@ typedef struct fat_entry {
 
 void fat_init(iodriver *driver, filesystem *fs);
 
-unsigned long int fat_get_file_size(iodriver *driver, const void *_f);
+size_t fat_get_file_size(filesystem *fs, const void *_f);
 
 fat_entry *fat_search_file(iodriver *driver, filesystem *fs, const char *filename);
 

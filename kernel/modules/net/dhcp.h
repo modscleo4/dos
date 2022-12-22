@@ -4,15 +4,11 @@
 #include <stdint.h>
 #include "../../drivers/ethernet.h"
 
-typedef struct dhcp_header {
+typedef struct dhcp_packet {
     uint8_t op;
     uint8_t htype;
     uint8_t hlen;
     uint8_t hops;
-} dhcp_header;
-
-typedef struct dhcp_discover_packet {
-    dhcp_header header;
     uint32_t xid;
     uint16_t secs;
     uint16_t flags;
@@ -25,7 +21,7 @@ typedef struct dhcp_discover_packet {
     uint8_t file[128];
     uint32_t magic_cookie;
     uint8_t options[312];
-} dhcp_discover_packet;
+} dhcp_packet;
 
 enum DHCPOperation {
     DHCP_OP_DISCOVER = 0x01,
@@ -59,5 +55,7 @@ enum DHCPOption {
 void dhcp_init(ethernet_driver *driver);
 
 void dhcp_send_discover(ethernet_driver *driver);
+
+void dhcp_send_request(ethernet_driver *driver, uint8_t server_ip[4], uint8_t requested_ip[4]);
 
 #endif // DHCP_H

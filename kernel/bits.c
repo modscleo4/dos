@@ -51,8 +51,8 @@ uint32_t inl(uint16_t addr) {
     return ret;
 }
 
-void insl(uint16_t addr, uint32_t *buffer, unsigned int quads) {
-    for (int i = 0; i < quads; i++) {
+void insl(uint16_t addr, uint32_t *buffer, size_t quads) {
+    for (size_t i = 0; i < quads; i++) {
         buffer[i] = inl(addr);
     }
 }

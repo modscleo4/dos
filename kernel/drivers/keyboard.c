@@ -8,7 +8,7 @@
 
 unsigned char scancode;
 int irq_c = 0;
-bool pressed[256];
+//bool pressed[256];
 
 static void _keyboard_reset(void) {
     char tmp = inb(KB_RESET_REGISTER);
@@ -17,16 +17,8 @@ static void _keyboard_reset(void) {
     inb(KB_DATA_REGISTER);
 }
 
-void keyboard_init(void) {
-    irq_c = 0;
-    irq_install_handler(IRQ_KEYBOARD, keyboard_handler);
-    _keyboard_reset();
-    kblayout = kblayout_us;
-    memset(pressed, 0, sizeof(pressed));
-}
-
-void keyboard_handler(registers *r) {
-    while (ISSET_BIT_INT(inb(KB_STATUS_REGISTER), 2)) { }
+void keyboard_handler(registers *r, uint32_t int_no) {
+    while (ISSET_BIT_INT(inb(KB_STATUS_REGISTER), 2)) {}
     irq_c++;
     scancode = inb(KB_DATA_REGISTER);
 
@@ -40,6 +32,14 @@ void keyboard_handler(registers *r) {
     /*if (pressed[0x38] && pressed[0x53] && pressed[0x10]) {
         panic("Kernel panic");
     }*/
+}
+
+void keyboard_init(void) {
+    irq_c = 0;
+    irq_install_handler(IRQ_KEYBOARD, keyboard_handler);
+    _keyboard_reset();
+    kblayout = kblayout_us;
+    //memset(pressed, 0, sizeof(pressed));
 }
 
 void keyboard_wait_irq(void) {

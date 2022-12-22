@@ -7,6 +7,7 @@ typedef struct iodriver {
     unsigned int device;
     unsigned char *io_buffer;
     unsigned int sector_size;
+    void *partitions;
     int (*reset)(struct iodriver *driver);
     void (*start)(struct iodriver *driver);
     void (*stop)(struct iodriver *driver);
@@ -18,7 +19,5 @@ typedef enum {
     io_read = 0,
     io_write = 1
 } io_operation;
-
-iodriver rootfs_io;
 
 #endif // IODRIVER_H

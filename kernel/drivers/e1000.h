@@ -26,7 +26,7 @@ typedef struct e1000_transmit_descriptor {
     uint16_t special;
 } e1000_transmit_descriptor;
 
-enum E1000GeneralRegister {
+enum E1000GeneralRegisters {
     E1000_REG_CTRL = 0x00000,
     E1000_REG_STATUS = 0x00008,
     E1000_REG_EECD = 0x00010,
@@ -43,11 +43,11 @@ enum E1000GeneralRegister {
     E1000_REG_LEDCTL = 0x00E00,
 };
 
-enum E1000DMARegister {
+enum E1000DMARegisters {
     E1000_REG_PBA = 0x01000,
 };
 
-enum E1000InterruptRegister {
+enum E1000InterruptRegisters {
     E1000_REG_ICR = 0x000C0,
     E1000_REG_ITR = 0x000C4,
     E1000_REG_ICS = 0x000C8,
@@ -55,7 +55,7 @@ enum E1000InterruptRegister {
     E1000_REG_IMC = 0x000D8,
 };
 
-enum E1000ReceiveRegister {
+enum E1000ReceiveRegisters {
     E1000_REG_RCTL = 0x00100,
     E1000_REG_FCRTL = 0x02160,
     E1000_REG_FCRTH = 0x02168,
@@ -74,7 +74,7 @@ enum E1000ReceiveRegister {
     E1000_REG_VFTA = 0x05600,
 };
 
-enum E1000TransmitRegister {
+enum E1000TransmitRegisters {
     E1000_REG_TCTL = 0x00400,
     E1000_REG_TIPG = 0x00410,
     E1000_REG_AIFS = 0x00458,
@@ -86,14 +86,14 @@ enum E1000TransmitRegister {
     E1000_REG_TIDV = 0x03820,
 };
 
-enum E1000TXDMARegister {
+enum E1000TXDMARegisters {
     E1000_REG_TXDMAC = 0x03000,
     E1000_REG_TXDCTL = 0x03828,
     E1000_REG_TADV = 0x0282C,
     E1000_REG_TSPMT = 0x03830,
 };
 
-enum E1000RXDMARegister {
+enum E1000RXDMARegisters {
     E1000_REG_RXDCTL = 0x02828,
     E1000_REG_RXCSUM = 0x05000,
 };

@@ -1,15 +1,17 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
+#include <stdint.h>
+
 typedef struct process {
-    unsigned int return_address;
-    unsigned int stack_pointer;
-    unsigned int stack_base;
-    unsigned int entry;
+    uint32_t return_address;
+    uint32_t stack_pointer;
+    uint32_t stack_base;
+    uint32_t entry;
 } process;
 
-unsigned long int create_process(unsigned int entry, unsigned int stack);
+uint32_t create_process(uint32_t entry, uint32_t stack);
 
-void destroy_process(unsigned long int pid);
+void destroy_process(uint32_t pid);
 
 #endif // PROCESS_H

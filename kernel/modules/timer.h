@@ -1,5 +1,5 @@
-#ifndef KERNEL_TIMER_H
-#define KERNEL_TIMER_H
+#ifndef TIMER_H
+#define TIMER_H
 
 typedef struct time {
     unsigned char hour;
@@ -19,4 +19,4 @@ void timer_wait(int ms);
 
 void timer_init(void);
 
-#endif //KERNEL_TIMER_H
+#endif //TIMER_H

@@ -1,11 +1,11 @@
-#ifndef PANIC_H
-#define PANIC_H
+#ifndef KERNEL_PANIC_H
+#define KERNEL_PANIC_H
 
-#include "system.h"
 #include <stdarg.h>
+#include "system.h"
 
 void panic(const char *msg, ...);
 
 void panic_handler(const char *msg, registers *r);
 
-#endif // PANIC_H
+#endif // KERNEL_PANIC_H

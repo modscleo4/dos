@@ -26,7 +26,7 @@ enum Colors {
     COLOR_WHITE
 };
 
-enum Screen_Registers {
+enum ScreenRegisters {
     SCREEN_CONTROL = 0x3D4,
     SCREEN_DATA = 0x3D5
 };

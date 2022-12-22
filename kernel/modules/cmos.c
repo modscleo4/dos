@@ -2,7 +2,7 @@
 
 #include "../bits.h"
 
-char read_cmos_register(char reg, char nmi) {
+uint8_t read_cmos_register(uint8_t reg, uint8_t nmi) {
     outb(0x70, (nmi << 7) | reg);
     return inb(0x71);
 }
