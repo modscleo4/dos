@@ -8,12 +8,14 @@
 #include "drivers/screen.h"
 #include "modules/elf.h"
 
-#define DEBUG
+#ifndef DEBUG
+#define DEBUG 1
+#endif
 
 void dbgprint(const char *msg, ...) {
     va_list args;
     va_start(args, msg);
-#ifdef DEBUG
+#if DEBUG
     vprintf(msg, args);
 #endif
     va_end(args);
@@ -82,16 +84,15 @@ typedef struct stackframe {
 } stackframe;
 
 void callstack(uint32_t ebp) {
-    if (!rootfs.type) {
-        return;
-    }
-
     void *kernel_file_inode = rootfs.search_file(&rootfs_io, &rootfs, "KERNEL");
     if (!kernel_file_inode) {
         return;
     }
 
-    rootfs.load_file_at(&rootfs_io, &rootfs, kernel_file_inode, (void *)0x1000000);
+    if (!rootfs.load_file_at(&rootfs_io, &rootfs, kernel_file_inode, (void *)0x1000000)) {
+        return;
+    }
+
     elf32_header *kernel_header = (elf32_header *) 0x1000000;
     elf32_section_header *section_debuginfo = NULL;
     elf32_section_header *section_strtab = NULL;
@@ -140,7 +141,7 @@ void callstack(uint32_t ebp) {
             //dbgprint("    info: %x\n", section_header->info);
             //dbgprint("    address_align: %x\n", section_header->address_align);
             //dbgprint("    entry_size: %x\n", section_header->entry_size);
-            //getchar();
+            //dbgwait();
             section_header++;
         }
     }
@@ -161,7 +162,7 @@ void callstack(uint32_t ebp) {
 
             elf32_symbol_table_entry *symbol_table = (elf32_symbol_table_entry *) ((void *)kernel_header + section_symtab->offset);
             for (int i = 1; i <= section_symtab->size; i++) {
-                uint8_t *symbol_name = (uint8_t *)((void *)kernel_header) + section_strtab->offset + symbol_table->name;
+                char *symbol_name = (char *)((void *)kernel_header) + section_strtab->offset + symbol_table->name;
 
                 if (symbol_table->name) {
                     uint32_t symbol_address = symbol_table->value;
@@ -176,13 +177,13 @@ void callstack(uint32_t ebp) {
                 //dbgprint("  symbol %d:\n", i);
                 //dbgprint("    addr: %p\n", symbol_table);
                 //dbgprint("    name: %p: %d\n", symbol_name, symbol_table->name);
-                //dbgprint("    name: %s\n", symbol_name, symbol_name);
+                //dbgprint("    name: %s\n", symbol_name);
                 //dbgprint("    value: %lx\n", symbol_table->value);
                 //dbgprint("    size: %x\n", symbol_table->size);
                 //dbgprint("    info: %x\n", symbol_table->info);
                 //dbgprint("    other: %x\n", symbol_table->other);
                 //dbgprint("    section: %x\n", symbol_table->section_index);
-                //getchar();
+                //dbgwait();
                 symbol_table++;
             }
 

@@ -172,13 +172,17 @@ void e1000_write_transmit_descriptor(ethernet_driver *driver, unsigned int ptr, 
     descriptor->cmd = cmd;
     descriptor->status = status;
     descriptor->css = css;
+
+    if (ISSET_BIT_INT(cmd, E1000_REGBIT_TXD_CMD_RS)) {
+        while (ISSET_BIT_INT(e1000_mmio_read(driver, E1000_REG_TDH), E1000_REGBIT_TXD_CMD_RS)) { }
+    }
 }
 
 unsigned int e1000_send_packet(ethernet_driver *driver, ethernet_packet *packet, size_t data_size) {
     dbgprint("e1000: Sending packet len %d\n", data_size);
     uint32_t tdt = e1000_mmio_read(driver, E1000_REG_TDT);
     uint32_t tdh = e1000_mmio_read(driver, E1000_REG_TDH);
-    dbgprint("e1000: TDT: %d, TDH: %d\n", tdt, tdh);
+    //dbgprint("e1000: TDT: %d, TDH: %d\n", tdt, tdh);
     if ((tdh + 1) * 16 == (uint32_t)driver->tx_buffer) {
         dbgprint("e1000: Transmit buffer full\n");
         return 1;
@@ -239,10 +243,9 @@ static void e1000_read_packet(ethernet_driver *driver) {
         return;
     }
 
-    unsigned int ptr = 0;
-    while (e1000_read_receive_descriptor(driver, ptr)) {
-        ptr = (ptr + 1) % (driver->rx_buffer_size / sizeof(e1000_receive_descriptor));
-        e1000_mmio_write(driver, E1000_REG_RDT, ptr);
+    while (e1000_read_receive_descriptor(driver, driver->rx_tail)) {
+        driver->rx_tail = (driver->rx_tail + 1) % (driver->rx_buffer_size / sizeof(e1000_receive_descriptor));
+        e1000_mmio_write(driver, E1000_REG_RDT, driver->rx_tail);
     }
 }
 

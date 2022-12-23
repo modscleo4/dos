@@ -36,13 +36,13 @@ static void iodriver_init(unsigned int boot_drive) {
     iodriver *_tmpio;
     if (ISSET_BIT_INT(boot_drive, 0x80)) {
         dbgprint("Booting from hard disk\n");
-        dbgwait();
+        //dbgwait();
 
         _tmpio = &ata_io;
         boot_drive = DISABLE_BIT_INT(boot_drive, 0x80);
     } else {
         dbgprint("Booting from floppy disk\n");
-        dbgwait();
+        //dbgwait();
 
         if (floppy_io.device == -2) {
             if (!floppy_init(NULL)) {

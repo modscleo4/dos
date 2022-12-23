@@ -1,6 +1,8 @@
 #ifndef FAT_H
 #define FAT_H
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "../iodriver.h"
 #include "../filesystem.h"
 
@@ -15,65 +17,65 @@
  */
 
 typedef struct bios_params {
-    unsigned short int bytes_per_sector;
-    unsigned char sectors_per_cluster;
-    unsigned short int reserved_sectors;
-    unsigned char number_of_fat;
-    unsigned short int rootdir_entries;
-    unsigned short int small_sectors;
-    unsigned char media_type;
-    unsigned short int sectors_per_fat;
-    unsigned short int sectors_per_track;
-    unsigned short int num_of_heads;
-    unsigned int hidden_sectors;
-    unsigned int large_sectors;
+    uint16_t bytes_per_sector;
+    uint8_t sectors_per_cluster;
+    uint16_t reserved_sectors;
+    uint8_t number_of_fat;
+    uint16_t rootdir_entries;
+    uint16_t small_sectors;
+    uint8_t media_type;
+    uint16_t sectors_per_fat;
+    uint16_t sectors_per_track;
+    uint16_t num_of_heads;
+    uint32_t hidden_sectors;
+    uint32_t large_sectors;
 
-    unsigned char disk_number;
-    unsigned char checkdisk;
-    unsigned char signature;
-    unsigned int serial_number;
-    unsigned char volume_label[11];
-    unsigned char filesystem[8];
+    uint8_t disk_number;
+    uint8_t checkdisk;
+    uint8_t signature;
+    uint32_t serial_number;
+    char volume_label[11];
+    char filesystem[8];
 } __attribute__((packed)) bios_params;
 
 typedef struct fat_entry_attributes {
-    unsigned char read_only : 1;
-    unsigned char hidden : 1;
-    unsigned char system : 1;
-    unsigned char volume : 1;
-    unsigned char directory : 1;
-    unsigned char archive : 1;
-    unsigned char device : 1;
-    unsigned char lfn : 1;
+    bool read_only : 1;
+    bool hidden : 1;
+    bool system : 1;
+    bool volume : 1;
+    bool directory : 1;
+    bool archive : 1;
+    bool device : 1;
+    bool lfn : 1;
 } __attribute__((packed)) fat_entry_attributes;
 
 typedef struct fat_entry_date {
-    unsigned char day: 5;
-    unsigned char month: 4;
-    unsigned char year: 7;
+    uint8_t day: 5;
+    uint8_t month: 4;
+    uint8_t year: 7;
 } __attribute__((packed)) fat_entry_date;
 
 typedef struct fat_entry_time {
-    unsigned char second: 5;
-    unsigned char minute: 6;
-    unsigned char hour: 5;
+    uint8_t second: 5;
+    uint8_t minute: 6;
+    uint8_t hour: 5;
 } __attribute__((packed)) fat_entry_time;
 
 typedef struct fat_entry {
-    unsigned char name[8];
-    unsigned char ext[3];
+    char name[8];
+    char ext[3];
     fat_entry_attributes attributes;
-    unsigned char winnt : 8;
-    unsigned char creation_msstamp : 8;
+    uint8_t winnt;
+    uint8_t creation_msstamp;
     fat_entry_time created_time;
     fat_entry_date created_date;
     fat_entry_date last_access_date;
-    unsigned int cluster_fat32 : 16;
+    uint16_t cluster_fat32;
     fat_entry_time last_write_time;
     fat_entry_date last_write_date;
-    unsigned short int cluster : 16;
-    unsigned long int size : 32;
-} __attribute__((packed)) fat_entry;
+    uint16_t cluster;
+    uint32_t size;
+} fat_entry;
 
 /*
  * 0x00      Entry never used

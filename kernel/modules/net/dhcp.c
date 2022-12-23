@@ -4,14 +4,30 @@
 #include <string.h>
 #include "arp.h"
 #include "udp.h"
+#include "../timer.h"
 #include "../../debug.h"
 #include "../../bits.h"
 
+typedef struct dhcp_offer {
+    uint8_t server_ip[4];
+    uint8_t offered_ip[4];
+} dhcp_offer;
+
+static dhcp_offer offers[2];
+static int offer_count = 0;
+
 static void dhcp_process_offer(ethernet_driver *driver, dhcp_packet *packet) {
     dbgprint("Received DHCP offer from %d.%d.%d.%d: %d.%d.%d.%d\n", packet->siaddr[0], packet->siaddr[1], packet->siaddr[2], packet->siaddr[3], packet->yiaddr[0], packet->yiaddr[1], packet->yiaddr[2], packet->yiaddr[3]);
-    //arp_send_request(driver, packet->siaddr);
+    //arp_send_request(driver, packet->yiaddr);
 
-    dhcp_send_request(driver, packet->siaddr, packet->yiaddr);
+    if (offer_count >= 2) {
+        dbgprint("Received too many DHCP offers\n");
+        return;
+    }
+
+    memcpy(offers[offer_count].server_ip, packet->siaddr, 4);
+    memcpy(offers[offer_count].offered_ip, packet->yiaddr, 4);
+    offer_count++;
 }
 
 static void dhcp_process_ack(ethernet_driver *driver, dhcp_packet *packet) {
@@ -53,6 +69,10 @@ static void dhcp_process_ack(ethernet_driver *driver, dhcp_packet *packet) {
                 driver->ipv4.dns[2] = op[4];
                 driver->ipv4.dns[3] = op[5];
                 break;
+
+            case DHCP_OPTION_LEASE_TIME:
+                driver->ipv4.lease_time = op[2] << 24 | op[3] << 16 | op[4] << 8 | op[5];
+                break;
         }
 
         op += op[1] + 2;
@@ -62,12 +82,13 @@ static void dhcp_process_ack(ethernet_driver *driver, dhcp_packet *packet) {
     dbgprint("Subnet: %d.%d.%d.%d\n", driver->ipv4.subnet[0], driver->ipv4.subnet[1], driver->ipv4.subnet[2], driver->ipv4.subnet[3]);
     dbgprint("Gateway: %d.%d.%d.%d\n", driver->ipv4.gateway[0], driver->ipv4.gateway[1], driver->ipv4.gateway[2], driver->ipv4.gateway[3]);
     dbgprint("DNS: %d.%d.%d.%d\n", driver->ipv4.dns[0], driver->ipv4.dns[1], driver->ipv4.dns[2], driver->ipv4.dns[3]);
+    dbgprint("Lease time: %ds\n", driver->ipv4.lease_time);
 }
 
 static void dhcp_udp_listener(ethernet_driver *driver, void *data, size_t data_size) {
     dhcp_packet *packet = data;
 
-    if (packet->op != 2) {
+    if (packet->op != DHCP_BOOT_OP_REPLY) {
         dbgprint("Received DHCP packet with invalid op code %d\n", packet->op);
         return;
     }
@@ -98,13 +119,23 @@ void dhcp_init(ethernet_driver *driver) {
     dbgprint("dhcp_init\n");
     udp_install_listener(68, dhcp_udp_listener);
     dhcp_send_discover(driver);
-    //arp_send_request(driver, (uint8_t[]){10, 0, 2, 2});
+
+    timer_wait(100);
+
+    for (int i = 0; i < offer_count; i++) {
+        uint8_t mac[6];
+        if (!arp_get_mac(driver, offers[i].offered_ip, mac, 100)) {
+            dbgprint("Offered IP %d.%d.%d.%d from %d.%d.%d.%d is available\n", offers[i].offered_ip[0], offers[i].offered_ip[1], offers[i].offered_ip[2], offers[i].offered_ip[3], offers[i].server_ip[0], offers[i].server_ip[1], offers[i].server_ip[2], offers[i].server_ip[3]);
+            dhcp_send_request(driver, offers[i].server_ip, offers[i].offered_ip);
+            break;
+        }
+    }
 }
 
 void dhcp_send_discover(ethernet_driver *driver) {
     dbgprint("dhcp_send_discover\n");
     dhcp_packet *packet = malloc(sizeof(dhcp_packet));
-    packet->op = 1;
+    packet->op = DHCP_BOOT_OP_REQUEST;
     packet->htype = DHCP_HTYPE_ETHERNET;
     packet->hlen = 6;
     packet->hops = 0;
@@ -126,12 +157,14 @@ void dhcp_send_discover(ethernet_driver *driver) {
     packet->options[3] = DHCP_OPTION_END;
 
     udp_send_packet(driver, (uint8_t[]){0, 0, 0, 0}, 68, (uint8_t[]){255, 255, 255, 255}, 67, packet, sizeof(dhcp_packet));
+
+    free(packet);
 }
 
 void dhcp_send_request(ethernet_driver *driver, uint8_t server_ip[4], uint8_t requested_ip[4]) {
     dbgprint("dhcp_send_request\n");
     dhcp_packet *packet = malloc(sizeof(dhcp_packet));
-    packet->op = 1;
+    packet->op = DHCP_BOOT_OP_REQUEST;
     packet->htype = DHCP_HTYPE_ETHERNET;
     packet->hlen = 6;
     packet->hops = 0;
@@ -171,4 +204,6 @@ void dhcp_send_request(ethernet_driver *driver, uint8_t server_ip[4], uint8_t re
     packet->options[21] = DHCP_OPTION_END;
 
     udp_send_packet(driver, (uint8_t[]){0, 0, 0, 0}, 68, (uint8_t[]){255, 255, 255, 255}, 67, packet, sizeof(dhcp_packet));
+
+    free(packet);
 }

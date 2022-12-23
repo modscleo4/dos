@@ -5,26 +5,33 @@
 #include "../../bits.h"
 #include "../../debug.h"
 
+typedef struct arp_map {
+    uint8_t ip[4];
+    uint8_t mac[4];
+} arp_map;
+
 static arp_map arp_list[10];
 static int curr_arp = 0;
 
-void arp_get_mac(ethernet_driver *driver, uint8_t ip[4], uint8_t mac[6]) {
+bool arp_get_mac(ethernet_driver *driver, uint8_t ip[4], uint8_t mac[6], int timeout) {
     for (int i = 0; i < curr_arp; i++) {
         if (arp_list[i].ip[0] == ip[0] && arp_list[i].ip[1] == ip[1] && arp_list[i].ip[2] == ip[2] && arp_list[i].ip[3] == ip[3]) {
             memcpy(mac, arp_list[i].mac, 6);
-            return;
+            return true;
         }
     }
 
     arp_send_request(driver, ip);
-    timer_wait(100);
+    timer_wait(timeout);
 
     for (int i = 0; i < curr_arp; i++) {
         if (arp_list[i].ip[0] == ip[0] && arp_list[i].ip[1] == ip[1] && arp_list[i].ip[2] == ip[2] && arp_list[i].ip[3] == ip[3]) {
             memcpy(mac, arp_list[i].mac, 6);
-            return;
+            return true;
         }
     }
+
+    return false;
 }
 
 void arp_send_request(ethernet_driver *driver, uint8_t ip[4]) {

@@ -97,7 +97,7 @@ void panic_handler(const char *msg, registers *r) {
 
             case 's':
             case 'S': {
-                if (rootfs.type) {
+                if (rootfs.type && rootfs_io.device >= 0) {
                     uint32_t ebp = 0;
                     if (r) {
                         ebp = r->ebp;

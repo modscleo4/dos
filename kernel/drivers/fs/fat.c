@@ -249,7 +249,7 @@ void fat_list_files(iodriver *driver, filesystem *fs) {
     bios_params *params = (bios_params *)fs->params;
     printf("Files on disk: \n");
 
-    fat_entry *f = malloc(sizeof(fat_entry));
+    fat_entry f;
 
     int rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
     int last_sector = params->rootdir_entries * sizeof(fat_entry);
@@ -268,12 +268,12 @@ void fat_list_files(iodriver *driver, filesystem *fs) {
             continue;
         }
 
-        memcpy(f, &driver->io_buffer[i % 512], sizeof(fat_entry));
+        memcpy(&f, &driver->io_buffer[i % 512], sizeof(fat_entry));
 
-        fat_describe_file(fs, f, rootdir_sector, 0);
+        fat_describe_file(fs, &f, rootdir_sector, 0);
 
-        if (f->attributes.directory) {
-            fat_list_files_in_dir(driver, fs, f, 1);
+        if (f.attributes.directory) {
+            fat_list_files_in_dir(driver, fs, &f, 1);
             driver->read_sector(driver, sector - 1, driver->io_buffer, i != last_sector);
         }
     }
@@ -281,7 +281,7 @@ void fat_list_files(iodriver *driver, filesystem *fs) {
 
 void fat_list_files_in_dir(iodriver *driver, filesystem *fs, fat_entry *d, int level) {
     bios_params *params = (bios_params *)fs->params;
-    fat_entry *f = malloc(sizeof(fat_entry));
+    fat_entry f;
 
     int rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
     int last_sector = params->rootdir_entries * sizeof(fat_entry);
@@ -297,13 +297,12 @@ void fat_list_files_in_dir(iodriver *driver, filesystem *fs, fat_entry *d, int l
             continue;
         }
 
-        memcpy(f, &driver->io_buffer[i % 512], sizeof(fat_entry));
+        memcpy(&f, &driver->io_buffer[i % 512], sizeof(fat_entry));
 
-        fat_describe_file(fs, f, rootdir_sector, level);
+        fat_describe_file(fs, &f, rootdir_sector, level);
 
-        if (f->attributes.directory && i >= 2 * sizeof(fat_entry)) {
-            fat_list_files_in_dir(driver, fs, f, level + 1);
-            //driver->read_sector(driver, dir_sector - 1, driver->io_buffer, i != last_sector);
+        if (f.attributes.directory && i >= 2 * sizeof(fat_entry)) {
+            fat_list_files_in_dir(driver, fs, &f, level + 1);
         }
     }
 }

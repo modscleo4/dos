@@ -231,7 +231,7 @@ int system(const char *command) {
 
     dbgprint("%s loaded at address 0x%x\n", command, addr);
 
-    elf_header *_header = (elf_header *) addr;
+    elf_header_ident *_header = (elf_header_ident *) addr;
     if (memcmp(_header->magic, elf_magic, 4)) {
         dbgprint("Not an ELF file\n");
         return -1;

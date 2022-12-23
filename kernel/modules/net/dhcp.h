@@ -23,6 +23,11 @@ typedef struct dhcp_packet {
     uint8_t options[312];
 } dhcp_packet;
 
+enum DHCPBootOperation {
+    DHCP_BOOT_OP_REQUEST = 0x01,
+    DHCP_BOOT_OP_REPLY = 0x02,
+};
+
 enum DHCPOperation {
     DHCP_OP_DISCOVER = 0x01,
     DHCP_OP_OFFER = 0x02,

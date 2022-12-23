@@ -21,6 +21,7 @@ typedef struct ipv4_config {
     uint8_t subnet[4];
     uint8_t gateway[4];
     uint8_t dns[4];
+    int lease_time;
 } ipv4_config;
 
 typedef struct ethernet_driver {

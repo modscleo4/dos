@@ -119,7 +119,7 @@ iodriver *ide_init(pci_device *device) {
         );
     }
 
-    iodriver *driver = malloc(sizeof(struct iodriver));
+    iodriver *driver = malloc(sizeof(iodriver));
     driver->device = -1;
     driver->io_buffer = ide_buf;
     driver->sector_size = 512;

@@ -1,105 +1,130 @@
 #ifndef ELF_H
 #define ELF_H
 
-typedef struct elf_header {
-    unsigned char magic[4];
-    unsigned char class;
-    unsigned char endian;
-    unsigned char version;
-    unsigned char osabi;
-    unsigned char unused[8];
-} __attribute__((packed)) elf_header;
+#include <stdint.h>
+
+typedef uint32_t Elf32_Addr;
+typedef uint16_t Elf32_Half;
+typedef uint32_t Elf32_Off;
+typedef int32_t Elf32_Sword;
+typedef uint32_t Elf32_Word;
+
+typedef uint64_t Elf64_Addr;
+typedef uint16_t Elf64_Half;
+typedef uint64_t Elf64_Off;
+typedef int32_t Elf64_Sword;
+typedef uint32_t Elf64_Word;
+typedef uint64_t Elf64_Xword;
+typedef int64_t Elf64_Sxword;
+
+typedef struct elf_header_ident {
+    uint8_t magic[4];
+    uint8_t class;
+    uint8_t endian;
+    uint8_t version;
+    uint8_t osabi;
+    uint8_t unused[8];
+} elf_header_ident;
 
 typedef struct elf32_header {
-    elf_header header;
-    unsigned short int type;
-    unsigned short int machine;
-    unsigned int version;
-    unsigned int entry;
-    unsigned int program_header_offset;
-    unsigned int section_header_offset;
-    unsigned int flags;
-    unsigned short int header_size;
-    unsigned short int program_header_size;
-    unsigned short int program_header_count;
-    unsigned short int section_header_size;
-    unsigned short int section_header_count;
-    unsigned short int section_name_index;
-} __attribute__((packed)) elf32_header;
+    elf_header_ident ident;
+    Elf32_Half type;
+    Elf32_Half machine;
+    Elf32_Word version;
+    Elf32_Addr entry;
+    Elf32_Off program_header_offset;
+    Elf32_Off section_header_offset;
+    Elf32_Word flags;
+    Elf32_Half header_size;
+    Elf32_Half program_header_size;
+    Elf32_Half program_header_count;
+    Elf32_Half section_header_size;
+    Elf32_Half section_header_count;
+    Elf32_Half section_name_index;
+} elf32_header;
 
 typedef struct elf64_header {
-    elf_header header;
-    unsigned short int type;
-    unsigned short int machine;
-    unsigned int version;
-    unsigned long int entry;
-    unsigned long int program_header_offset;
-    unsigned long int section_header_offset;
-    unsigned int flags;
-    unsigned short int header_size;
-    unsigned short int program_header_size;
-    unsigned short int program_header_count;
-    unsigned short int section_header_size;
-    unsigned short int section_header_count;
-    unsigned short int section_name_index;
-} __attribute__((packed)) elf64_header;
+    elf_header_ident ident;
+    Elf64_Half type;
+    Elf64_Half machine;
+    Elf64_Word version;
+    Elf64_Addr entry;
+    Elf64_Off program_header_offset;
+    Elf64_Off section_header_offset;
+    Elf64_Word flags;
+    Elf64_Half header_size;
+    Elf64_Half program_header_size;
+    Elf64_Half program_header_count;
+    Elf64_Half section_header_size;
+    Elf64_Half section_header_count;
+    Elf64_Half section_name_index;
+} elf64_header;
 
 typedef struct elf32_program_header {
-    unsigned int type;
-    unsigned int offset;
-    unsigned int virtual_address;
-    unsigned int physical_address;
-    unsigned int file_size;
-    unsigned int memory_size;
-    unsigned int flags;
-    unsigned int alignment;
-} __attribute__((packed)) elf32_program_header;
+    Elf32_Word type;
+    Elf32_Off offset;
+    Elf32_Addr virtual_address;
+    Elf32_Addr physical_address;
+    Elf32_Word file_size;
+    Elf32_Word memory_size;
+    Elf32_Word flags;
+    Elf32_Word alignment;
+} elf32_program_header;
 
 typedef struct elf64_program_header {
-    unsigned int type;
-    unsigned int flags;
-    unsigned long int offset;
-    unsigned long int virtual_address;
-    unsigned long int physical_address;
-    unsigned long int file_size;
-    unsigned long int memory_size;
-    unsigned long int alignment;
-} __attribute__((packed)) elf64_program_header;
+    Elf64_Word type;
+    Elf64_Word flags;
+    Elf64_Off offset;
+    Elf64_Addr virtual_address;
+    Elf64_Addr physical_address;
+    Elf64_Xword file_size;
+    Elf64_Xword memory_size;
+    Elf64_Xword alignment;
+} elf64_program_header;
 
 typedef struct elf32_section_header {
-    unsigned long int name;
-    unsigned long int type;
-    unsigned long int flags;
-    unsigned long int address;
-    unsigned long int offset;
-    unsigned long int size;
-    unsigned long int link;
-    unsigned long int info;
-    unsigned long int address_align;
-    unsigned long int entry_size;
-} __attribute__((packed)) elf32_section_header;
+    Elf32_Word name;
+    Elf32_Word type;
+    Elf32_Word flags;
+    Elf32_Addr address;
+    Elf32_Off offset;
+    Elf32_Word size;
+    Elf32_Word link;
+    Elf32_Word info;
+    Elf32_Word address_align;
+    Elf32_Word entry_size;
+} elf32_section_header;
 
 typedef struct elf64_section_header {
-    unsigned long int name;
-    unsigned long int type;
-    unsigned long int flags;
-    unsigned long long int address;
-    unsigned long long int offset;
-    unsigned long long int size;
-    unsigned long int link;
-    unsigned long int info;
-    unsigned long long int address_align;
-    unsigned long long int entry_size;
-} __attribute__((packed)) elf64_section_header;
+    Elf64_Word name;
+    Elf64_Word type;
+    Elf64_Xword flags;
+    Elf64_Addr address;
+    Elf64_Off offset;
+    Elf64_Xword size;
+    Elf64_Word link;
+    Elf64_Word info;
+    Elf64_Xword address_align;
+    Elf64_Xword entry_size;
+} elf64_section_header;
 
 typedef struct elf32_symbol_table_entry {
-    unsigned long int name;
-    unsigned long int value;
-    unsigned long int size;
-    unsigned char info;
-    unsigned char other;
-    unsigned short int section_index;
-} __attribute__((packed)) elf32_symbol_table_entry;
+    Elf32_Word name;
+    Elf32_Addr value;
+    Elf32_Word size;
+    uint8_t info;
+    uint8_t other;
+    Elf32_Half section_index;
+} elf32_symbol_table_entry;
+
+typedef struct elf64_symbol_table_entry {
+    Elf64_Word name;
+    uint8_t info;
+    uint8_t other;
+    Elf32_Half section_index;
+    Elf32_Addr value;
+    Elf64_Xword size;
+} elf64_symbol_table_entry;
 
 #define ELF32_ST_BIND(i) ((i) >> 4)
 #define ELF32_ST_TYPE(i) ((i) & 0xf)

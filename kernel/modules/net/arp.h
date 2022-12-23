@@ -1,6 +1,7 @@
 #ifndef ARP_H
 #define ARP_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "../../drivers/ethernet.h"
 
@@ -16,15 +17,12 @@ typedef struct arp_packet {
     uint8_t target_ip[4];
 } arp_packet;
 
-typedef struct arp_map {
-    uint8_t ip[4];
-    uint8_t mac[4];
-} arp_map;
-
 enum ARPOperation {
     ARP_OP_REQUEST = 0x01,
     ARP_OP_REPLY = 0x02,
 };
+
+bool arp_get_mac(ethernet_driver *driver, uint8_t ip[4], uint8_t out_mac[6], int timeout);
 
 void arp_send_request(ethernet_driver *driver, uint8_t ip[4]);
 
