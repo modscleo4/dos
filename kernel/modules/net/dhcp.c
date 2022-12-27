@@ -50,10 +50,10 @@ static void dhcp_process_ack(ethernet_driver *driver, dhcp_packet *packet) {
 
         switch (op[0]) {
             case DHCP_OPTION_SUBNET_MASK:
-                driver->ipv4.subnet[0] = op[2];
-                driver->ipv4.subnet[1] = op[3];
-                driver->ipv4.subnet[2] = op[4];
-                driver->ipv4.subnet[3] = op[5];
+                driver->ipv4.netmask[0] = op[2];
+                driver->ipv4.netmask[1] = op[3];
+                driver->ipv4.netmask[2] = op[4];
+                driver->ipv4.netmask[3] = op[5];
                 break;
 
             case DHCP_OPTION_ROUTER:
@@ -79,14 +79,14 @@ static void dhcp_process_ack(ethernet_driver *driver, dhcp_packet *packet) {
     }
 
     dbgprint("IP: %d.%d.%d.%d\n", driver->ipv4.ip[0], driver->ipv4.ip[1], driver->ipv4.ip[2], driver->ipv4.ip[3]);
-    dbgprint("Subnet: %d.%d.%d.%d\n", driver->ipv4.subnet[0], driver->ipv4.subnet[1], driver->ipv4.subnet[2], driver->ipv4.subnet[3]);
+    dbgprint("Subnet: %d.%d.%d.%d\n", driver->ipv4.netmask[0], driver->ipv4.netmask[1], driver->ipv4.netmask[2], driver->ipv4.netmask[3]);
     dbgprint("Gateway: %d.%d.%d.%d\n", driver->ipv4.gateway[0], driver->ipv4.gateway[1], driver->ipv4.gateway[2], driver->ipv4.gateway[3]);
     dbgprint("DNS: %d.%d.%d.%d\n", driver->ipv4.dns[0], driver->ipv4.dns[1], driver->ipv4.dns[2], driver->ipv4.dns[3]);
     dbgprint("Lease time: %ds\n", driver->ipv4.lease_time);
 }
 
 static void dhcp_udp_listener(ethernet_driver *driver, void *data, size_t data_size) {
-    dhcp_packet *packet = data;
+    dhcp_packet *packet = (dhcp_packet *) data;
 
     if (packet->op != DHCP_BOOT_OP_REPLY) {
         dbgprint("Received DHCP packet with invalid op code %d\n", packet->op);
@@ -121,6 +121,7 @@ void dhcp_init(ethernet_driver *driver) {
     dhcp_send_discover(driver);
 
     timer_wait(100);
+    dbgwait();
 
     for (int i = 0; i < offer_count; i++) {
         uint8_t mac[6];

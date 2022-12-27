@@ -9,7 +9,7 @@ typedef struct ethernet_header {
     uint8_t destination_mac[6];
     uint8_t source_mac[6];
     uint16_t ethertype;
-} ethernet_header;
+} __attribute__((packed)) ethernet_header;
 
 typedef struct ethernet_packet {
     ethernet_header header;
@@ -18,7 +18,7 @@ typedef struct ethernet_packet {
 
 typedef struct ipv4_config {
     uint8_t ip[4];
-    uint8_t subnet[4];
+    uint8_t netmask[4];
     uint8_t gateway[4];
     uint8_t dns[4];
     int lease_time;
@@ -98,7 +98,7 @@ enum EtherType {
     ETHERTYPE_REDUNDANCY_TAG = 0xF1C1,
 };
 
-ethernet_driver eth[2];
+ethernet_driver *eth[2];
 
 void ethernet_init(pci_device *device, pci_header *header);
 

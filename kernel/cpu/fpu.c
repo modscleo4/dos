@@ -16,18 +16,25 @@ void fpu_init(cpu_info *cpuinfo) {
     uint32_t cr0;
     asm volatile("mov %%cr0, %0;"
                  : "=r"(cr0));
-    DISABLE_BIT_INT(cr0, CR0_EM);
-    DISABLE_BIT_INT(cr0, CR0_TS);
-    if (cpuinfo->fpu || fpu_available()) {
+    if (fpu_available()) {
         dbgprint("FPU available\n");
-        //fpu_load_control_word(0x37F);
-        //fpu_load_control_word(0x37E);
-        //fpu_load_control_word(0x37A);
+        DISABLE_BIT_INT(cr0, CR0_EM);
+        DISABLE_BIT_INT(cr0, CR0_TS);
+
+        asm volatile("mov %0, %%cr0;"
+                     :
+                     : "r"(cr0));
+
+        fpu_load_control_word(0x37F);
 
         sse_init(cpuinfo);
     } else {
         dbgprint("FPU not available\n");
         ENABLE_BIT_INT(cr0, CR0_EM);
+
+        asm volatile("mov %0, %%cr0;"
+                     :
+                     : "r"(cr0));
     }
 }
 
@@ -38,8 +45,10 @@ void sse_init(cpu_info *cpuinfo) {
                  : "=r"(cr0));
     asm volatile("mov %%cr4, %0;"
                  : "=r"(cr4));
-    if (cpuinfo->sse) {
+
+    if (ISSET_BIT_INT(cpuinfo->edx, CPUID_FEAT_EDX_SSE)) {
         dbgprint("SSE available\n");
+        DISABLE_BIT_INT(cr0, CR0_EM);
         ENABLE_BIT_INT(cr0, CR0_MP);
         ENABLE_BIT_INT(cr4, CR4_OSFXSR);
         ENABLE_BIT_INT(cr4, CR4_OSXMMEXCPT);
@@ -49,9 +58,10 @@ void sse_init(cpu_info *cpuinfo) {
         asm volatile("mov %0, %%cr4;"
                      :
                      : "r"(cr4));
+
         double a = 1.0;
         double b = 2.0;
-        printf("Testing SSE: %lf\n", a - b);
+        dbgprint("Testing SSE: %lf\n", a - b);
     } else {
         dbgprint("SSE not available\n");
     }

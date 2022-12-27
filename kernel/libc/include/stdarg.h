@@ -1,9 +1,9 @@
 #ifndef STDARG_H
 #define STDARG_H
 
-#define va_start(v, l) __builtin_va_start(v, l)
-#define va_end(v) __builtin_va_end(v)
-#define va_arg(v, l) __builtin_va_arg(v, l)
+#define va_start(va_list, last_arg) __builtin_va_start(va_list, last_arg)
+#define va_end(va_list) __builtin_va_end(va_list)
+#define va_arg(va_list, last_arg) __builtin_va_arg(va_list, last_arg)
 
 typedef __builtin_va_list va_list;
 

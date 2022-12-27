@@ -15,7 +15,7 @@ typedef struct arp_packet {
     uint8_t sender_ip[4];
     uint8_t target_mac[6];
     uint8_t target_ip[4];
-} arp_packet;
+} __attribute__((packed)) arp_packet;
 
 enum ARPOperation {
     ARP_OP_REQUEST = 0x01,

@@ -6,7 +6,7 @@ typedef struct uuid {
     unsigned int low;
     unsigned int high;
     unsigned int superhigh;
-} uuid;
+} __attribute__((packed)) uuid;
 
 const char *printuuid(uuid id);
 

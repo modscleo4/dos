@@ -40,12 +40,12 @@ void panic_handler(const char *msg, registers *r) {
 
     char c = r ? 'I' : 'S';
     do {
-        clear_screen();
-        setcolor(COLOR_RED << 4 | COLOR_WHITE);
-        printf("                                   MVLIRA05 OS                                  \n\n");
-        setcolor(COLOR_BLACK << 4 | COLOR_WHITE);
+        screen_clear();
+        screen_setcolor(COLOR_RED << 4 | COLOR_WHITE);
+        printf("                                   MVLIRA05 OS                                  \n");
+        screen_setcolor(COLOR_BLACK << 4 | COLOR_WHITE);
         printf("PANIC!\n%s\n", msg);
-        setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+        screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
         switch (c) {
             default:
@@ -110,10 +110,10 @@ void panic_handler(const char *msg, registers *r) {
             }
         }
 
-        gotoxy(0, 24);
-        setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
+        screen_gotoxy(0, 24);
+        screen_setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
         printf("%-80s", r ? "<I> - Registers | <S> - Call Stack. | <Q> Restart." : "<S> - Call Stack. | <Q> Restart.");
-        setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+        screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
         c = getchar();
     } while (c != 'q' && c != 'Q');

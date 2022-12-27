@@ -1,7 +1,7 @@
 BUILD_DIR=build
 BOOTLOADER=$(BUILD_DIR)/bootloader/bootloader
 BIOSPARAMS=$(BUILD_DIR)/bootloader/biosparams
-KERNEL=$(BUILD_DIR)/kernel/kernel
+KERNEL=$(BUILD_DIR)/kernel/kernel.elf
 SYSTEM_INIT=$(BUILD_DIR)/system/init/init.elf
 FLOPPY_DISK_IMG=floppy_disk.img
 ATA_DISK_IMG=ata_disk.img

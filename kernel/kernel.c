@@ -7,6 +7,7 @@
 #include "ring3.h"
 #include "bits.h"
 #include "rootfs.h"
+#include "cpu/acpi.h"
 #include "cpu/cpuid.h"
 #include "cpu/fpu.h"
 #include "cpu/gdt.h"
@@ -18,18 +19,21 @@
 #include "cpu/pic.h"
 #include "cpu/syscall.h"
 #include "debug.h"
-#include "drivers/pci.h"
 #include "drivers/ata.h"
 #include "drivers/floppy.h"
 #include "drivers/mbr.h"
 #include "drivers/keyboard.h"
+#include "drivers/pci.h"
 #include "drivers/screen.h"
 #include "drivers/serial.h"
+#include "drivers/video/framebuffer.h"
 #include "modules/timer.h"
 #include "modules/multiboot2.h"
 #include "modules/process.h"
 #include "modules/kblayout/kb.h"
 #include "modules/net/arp.h"
+#include "modules/net/dns.h"
+#include "modules/net/tcp.h"
 #include "modules/net/udp.h"
 
 static void iodriver_init(unsigned int boot_drive) {
@@ -86,11 +90,24 @@ static void check_multiboot2(unsigned long int magic, unsigned long int addr) {
 }
 
 void kernel_main(unsigned long int magic, unsigned long int addr) {
-    struct multiboot_tag *tag;
-    unsigned int size;
+    framebuffer_config fb = {
+        .id = 2,
+        .addr = 0xB8000,
+        .pitch = 160,
+        .width = 80,
+        .height = 25,
+        .bpp = 16,
+        .type = FRAMEBUFFER_TYPE_TEXT,
+    };
+    size_t max_ram = 0;
+    const char *boot_cmdline = NULL;
+    void *acpi_rsdp_addr = NULL;
+    unsigned int boot_drive = -1;
+    unsigned int boot_partition = -1;
+    screen_init(SCREEN_MODE_FRAMEBUFFER);
 
-    video_init(0);
-    clear_screen();
+    framebuffer_init(&fb);
+    screen_clear();
     dbgprint("Kernel started\n");
     dbgprint("_esp: 0x%x\n", addr);
 
@@ -100,17 +117,68 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
 
     dbgprint("Multiboot2 magic number: %x\n", magic);
 
-    unsigned int boot_drive = -1;
-    unsigned int boot_partition = -1;
-    for (tag = (struct multiboot_tag *)(addr + 8); tag->type != MULTIBOOT_TAG_TYPE_END; tag = (struct multiboot_tag *)((unsigned int)tag + ((tag->size + 7) & ~7))) {
-        // dbgprint("Tag: %x\n", tag->type);
+    for (struct multiboot_tag *tag = (struct multiboot_tag *)(addr + 8); tag->type != MULTIBOOT_TAG_TYPE_END; tag = (struct multiboot_tag *)((unsigned int)tag + ((tag->size + 7) & ~7))) {
         switch (tag->type) {
             case MULTIBOOT_TAG_TYPE_BOOTDEV:
                 boot_drive = ((struct multiboot_tag_bootdev *)tag)->biosdev;
                 boot_partition = ((struct multiboot_tag_bootdev *)tag)->slice;
                 break;
+
+            case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
+                max_ram = 1024 + ((struct multiboot_tag_basic_meminfo *)tag)->mem_upper;
+                break;
+
+            case MULTIBOOT_TAG_TYPE_CMDLINE:
+                boot_cmdline = ((struct multiboot_tag_string *)tag)->string;
+                break;
+
+            case MULTIBOOT_TAG_TYPE_FRAMEBUFFER: {
+                struct multiboot_tag_framebuffer *fbtag = (struct multiboot_tag_framebuffer *)tag;
+                fb.addr = fbtag->common.framebuffer_addr;
+                fb.pitch = fbtag->common.framebuffer_pitch;
+                fb.width = fbtag->common.framebuffer_width;
+                fb.height = fbtag->common.framebuffer_height;
+                fb.bpp = fbtag->common.framebuffer_bpp;
+                fb.id = fbtag->common.framebuffer_type;
+                switch (fb.id) {
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                        fb.type = FRAMEBUFFER_TYPE_TEXT;
+                        break;
+                }
+
+                dbgprint("Framebuffer: #%d %dx%dx%d %d @ 0x%x\n", fb.type, fb.width, fb.height, fb.bpp, fb.pitch, fb.addr);
+                framebuffer_init(&fb);
+
+                dbgprint("Switching to Multiboot2 Framebuffer mode\n");
+                //screen_init(SCREEN_MODE_FRAMEBUFFER);
+                // screen_clear();
+
+                break;
+            }
+
+            case MULTIBOOT_TAG_TYPE_ACPI_OLD: {
+                if (!acpi_rsdp_addr) {
+                    struct multiboot_tag_old_acpi *acpi = (struct multiboot_tag_old_acpi *)tag;
+                    acpi_rsdp_addr = (void *)acpi->rsdp;
+                }
+                break;
+            }
+
+            case MULTIBOOT_TAG_TYPE_ACPI_NEW: {
+                struct multiboot_tag_new_acpi *acpi = (struct multiboot_tag_new_acpi *)tag;
+                acpi_rsdp_addr = (void *)acpi->rsdp;
+                dbgprint("ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
+                break;
+            }
         }
     }
+
+    dbgprint("Boot device: %x:%x\n", boot_drive, boot_partition);
+    dbgprint("Available RAM: %d MiB\n", max_ram / 1024);
+    dbgprint("Boot command line: %s\n", boot_cmdline);
 
     if (boot_drive == -1 || boot_partition == -1) {
         panic("No boot device found from MBI.");
@@ -120,7 +188,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     if (!get_cpuid_info(&cpuinfo)) {
         panic("CPUID not available");
     }
-    dbgprint("CPUID Vendor ID: %s\n", cpuinfo.vendor_id);
+    dbgprint("CPUID Vendor ID: %.12s\n", cpuinfo.vendor_id);
 
     gdt_init();
     idt_init();
@@ -141,9 +209,21 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     asm("sti");
     dbgprint("Interruptions enabled\n");
     dbgwait();
+    if (acpi_rsdp_addr) {
+        acpi_init(acpi_rsdp_addr);
+    } else {
+        dbgprint("ACPI not available\n");
+    }
+
     udp_init();
+    dns_init();
     pci_init();
     dbgwait();
+    if (eth[0]->ipv4.dns[0] || eth[0]->ipv4.dns[1] || eth[0]->ipv4.dns[2] || eth[0]->ipv4.dns[3]) {
+        uint8_t ip[4];
+        dns_query_ipv4(eth[0], eth[0]->ipv4.dns, "google.com", ip, 100);
+        dbgwait();
+    }
     dbgprint("Reading Master Boot Record...\n");
     iodriver_init(boot_drive);
     fs_init(boot_partition);

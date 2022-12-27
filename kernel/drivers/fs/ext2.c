@@ -8,7 +8,7 @@
 
 static uint8_t block_buffer[4096];
 
-static void ext2_read_block(int block, iodriver *driver, filesystem *fs) {
+static void ext2_read_block(iodriver *driver, filesystem *fs, int block) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
     int block_size = 1024 << superblock->base.log2_block_size;
 
@@ -17,12 +17,12 @@ static void ext2_read_block(int block, iodriver *driver, filesystem *fs) {
     }
 }
 
-static void ext2_read_bgd(ext2_block_group_descriptor *bgd, int index, iodriver *driver, filesystem *fs) {
+static void ext2_read_bgd(iodriver *driver, filesystem *fs, ext2_block_group_descriptor *bgd, int index) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
     int block_size = 1024 << superblock->base.log2_block_size;
     int bgd_block = block_size == 1024 ? 2 : 1;
 
-    ext2_read_block(bgd_block, driver, fs);
+    ext2_read_block(driver, fs, bgd_block);
     memcpy(bgd, block_buffer + (index * sizeof(ext2_block_group_descriptor)), sizeof(ext2_block_group_descriptor));
 
     // dbgprint("Block usage bitmap: %d\n", bgd->block_usage_bitmap);
@@ -34,7 +34,7 @@ static void ext2_read_bgd(ext2_block_group_descriptor *bgd, int index, iodriver 
     // dbgwait();
 }
 
-static void ext2_read_inode(ext2_inode *inode, int index, iodriver *driver, filesystem *fs) {
+static void ext2_read_inode(iodriver *driver, filesystem *fs, ext2_inode *inode, int index) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
     int block_size = 1024 << superblock->base.log2_block_size;
 
@@ -42,7 +42,7 @@ static void ext2_read_inode(ext2_inode *inode, int index, iodriver *driver, file
     int inode_index = (index - 1) % superblock->base.inodes_per_group;
 
     ext2_block_group_descriptor bgd;
-    ext2_read_bgd(&bgd, block_group, driver, fs);
+    ext2_read_bgd(driver, fs, &bgd, block_group);
 
     int block = bgd.inode_table_block + (inode_index * sizeof(ext2_inode)) / block_size;
     // dbgprint("inode: %d\n", index);
@@ -50,7 +50,7 @@ static void ext2_read_inode(ext2_inode *inode, int index, iodriver *driver, file
     // dbgprint("inode index: %d\n", inode_index);
     // dbgprint("block: %d\n", block);
 
-    ext2_read_block(block, driver, fs);
+    ext2_read_block(driver, fs, block);
     memcpy(inode, block_buffer + (inode_index * sizeof(ext2_inode)), sizeof(ext2_inode));
 
     // dbgprint("Inode type: %hd\n", inode->type);
@@ -129,7 +129,7 @@ ext2_inode *ext2_search_file(iodriver *driver, filesystem *fs, const char *filen
     int rootdir_inode_index = 2;
 
     ext2_inode rootdir_inode;
-    ext2_read_inode(&rootdir_inode, rootdir_inode_index, driver, fs);
+    ext2_read_inode(driver, fs, &rootdir_inode, rootdir_inode_index);
 
     for (int i = 0; i < 12 && rootdir_inode.direct_block_pointers[i]; i++) {
         int data_block = rootdir_inode.direct_block_pointers[0];
@@ -138,7 +138,7 @@ ext2_inode *ext2_search_file(iodriver *driver, filesystem *fs, const char *filen
         while (offset < block_size) {
             ext2_directory_entry entry;
             static ext2_inode f;
-            ext2_read_block(data_block, driver, fs);
+            ext2_read_block(driver, fs, data_block);
             memcpy(&entry, &block_buffer[offset], sizeof(ext2_directory_entry));
 
             char name[256];
@@ -149,7 +149,7 @@ ext2_inode *ext2_search_file(iodriver *driver, filesystem *fs, const char *filen
             cmpname[strlen(filename)] = 0;
 
             if (!strcmp(strupr(name), strupr(cmpname))) {
-                ext2_read_inode(&f, entry.inode, driver, fs);
+                ext2_read_inode(driver, fs, &f, entry.inode);
                 if (ISSET_BIT_INT(f.type_permission, EXT2_INODE_TYPE_DIRECTORY)) {
                     return NULL;
                 }
@@ -174,6 +174,29 @@ void *ext2_load_file(iodriver *driver, filesystem *fs, const void *_f) {
     return ext2_load_file_at(driver, fs, f, addr);
 }
 
+static size_t ext2_read_singly_indirect_block_pointer(iodriver *driver, filesystem *fs, int block_pointer, void *addr) {
+    ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
+    int block_size = 1024 << superblock->base.log2_block_size;
+
+    size_t offset = 0;
+
+    for (int i = 0; i < block_size / sizeof(uint32_t); i++) {
+        ext2_read_block(driver, fs, block_pointer);
+
+        uint32_t data_block = ((uint32_t *)block_buffer)[i];
+        if (!data_block) {
+            break;
+        }
+
+        ext2_read_block(driver, fs, data_block);
+
+        memcpy(addr + offset, block_buffer, block_size);
+        offset += block_size;
+    }
+
+    return offset;
+}
+
 void *ext2_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *addr) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
     int block_size = 1024 << superblock->base.log2_block_size;
@@ -185,7 +208,7 @@ void *ext2_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *
     size_t offset = 0;
     for (int i = 0; i < 12 && f->direct_block_pointers[i]; i++) {
         int data_block = f->direct_block_pointers[i];
-        ext2_read_block(data_block, driver, fs);
+        ext2_read_block(driver, fs, data_block);
 
         memcpy(addr + offset, block_buffer, block_size);
         offset += block_size;
@@ -194,18 +217,42 @@ void *ext2_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *
     if (f->singly_indirect_block_pointer) {
         int singly_indirect_block_pointer = f->singly_indirect_block_pointer;
 
-        for (int i = 0; i < block_size / sizeof(uint32_t); i++) {
-            ext2_read_block(singly_indirect_block_pointer, driver, fs);
+        offset += ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, addr + offset);
+    }
 
-            uint32_t data_block = ((uint32_t *)block_buffer)[i];
-            if (!data_block) {
+    if (f->doubly_indirect_block_pointer) {
+        int doubly_indirect_block_pointer = f->doubly_indirect_block_pointer;
+
+        for (int i = 0; i < block_size / sizeof(uint32_t); i++) {
+            ext2_read_block(driver, fs, doubly_indirect_block_pointer);
+            uint32_t singly_indirect_block_pointer = ((uint32_t *)block_buffer)[i];
+            if (!singly_indirect_block_pointer) {
                 break;
             }
 
-            ext2_read_block(data_block, driver, fs);
+            offset += ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, addr + offset);
+        }
+    }
 
-            memcpy(addr + offset, block_buffer, block_size);
-            offset += block_size;
+    if (f->triply_indirect_block_pointer) {
+        int triply_indirect_block_pointer = f->triply_indirect_block_pointer;
+
+        for (int i = 0; i < block_size / sizeof(uint32_t); i++) {
+            ext2_read_block(driver, fs, triply_indirect_block_pointer);
+            uint32_t doubly_indirect_block_pointer = ((uint32_t *)block_buffer)[i];
+            if (!doubly_indirect_block_pointer) {
+                break;
+            }
+
+            for (int j = 0; j < block_size / sizeof(uint32_t); j++) {
+                ext2_read_block(driver, fs, doubly_indirect_block_pointer);
+                uint32_t singly_indirect_block_pointer = ((uint32_t *)block_buffer)[j];
+                if (!singly_indirect_block_pointer) {
+                    break;
+                }
+
+                offset += ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, addr + offset);
+            }
         }
     }
 
@@ -248,7 +295,7 @@ static void ext2_describe_file(iodriver *driver, filesystem *fs, ext2_directory_
     printf("\n");
 }
 
-static void ext2_list_files_in_dir(ext2_inode *inode, iodriver *driver, filesystem *fs, int level) {
+static void ext2_list_files_in_dir(iodriver *driver, filesystem *fs, ext2_inode *inode, int level) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
     int block_size = 1024 << superblock->base.log2_block_size;
     int j = 0;
@@ -259,18 +306,18 @@ static void ext2_list_files_in_dir(ext2_inode *inode, iodriver *driver, filesyst
         while (offset < block_size) {
             ext2_directory_entry entry;
             ext2_inode f;
-            ext2_read_block(data_block, driver, fs);
+            ext2_read_block(driver, fs, data_block);
             memcpy(&entry, &block_buffer[offset], sizeof(ext2_directory_entry));
 
             if (strcmp(entry.name, ".") && strcmp(entry.name, "..")) {
                 entry.name[entry.name_length] = 0;
 
-                ext2_read_inode(&f, entry.inode, driver, fs);
+                ext2_read_inode(driver, fs, &f, entry.inode);
 
                 ext2_describe_file(driver, fs, &entry, &f, level);
 
                 if (ISSET_BIT_INT(f.type_permission, EXT2_INODE_TYPE_DIRECTORY)) {
-                    ext2_list_files_in_dir(&f, driver, fs, level + 1);
+                    ext2_list_files_in_dir(driver, fs, &f, level + 1);
                 }
 
                 //dbgprint("Directory entry inode: %d\n", entry.inode);
@@ -296,7 +343,7 @@ void ext2_list_files(iodriver *driver, filesystem *fs) {
     int rootdir_inode_index = 2;
 
     ext2_inode rootdir_inode;
-    ext2_read_inode(&rootdir_inode, rootdir_inode_index, driver, fs);
+    ext2_read_inode(driver, fs, &rootdir_inode, rootdir_inode_index);
 
-    ext2_list_files_in_dir(&rootdir_inode, driver, fs, 0);
+    ext2_list_files_in_dir(driver, fs, &rootdir_inode, 0);
 }

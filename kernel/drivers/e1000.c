@@ -72,15 +72,15 @@ static void e1000_receive_init(ethernet_driver *driver) {
 
     e1000_mmio_write(driver, E1000_REG_RDTR, 0);
 
-    static e1000_receive_descriptor buffer[256];
+    static e1000_receive_descriptor buffer[256] __attribute__((aligned(16)));
     for (int i = 0; i < sizeof(buffer) / sizeof(e1000_receive_descriptor); i++) {
-        buffer[i].buffer_address_low = (uint32_t)malloc(8192+16);
+        buffer[i].buffer_address = (uint64_t)malloc(8192+16);
         buffer[i].status = 0;
     }
     driver->rx_buffer = (uint8_t *)buffer;
     driver->rx_buffer_size = sizeof(buffer);
     e1000_mmio_write(driver, E1000_REG_RDBAL, (uint32_t)buffer);
-    e1000_mmio_write(driver, E1000_REG_RDBAH, 0);
+    e1000_mmio_write(driver, E1000_REG_RDBAH, (uint32_t)((uint64_t)buffer >> 32));
 
     e1000_mmio_write(driver, E1000_REG_RDLEN, driver->rx_buffer_size);
 
@@ -88,15 +88,15 @@ static void e1000_receive_init(ethernet_driver *driver) {
     e1000_mmio_write(driver, E1000_REG_RDT, driver->rx_buffer_size / sizeof(e1000_receive_descriptor) - 1);
     driver->rx_tail = 0;
 
-    e1000_mmio_write(driver, E1000_REG_RCTL, E1000_REGBIT_RCTL_EN | E1000_REGBIT_RCTL_UPE | E1000_REGBIT_RCTL_MPE | E1000_REGBIT_RCTL_LBM_NO | E1000_REGBIT_RCTL_RDMTS_1_2 | E1000_REGBIT_RCTL_MO_36 | E1000_REGBIT_RCTL_BAM | E1000_REGBIT_RCTL_BSEX | E1000_REGBIT_RCTL_BSIZE_4096 | E1000_REGBIT_RCTL_SECRC);
+    e1000_mmio_write(driver, E1000_REG_RCTL, E1000_REGBIT_RCTL_EN | E1000_REGBIT_RCTL_SBP | E1000_REGBIT_RCTL_UPE | E1000_REGBIT_RCTL_MPE | E1000_REGBIT_RCTL_LBM_NO | E1000_REGBIT_RCTL_RDMTS_1_2 | E1000_REGBIT_RCTL_MO_36 | E1000_REGBIT_RCTL_BAM | E1000_REGBIT_RCTL_BSEX | E1000_REGBIT_RCTL_BSIZE_8192 | E1000_REGBIT_RCTL_SECRC);
 }
 
 static void e1000_transmit_init(ethernet_driver *driver) {
-    static e1000_transmit_descriptor buffer[256];
+    static e1000_transmit_descriptor buffer[256] __attribute__((aligned(16)));
     driver->tx_buffer = (uint8_t *)buffer;
     driver->tx_buffer_size = sizeof(buffer);
     e1000_mmio_write(driver, E1000_REG_TDBAL, (uint32_t)buffer);
-    e1000_mmio_write(driver, E1000_REG_TDBAH, 0);
+    e1000_mmio_write(driver, E1000_REG_TDBAH, (uint32_t)((uint64_t)buffer >> 32));
 
     e1000_mmio_write(driver, E1000_REG_TDLEN, driver->tx_buffer_size);
 
@@ -136,10 +136,10 @@ ethernet_driver *e1000_init(pci_device *device) {
     driver->ipv4.ip[1] = 0;
     driver->ipv4.ip[2] = 0;
     driver->ipv4.ip[3] = 0;
-    driver->ipv4.subnet[0] = 0;
-    driver->ipv4.subnet[1] = 0;
-    driver->ipv4.subnet[2] = 0;
-    driver->ipv4.subnet[3] = 0;
+    driver->ipv4.netmask[0] = 0;
+    driver->ipv4.netmask[1] = 0;
+    driver->ipv4.netmask[2] = 0;
+    driver->ipv4.netmask[3] = 0;
     driver->ipv4.gateway[0] = 0;
     driver->ipv4.gateway[1] = 0;
     driver->ipv4.gateway[2] = 0;
@@ -161,32 +161,25 @@ ethernet_driver *e1000_init(pci_device *device) {
     return driver;
 }
 
-void e1000_write_transmit_descriptor(ethernet_driver *driver, unsigned int ptr, void *addr, size_t packet_size, uint8_t cso, uint8_t cmd, uint8_t status, uint8_t css) {
+static e1000_transmit_descriptor *e1000_write_transmit_descriptor(ethernet_driver *driver, unsigned int ptr, void *addr, size_t packet_size, uint8_t cso, uint8_t cmd, uint8_t status, uint8_t css) {
     dbgprint("e1000: Writing transmit descriptor %d &%x (%db)\n", ptr, addr, packet_size);
     e1000_transmit_descriptor *descriptor = &((e1000_transmit_descriptor *)driver->tx_buffer)[ptr];
     dbgprint("\tDescriptor: %x\n", descriptor);
-    descriptor->buffer_address_low = (uint32_t)addr;
-    descriptor->buffer_address_high = 0;
+    descriptor->buffer_address = (uint64_t)addr;
     descriptor->length = packet_size;
     descriptor->cso = cso;
     descriptor->cmd = cmd;
     descriptor->status = status;
     descriptor->css = css;
 
-    if (ISSET_BIT_INT(cmd, E1000_REGBIT_TXD_CMD_RS)) {
-        while (ISSET_BIT_INT(e1000_mmio_read(driver, E1000_REG_TDH), E1000_REGBIT_TXD_CMD_RS)) { }
-    }
+    return descriptor;
 }
 
 unsigned int e1000_send_packet(ethernet_driver *driver, ethernet_packet *packet, size_t data_size) {
     dbgprint("e1000: Sending packet len %d\n", data_size);
-    uint32_t tdt = e1000_mmio_read(driver, E1000_REG_TDT);
-    uint32_t tdh = e1000_mmio_read(driver, E1000_REG_TDH);
+    //uint32_t tdt = e1000_mmio_read(driver, E1000_REG_TDT);
+    //uint32_t tdh = e1000_mmio_read(driver, E1000_REG_TDH);
     //dbgprint("e1000: TDT: %d, TDH: %d\n", tdt, tdh);
-    if ((tdh + 1) * 16 == (uint32_t)driver->tx_buffer) {
-        dbgprint("e1000: Transmit buffer full\n");
-        return 1;
-    }
 
     static uint8_t packet_data[48];
     if (sizeof(ethernet_header) + data_size < 48) {
@@ -195,10 +188,15 @@ unsigned int e1000_send_packet(ethernet_driver *driver, ethernet_packet *packet,
         memset(packet_data + data_size, 0, 48 - data_size);
     }
 
-    e1000_write_transmit_descriptor(driver, tdt, packet, sizeof(ethernet_header), 0, E1000_REGBIT_TXD_CMD_RS, 0, 0);
-    e1000_write_transmit_descriptor(driver, tdt + 1, sizeof(ethernet_header) + data_size < 48 ? packet_data : packet->data, data_size, 0, E1000_REGBIT_TXD_CMD_EOP | E1000_REGBIT_TXD_CMD_IFCS | E1000_REGBIT_TXD_CMD_IC | E1000_REGBIT_TXD_CMD_RS, 0, 0);
+    e1000_write_transmit_descriptor(driver, driver->tx_tail, packet, sizeof(ethernet_header), 0, E1000_REGBIT_TXD_CMD_RS, 0, 0);
+    driver->tx_tail = (driver->tx_tail + 1) % (driver->tx_buffer_size / sizeof(e1000_transmit_descriptor));
+    e1000_transmit_descriptor *_d = e1000_write_transmit_descriptor(driver, driver->tx_tail, sizeof(ethernet_header) + data_size < 48 ? packet_data : packet->data, data_size, 0, E1000_REGBIT_TXD_CMD_EOP | E1000_REGBIT_TXD_CMD_IFCS | E1000_REGBIT_TXD_CMD_RS, 0, 0);
+    driver->tx_tail = (driver->tx_tail + 1) % (driver->tx_buffer_size / sizeof(e1000_transmit_descriptor));
 
-    e1000_mmio_write(driver, E1000_REG_TDT, tdt + 2);
+    e1000_mmio_write(driver, E1000_REG_TDT, driver->tx_tail);
+
+    // Wait for the command to be executed
+    while (!ISSET_BIT_INT(_d->status, E1000_REGBIT_TXD_STAT_DD)) {}
 
     return 0;
 }
@@ -208,23 +206,34 @@ static bool e1000_read_receive_descriptor(ethernet_driver *driver, unsigned int 
     //dbgprint("e1000: Reading packet %d\n", ptr);
     //dbgprint("\tDescriptor: %x\n", descriptor);
     //dbgprint("\tStatus: %x\n", descriptor->status);
+    //dbgprint("\tErrors: %x\n", descriptor->errors);
     //dbgprint("\tLength: %d\n", descriptor->length);
     //dbgprint("\tChecksum: %x\n", descriptor->checksum);
     //dbgprint("\tSpecial: %x\n", descriptor->special);
-    //dbgprint("\tBuffer: %x\n", descriptor->buffer_address_low);
+    //dbgprint("\tBuffer: %x\n", descriptor->buffer_address);
+
+    if (descriptor->errors) {
+        dbgprint("e1000: Packet has errors (%x)\n", descriptor->errors);
+        return true;
+    }
 
     if (ISSET_BIT_INT(descriptor->status, E1000_REGBIT_RXD_STAT_DD)) {
-        dbgprint("e1000: Packet received\n");
-        ethernet_header *header = (ethernet_header *)descriptor->buffer_address_low;
-        dbgprint("\tDestination: %x:%x:%x:%x:%x:%x\n", header->destination_mac[0], header->destination_mac[1], header->destination_mac[2], header->destination_mac[3], header->destination_mac[4], header->destination_mac[5]);
-        dbgprint("\tSource: %x:%x:%x:%x:%x:%x\n", header->source_mac[0], header->source_mac[1], header->source_mac[2], header->source_mac[3], header->source_mac[4], header->source_mac[5]);
-        dbgprint("\tType: %x\n", switch_endian_16(header->ethertype));
+        if (!ISSET_BIT_INT(descriptor->status, E1000_REGBIT_RXD_STAT_EOP)) {
+            dbgprint("e1000: Packet not supported\n");
+            return true;
+        }
+
+        //dbgprint("e1000: Packet received\n");
+        ethernet_header *header = (ethernet_header *)descriptor->buffer_address;
+        //dbgprint("\tDestination: %02x:%02x:%02x:%02x:%02x:%02x\n", header->destination_mac[0], header->destination_mac[1], header->destination_mac[2], header->destination_mac[3], header->destination_mac[4], header->destination_mac[5]);
+        //dbgprint("\tSource: %02x:%02x:%02x:%02x:%02x:%02x\n", header->source_mac[0], header->source_mac[1], header->source_mac[2], header->source_mac[3], header->source_mac[4], header->source_mac[5]);
+        //dbgprint("\tType: %x\n", header->ethertype);
 
         descriptor->status = 0;
 
         static ethernet_packet packet;
         packet.header = *header;
-        packet.data = (void *)(descriptor->buffer_address_low + sizeof(ethernet_header));
+        packet.data = (void *)(descriptor->buffer_address + sizeof(ethernet_header));
 
         ethernet_process_packet(driver, &packet, descriptor->length - sizeof(ethernet_header));
 
@@ -238,10 +247,6 @@ static void e1000_read_packet(ethernet_driver *driver) {
     unsigned int rdt = e1000_mmio_read(driver, E1000_REG_RDT);
     unsigned int rdh = e1000_mmio_read(driver, E1000_REG_RDH);
     //dbgprint("e1000: RDT: %d, RDH: %d\n", rdt, rdh);
-    if (rdt == rdh) {
-        dbgprint("e1000: No packets to read\n");
-        return;
-    }
 
     while (e1000_read_receive_descriptor(driver, driver->rx_tail)) {
         driver->rx_tail = (driver->rx_tail + 1) % (driver->rx_buffer_size / sizeof(e1000_receive_descriptor));

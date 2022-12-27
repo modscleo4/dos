@@ -6,25 +6,23 @@
 #include "ethernet.h"
 
 typedef struct e1000_receive_descriptor {
-    uint32_t buffer_address_low;
-    uint32_t buffer_address_high;
+    uint64_t buffer_address;
     uint16_t length;
     uint16_t checksum;
     uint8_t status;
     uint8_t errors;
     uint16_t special;
-} e1000_receive_descriptor;
+} __attribute__((packed)) e1000_receive_descriptor;
 
 typedef struct e1000_transmit_descriptor {
-    uint32_t buffer_address_low;
-    uint32_t buffer_address_high;
+    uint64_t buffer_address;
     uint16_t length;
     uint8_t cso;
     uint8_t cmd;
     uint8_t status;
     uint8_t css;
     uint16_t special;
-} e1000_transmit_descriptor;
+} __attribute__((packed)) e1000_transmit_descriptor;
 
 enum E1000GeneralRegisters {
     E1000_REG_CTRL = 0x00000,

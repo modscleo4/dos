@@ -1,36 +1,34 @@
 #include "cpuid.h"
 
 #include <string.h>
+#include "../debug.h"
 
 bool get_cpuid_info(cpu_info *cpuinfo) {
     memset(cpuinfo, 0, sizeof(cpu_info));
     if (cpuid_available()) {
         // Get Vendor ID
-        unsigned int eax, ebx, ecx, edx;
+        uint32_t eax, ebx, ecx, edx;
         asm volatile("cpuid"
                      : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
                      : "a"(0));
 
-        char buf[sizeof(cpu_info)];
-
         // copy to cpu_info->vendor_id
-        memcpy(buf, &ebx, 4);
-        memcpy(buf + 4, &edx, 4);
-        memcpy(buf + 8, &ecx, 4);
-        buf[12] = 0;
+        memcpy(&cpuinfo->vendor_id[0], &ebx, 4);
+        memcpy(&cpuinfo->vendor_id[4], &edx, 4);
+        memcpy(&cpuinfo->vendor_id[8], &ecx, 4);
 
         // Get Processor Info
         asm volatile("cpuid"
                      : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
                      : "a"(1));
 
+        dbgprint("CPUID: eax: %x, ebx: %x, ecx: %x, edx: %x\n", eax, ebx, ecx, edx);
+
         // copy to cpu_info->ecx
-        memcpy(buf + 13, &ecx, 4);
+        cpuinfo->ecx = ecx;
 
         // copy to cpu_info->edx
-        memcpy(buf + 13 + 4, &edx, 4);
-
-        memcpy(cpuinfo, buf, sizeof(cpu_info));
+        cpuinfo->edx = edx;
 
         return true;
     }

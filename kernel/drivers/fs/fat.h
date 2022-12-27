@@ -75,7 +75,7 @@ typedef struct fat_entry {
     fat_entry_date last_write_date;
     uint16_t cluster;
     uint32_t size;
-} fat_entry;
+} __attribute__((packed)) fat_entry;
 
 /*
  * 0x00      Entry never used

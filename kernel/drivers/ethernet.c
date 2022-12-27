@@ -5,22 +5,24 @@
 #include "e1000.h"
 #include "ne2k.h"
 #include "../modules/net/arp.h"
+#include "../modules/net/dhcp.h"
 #include "../modules/net/ip.h"
 #include "../../bits.h"
 #include "../../debug.h"
 
 static void ethernet_handler(registers *r, uint32_t int_no) {
     for (int i = 0; i < 2; i++) {
-        if (eth[i].int_no == int_no && eth[i].int_handler) {
-            eth[i].int_handler(&eth[i]);
+        if (eth[i]->int_no == int_no && eth[i]->int_handler) {
+            eth[i]->int_handler(eth[i]);
         }
     }
 }
 
 bool ethernet_assign_driver(ethernet_driver *driver) {
     for (int i = 0; i < 2; i++) {
-        if (!eth[i].mac[0] && !eth[i].mac[1] && !eth[i].mac[2] && !eth[i].mac[3] && !eth[i].mac[4] && !eth[i].mac[5]) {
-            eth[i] = *driver;
+        if (!eth[i]) {
+            eth[i] = driver;
+            dbgprint("Assigned ethernet driver to interface %d\n", i);
             return true;
         }
     }
@@ -78,7 +80,7 @@ void ethernet_init(pci_device *device, pci_header *header) {
 void ethernet_send_packet(ethernet_driver *driver, uint8_t destination_mac[6], uint16_t ethertype, void *data, size_t data_size) {
     static ethernet_packet eth_packet;
     memcpy(eth_packet.header.source_mac, driver->mac, 6);
-    memset(eth_packet.header.destination_mac, 0xFF, 6);
+    memcpy(eth_packet.header.destination_mac, destination_mac, 6);
     eth_packet.header.ethertype = switch_endian_16(ethertype);
     eth_packet.data = data;
 

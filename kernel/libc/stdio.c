@@ -5,8 +5,8 @@
 
 #include "../bits.h"
 #include "../drivers/keyboard.h"
-#include "../modules/kblayout/kb.h"
 #include "../drivers/screen.h"
+#include "../modules/kblayout/kb.h"
 
 int fclose(FILE *stream) {
     return 0;
@@ -125,7 +125,7 @@ int vsprintf(char *str, const char *format, va_list args) {
     bool padding = false;
     char padding_char = 0;
     int width = 0;
-    int buf_len;
+    size_t buf_len;
     bool precision_toggle = false;
     int precision = 0;
     bool left_align = false;
@@ -200,23 +200,34 @@ int vsprintf(char *str, const char *format, va_list args) {
                     break;
 
                 case 's':
-                    strcpy(buf, va_arg(args, char *));
+                    if (precision_toggle) {
+                        if (curr_mod == '*') {
+                            buf_len = va_arg(args, int);
+                        } else {
+                            buf_len = precision;
+                        }
 
-                    buf_len = strlen(buf);
+                        strncpy(buf, va_arg(args, char *), buf_len);
+                    } else {
+                        char *buf_start = buf;
+                        buf_len = strcpy(buf, va_arg(args, char *)) - buf_start;
+                    }
+
                     if (width > buf_len) {
                         if (left_align) {
                             for (int i = buf_len; i < width; i++) {
                                 buf[i] = ' ';
                             }
                             buf[width] = 0;
+                            buf_len = width;
                         } else {
                             memmove(buf + width - buf_len, buf, buf_len + 1);
                             memset(buf, ' ', width - buf_len);
                         }
                     }
 
-                    str = strcat(str, buf);
-                    str += strlen(buf);
+                    str = strncat(str, buf, buf_len);
+                    str += buf_len;
                     break;
 
                 case 'u':

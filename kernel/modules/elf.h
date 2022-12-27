@@ -24,7 +24,7 @@ typedef struct elf_header_ident {
     uint8_t version;
     uint8_t osabi;
     uint8_t unused[8];
-} elf_header_ident;
+} __attribute__((packed)) elf_header_ident;
 
 typedef struct elf32_header {
     elf_header_ident ident;
@@ -41,7 +41,7 @@ typedef struct elf32_header {
     Elf32_Half section_header_size;
     Elf32_Half section_header_count;
     Elf32_Half section_name_index;
-} elf32_header;
+} __attribute__((packed)) elf32_header;
 
 typedef struct elf64_header {
     elf_header_ident ident;
@@ -58,7 +58,7 @@ typedef struct elf64_header {
     Elf64_Half section_header_size;
     Elf64_Half section_header_count;
     Elf64_Half section_name_index;
-} elf64_header;
+} __attribute__((packed)) elf64_header;
 
 typedef struct elf32_program_header {
     Elf32_Word type;
@@ -69,7 +69,7 @@ typedef struct elf32_program_header {
     Elf32_Word memory_size;
     Elf32_Word flags;
     Elf32_Word alignment;
-} elf32_program_header;
+} __attribute__((packed)) elf32_program_header;
 
 typedef struct elf64_program_header {
     Elf64_Word type;
@@ -80,7 +80,7 @@ typedef struct elf64_program_header {
     Elf64_Xword file_size;
     Elf64_Xword memory_size;
     Elf64_Xword alignment;
-} elf64_program_header;
+} __attribute__((packed)) elf64_program_header;
 
 typedef struct elf32_section_header {
     Elf32_Word name;
@@ -93,7 +93,7 @@ typedef struct elf32_section_header {
     Elf32_Word info;
     Elf32_Word address_align;
     Elf32_Word entry_size;
-} elf32_section_header;
+} __attribute__((packed)) elf32_section_header;
 
 typedef struct elf64_section_header {
     Elf64_Word name;
@@ -106,7 +106,7 @@ typedef struct elf64_section_header {
     Elf64_Word info;
     Elf64_Xword address_align;
     Elf64_Xword entry_size;
-} elf64_section_header;
+} __attribute__((packed)) elf64_section_header;
 
 typedef struct elf32_symbol_table_entry {
     Elf32_Word name;
@@ -115,7 +115,7 @@ typedef struct elf32_symbol_table_entry {
     uint8_t info;
     uint8_t other;
     Elf32_Half section_index;
-} elf32_symbol_table_entry;
+} __attribute__((packed)) elf32_symbol_table_entry;
 
 typedef struct elf64_symbol_table_entry {
     Elf64_Word name;
@@ -124,7 +124,7 @@ typedef struct elf64_symbol_table_entry {
     Elf32_Half section_index;
     Elf32_Addr value;
     Elf64_Xword size;
-} elf64_symbol_table_entry;
+} __attribute__((packed)) elf64_symbol_table_entry;
 
 #define ELF32_ST_BIND(i) ((i) >> 4)
 #define ELF32_ST_TYPE(i) ((i) & 0xf)

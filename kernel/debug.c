@@ -8,23 +8,17 @@
 #include "drivers/screen.h"
 #include "modules/elf.h"
 
-#ifndef DEBUG
-#define DEBUG 1
-#endif
-
-void dbgprint(const char *msg, ...) {
+void _dbgprint(const char *msg, ...) {
     va_list args;
     va_start(args, msg);
-#if DEBUG
+
     vprintf(msg, args);
-#endif
+
     va_end(args);
 }
 
-void dbgwait(void) {
-#ifdef DEBUG
+void _dbgwait(void) {
     getchar();
-#endif
 }
 
 void hexdump(void *ptr, size_t n) {
@@ -38,6 +32,7 @@ void hexdump(void *ptr, size_t n) {
 
         if (i < ptr_i % 16) {
             printf("   ");
+            n++;
         } else {
             printf("%02x ", ptr_c[i]);
             if (i % 16 == 15 || i == n - 1) {
@@ -50,25 +45,25 @@ void hexdump(void *ptr, size_t n) {
                 printf("  ");
                 for (int j = i - (i % 16); j <= i; j++) {
                     if (j < ptr_i % 16) {
-                        setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+                        screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
                         printf(" ");
                     } else {
                         if (ptr_c[j] >= 32 && ptr_c[j] <= 126) {
-                            setcolor(COLOR_BLACK << 4 | COLOR_GREEN);
+                            screen_setcolor(COLOR_BLACK << 4 | COLOR_GREEN);
                             printf("%c", ptr_c[j]);
                         } else {
-                            setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+                            screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
                             printf(".");
                         }
                     }
 
                     if (j == i - (i % 16) + 7) {
-                        setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+                        screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
                         printf(" ");
                     }
                 }
 
-                setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+                screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
                 printf("\n");
             }
@@ -84,12 +79,16 @@ typedef struct stackframe {
 } stackframe;
 
 void callstack(uint32_t ebp) {
-    void *kernel_file_inode = rootfs.search_file(&rootfs_io, &rootfs, "KERNEL");
-    if (!kernel_file_inode) {
-        return;
+    static void *kernel_file_inode = (void *) 1;
+    if (kernel_file_inode == (void *) 1) {
+        kernel_file_inode = rootfs.search_file(&rootfs_io, &rootfs, "KERNEL.ELF");
+
+        if (!rootfs.load_file_at(&rootfs_io, &rootfs, kernel_file_inode, (void *)0x1000000)) {
+            return;
+        }
     }
 
-    if (!rootfs.load_file_at(&rootfs_io, &rootfs, kernel_file_inode, (void *)0x1000000)) {
+    if (!kernel_file_inode) {
         return;
     }
 

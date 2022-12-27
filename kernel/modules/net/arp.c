@@ -7,11 +7,11 @@
 
 typedef struct arp_map {
     uint8_t ip[4];
-    uint8_t mac[4];
+    uint8_t mac[6];
 } arp_map;
 
 static arp_map arp_list[10];
-static int curr_arp = 0;
+static size_t curr_arp = 0;
 
 bool arp_get_mac(ethernet_driver *driver, uint8_t ip[4], uint8_t mac[6], int timeout) {
     for (int i = 0; i < curr_arp; i++) {
@@ -95,10 +95,10 @@ static void arp_process_request(ethernet_driver *driver, arp_packet *packet) {
     dbgprint("MAC: %x:%x:%x:%x:%x:%x\n", packet->sender_mac[0], packet->sender_mac[1], packet->sender_mac[2], packet->sender_mac[3], packet->sender_mac[4], packet->sender_mac[5]);
 
     if (
-        driver->ipv4.ip[0] == packet->target_ip[0] &&
-        driver->ipv4.ip[1] == packet->target_ip[1] &&
-        driver->ipv4.ip[2] == packet->target_ip[2] &&
-        driver->ipv4.ip[3] == packet->target_ip[3]
+        driver->ipv4.ip[0] == packet->target_ip[0]
+        && driver->ipv4.ip[1] == packet->target_ip[1]
+        && driver->ipv4.ip[2] == packet->target_ip[2]
+        && driver->ipv4.ip[3] == packet->target_ip[3]
     ) {
         arp_send_reply(driver, packet->sender_ip, packet->sender_mac);
     }
@@ -106,11 +106,11 @@ static void arp_process_request(ethernet_driver *driver, arp_packet *packet) {
 
 static void arp_process_reply(ethernet_driver *driver, arp_packet *packet) {
     dbgprint("ARP reply received from %d.%d.%d.%d\n", packet->sender_ip[0], packet->sender_ip[1], packet->sender_ip[2], packet->sender_ip[3]);
-    dbgprint("MAC: %x:%x:%x:%x:%x:%x\n", packet->sender_mac[0], packet->sender_mac[1], packet->sender_mac[2], packet->sender_mac[3], packet->sender_mac[4], packet->sender_mac[5]);
+    dbgprint("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", packet->sender_mac[0], packet->sender_mac[1], packet->sender_mac[2], packet->sender_mac[3], packet->sender_mac[4], packet->sender_mac[5]);
 
     if (curr_arp < sizeof(arp_list)) {
-        memcpy(arp_list[curr_arp].ip, packet->sender_ip, sizeof(arp_list[curr_arp].ip));
-        memcpy(arp_list[curr_arp].mac, packet->sender_mac, sizeof(arp_list[curr_arp].mac));
+        memcpy(arp_list[curr_arp].ip, packet->sender_ip, 4);
+        memcpy(arp_list[curr_arp].mac, packet->sender_mac, 6);
         curr_arp++;
     }
 }

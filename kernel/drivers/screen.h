@@ -1,13 +1,7 @@
-#ifndef SCREEN_H
-#define SCREEN_H
+#ifndef KERNEL_SCREEN_H
+#define KERNEL_SCREEN_H
 
-#include <string.h>
-
-#define VIDEO_ADDRESS 0xB8000
-#define MAX_ROWS 25
-#define MAX_COLS 80
-
-enum Colors {
+enum ScreenColors {
     COLOR_BLACK = 0,
     COLOR_BLUE,
     COLOR_GREEN,
@@ -26,19 +20,24 @@ enum Colors {
     COLOR_WHITE
 };
 
-enum ScreenRegisters {
-    SCREEN_CONTROL = 0x3D4,
-    SCREEN_DATA = 0x3D5
+enum ScreenMode {
+    SCREEN_MODE_FRAMEBUFFER,
 };
 
-void video_init(int edx);
+void screen_init(int mode);
 
-void setcolor(char c);
+char screen_getcolor(void);
 
-void clear_screen(void);
+void screen_setcolor(char c);
 
-void gotoxy(int x, int y);
+void screen_clear(void);
 
-int screen_write(char c);
+void screen_getxy(int *x, int *y);
 
-#endif //SCREEN_H
+void screen_gotoxy(const int x, const int y);
+
+int screen_write(const char c);
+
+int screen_write_str(const char *str);
+
+#endif // KERNEL_SCREEN_H

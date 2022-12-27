@@ -7,8 +7,6 @@
 #include "../debug.h"
 #include "../ring3.h"
 #include "../cpu/gdt.h"
-#include "../drivers/keyboard.h"
-#include "../drivers/screen.h"
 
 // This var is to store the current SYSCALL return value
 int __syscall_ret;

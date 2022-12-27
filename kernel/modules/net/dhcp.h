@@ -21,7 +21,7 @@ typedef struct dhcp_packet {
     uint8_t file[128];
     uint32_t magic_cookie;
     uint8_t options[312];
-} dhcp_packet;
+} __attribute__((packed)) dhcp_packet;
 
 enum DHCPBootOperation {
     DHCP_BOOT_OP_REQUEST = 0x01,

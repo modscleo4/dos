@@ -4,13 +4,6 @@
 #include <stddef.h>
 #include "iodriver.h"
 
-enum FileSystemType {
-    FS_EMPTY = 0,
-    FS_FAT12,
-    FS_FAT16,
-    FS_EXT2,
-};
-
 typedef struct filesystem {
     unsigned char type;
     unsigned int start_lba;
@@ -22,5 +15,12 @@ typedef struct filesystem {
     void *(*load_file_at)(iodriver *driver, struct filesystem *fs, const void *_f, void *addr);
     void (*list_files)(iodriver *driver, struct filesystem *fs);
 } filesystem;
+
+enum FileSystemType {
+    FS_EMPTY = 0,
+    FS_FAT12,
+    FS_FAT16,
+    FS_EXT2,
+};
 
 #endif // FILESYSTEM_H

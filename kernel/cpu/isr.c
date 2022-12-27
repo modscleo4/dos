@@ -92,9 +92,10 @@ void isr_fault_handler(registers *r) {
         if (r->int_no < 32 && isr_routines[r->int_no]) {
             void (*handler)(registers *, uint32_t) = isr_routines[r->int_no];
             handler(r, r->int_no);
+            return;
         }
 
-        char buf[128];
+        static char buf[128];
 
         // only print err_code if the exception set it
         if (r->int_no == 8 || r->int_no == 10 || r->int_no == 11 || r->int_no == 12 || r->int_no == 13 || r->int_no == 14 || r->int_no == 17 || r->int_no == 21 || r->int_no == 29 || r->int_no == 30) {

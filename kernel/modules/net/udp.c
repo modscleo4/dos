@@ -1,14 +1,14 @@
 #include "udp.h"
 
 #include <stdlib.h>
-#include "ip.h"
+#include <string.h>
 #include "../../debug.h"
 #include "../../bits.h"
 
 static udp_listener *udp_listeners = NULL;
 
 void udp_init(void) {
-    udp_listeners = calloc(65536, sizeof(uint32_t));
+    udp_listeners = calloc(65536, sizeof(udp_listener));
 }
 
 uint16_t udp_calculate_checksum(udp_packet *packet, uint8_t source_ip[4], uint8_t destination_ip[4], void *data, size_t data_size) {
@@ -57,22 +57,37 @@ void udp_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint16_t sou
     ipv4_send_packet(driver, source_ip, destination_ip, IP_PROTOCOL_UDP, &packet, sizeof(udp_packet), data, data_size);
 }
 
-void udp_install_listener(uint16_t port, udp_listener listener) {
+bool udp_install_listener(uint16_t port, udp_listener listener) {
+    if (udp_listeners[port]) {
+        return false;
+    }
+
     udp_listeners[port] = listener;
+    return true;
 }
 
 void udp_uninstall_listener(uint16_t port) {
     udp_listeners[port] = NULL;
 }
 
-void udp_receive_packet(ethernet_driver *driver, udp_packet *packet, void *data) {
+void udp_receive_packet(ethernet_driver *driver, ipv4_packet *ipv4_packet, udp_packet *packet, void *data) {
     if (!udp_listeners) {
         return;
     }
 
     dbgprint("udp_receive_packet\n");
-    if (udp_listeners[switch_endian_16(packet->destination_port)]) {
-        udp_listener listener = udp_listeners[switch_endian_16(packet->destination_port)];
+    uint16_t port = switch_endian_16(packet->destination_port);
+    uint16_t checksum = packet->checksum;
+
+    packet->checksum = 0;
+    if (checksum != udp_calculate_checksum(packet, ipv4_packet->source_ip, ipv4_packet->destination_ip, data, switch_endian_16(packet->length) - sizeof(udp_packet))) {
+        dbgprint("udp_receive_packet: checksum failed\n");
+        return;
+    }
+    packet->checksum = checksum;
+
+    if (udp_listeners[port]) {
+        udp_listener listener = udp_listeners[port];
         listener(driver, data, switch_endian_16(packet->length) - sizeof(udp_packet));
     }
 }

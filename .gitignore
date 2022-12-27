@@ -2,7 +2,7 @@
 build/
 grub2.img
 rootfs/init.elf
-rootfs/kernel
+rootfs/kernel.elf
 
 floppy_disk.img
 ata_disk.img
@@ -10,6 +10,7 @@ ata_disk_ext2.img
 ata_disk.vdi
 serial.txt
 slirp-pktlog.txt
+vbox-pktlog.pcap
 
 .idea/
 .vscode/

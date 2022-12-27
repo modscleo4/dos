@@ -2,7 +2,7 @@
 plugin_ctrl: voodoo=false, unmapped=true, biosdev=true, speaker=true, extfpuirq=true, parallel=true, serial=true, busmouse=false, e1000=true, es1370=false, gameport=true, ne2k=false, sb16=false, usb_uhci=true, usb_ohci=false, usb_ehci=false, usb_xhci=false
 config_interface: win32config
 display_library: win32
-memory: host=32, guest=32
+memory: host=128, guest=128
 romimage: file="C:\Program Files\Bochs-2.7/BIOS-bochs-latest", address=0x00000000, options=none
 vgaromimage: file="C:\Program Files\Bochs-2.7/VGABIOS-lgpl-latest"
 boot: disk
@@ -50,7 +50,7 @@ com2: enabled=false
 com3: enabled=false
 com4: enabled=false
 usb_uhci: enabled=1, port1=none, options1=none, port2=none, options2=none
-e1000: card=0, enabled=true, mac=fe:fd:de:ad:be:ef, ethmod=slirp, ethdev="xl0", script="./slirp.conf", bootrom=none
+e1000: card=0, enabled=true, mac=08:00:27:70:fd:03, ethmod=slirp, ethdev="xl0", script="./slirp.conf", bootrom=none
 e1000: card=1, enabled=false
 e1000: card=2, enabled=false
 e1000: card=3, enabled=false

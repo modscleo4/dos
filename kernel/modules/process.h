@@ -8,7 +8,7 @@ typedef struct process {
     uint32_t stack_pointer;
     uint32_t stack_base;
     uint32_t entry;
-} process;
+} __attribute__((packed)) process;
 
 uint32_t create_process(uint32_t entry, uint32_t stack);
 
