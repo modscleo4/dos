@@ -1,5 +1,7 @@
 #include "panic.h"
 
+#define DEBUG 1
+
 #include <stdint.h>
 #include <stdio.h>
 #include "gdt.h"
@@ -12,7 +14,7 @@
 #include "../drivers/screen.h"
 
 void panic(const char *msg, ...) {
-    char buf[1024];
+    static char buf[1024];
 
     va_list args;
     va_start(args, msg);
@@ -31,11 +33,14 @@ static void read_gdt_segment(uint16_t segment) {
 }
 
 void panic_handler(const char *msg, registers *r) {
-    irq_uninstall_handler(IRQ_PIT);
-    irq_uninstall_handler(IRQ_FLOPPY);
-    irq_uninstall_handler(IRQ_CMOS);
-    irq_uninstall_handler(IRQ_ATA_PRIMARY);
-    irq_uninstall_handler(IRQ_ATA_SECONDARY);
+    for (int i = 0; i <= 15; i++) {
+        if (i == IRQ_KEYBOARD) {
+            continue;
+        }
+
+        irq_uninstall_handler(i);
+    }
+
     asm volatile("sti");
 
     char c = r ? 'I' : 'S';
@@ -49,8 +54,8 @@ void panic_handler(const char *msg, registers *r) {
 
         switch (c) {
             default:
-            case 'i':
-            case 'I':
+            case 'r':
+            case 'R':
                 if (r) {
                     printf("\n");
                     // Print the registers before halting
@@ -112,7 +117,7 @@ void panic_handler(const char *msg, registers *r) {
 
         screen_gotoxy(0, 24);
         screen_setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
-        printf("%-80s", r ? "<I> - Registers | <S> - Call Stack. | <Q> Restart." : "<S> - Call Stack. | <Q> Restart.");
+        printf("%-80s", r ? "<R> - Registers | <S> - Call Stack. | <Q> Restart." : "<S> - Call Stack. | <Q> Restart.");
         screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
         c = getchar();

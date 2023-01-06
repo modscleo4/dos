@@ -1,5 +1,7 @@
 #include "timer.h"
 
+#define DEBUG 1
+
 #include <stdio.h>
 #include "cmos.h"
 #include "../bits.h"

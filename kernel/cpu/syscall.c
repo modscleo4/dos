@@ -1,5 +1,7 @@
 #include "syscall.h"
 
+#define DEBUG 1
+
 #include <stdarg.h>
 #include <stdio.h>
 #include "idt.h"

@@ -8,6 +8,7 @@ floppy_disk.img
 ata_disk.img
 ata_disk_ext2.img
 ata_disk.vdi
+ata_disk.vmdk
 serial.txt
 slirp-pktlog.txt
 vbox-pktlog.pcap

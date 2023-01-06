@@ -1,19 +1,21 @@
 #include "ne2k.h"
 
+#define DEBUG 1
+
 #include <stdlib.h>
 #include <string.h>
 #include "../bits.h"
 #include "../debug.h"
 
-ethernet_driver *ne2k_init(pci_device *device) {
-    int iobase = device->base_address[0] & ~0x3;
+ethernet_driver *ne2k_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func) {
+    int iobase = pci_get_bar_address(device->base_address, 0);
 
     outb(iobase + 0x1F, inb(iobase + 0x1F));
     while ((inb(iobase + 0x07) & 0x80) == 0) { }
     outb(iobase + 0x07, 0xFF);
 
     unsigned char prom[32];
-    outb(iobase + NE2K_REG_COMMAND, (1 << 5) | 1); // page 0, no DMA, stop
+    outb(iobase + NE2K_REG_COMMAND, (1UL << 5UL) | 1); // page 0, no DMA, stop
     outb(iobase + NE2K_REG_DCR, 0x49);             // set word-wide access
     outb(iobase + NE2K_REG_RBCR0, 0);              // clear the count regs
     outb(iobase + NE2K_REG_RBCR1, 0);
@@ -32,12 +34,12 @@ ethernet_driver *ne2k_init(pci_device *device) {
     }
 
     // program the PAR0..PAR5 registers to listen for packets to our MAC address!
-    outb(iobase + NE2K_REG_COMMAND, (1 << 6) | (1 << 5) | 1); // page 1, no DMA, stop
+    outb(iobase + NE2K_REG_COMMAND, (1UL << 6UL) | (1UL << 5UL) | 1); // page 1, no DMA, stop
     for (int i = 0; i < 6; i++) {
         outb(iobase + 0x01 + i, prom[i]);
     }
 
-    // outb(iobase + NE2K_REG_COMMAND, (1 << 5) | 1); // page 0, no DMA, stop
+    // outb(iobase + NE2K_REG_COMMAND, (1UL << 5UL) | 1); // page 0, no DMA, stop
 
     ethernet_driver *driver = malloc(sizeof(ethernet_driver));
     driver->mmiobase = device->base_address[0];
@@ -66,7 +68,7 @@ unsigned int ne2k_send_packet(ethernet_driver *driver, ethernet_packet *packet, 
     outb(driver->iobase + NE2K_REG_COMMAND, 0x22);
     outb(driver->iobase + NE2K_REG_RBCR0, data_size & 0xFF);
     outb(driver->iobase + NE2K_REG_RBCR1, data_size >> 8);
-    outb(driver->iobase + NE2K_REG_ISR, (1 << 6));
+    outb(driver->iobase + NE2K_REG_ISR, (1UL << 6UL));
     outb(driver->iobase + NE2K_REG_RSAR0, 0x00);
     outb(driver->iobase + NE2K_REG_RSAR1, 0x00);
     outb(driver->iobase + NE2K_REG_COMMAND, 0x12);
@@ -75,7 +77,7 @@ unsigned int ne2k_send_packet(ethernet_driver *driver, ethernet_packet *packet, 
         outb(driver->iobase + NE2K_REG_DATA, ((unsigned char *) packet)[i]);
     }
 
-    while ((inb(driver->iobase + NE2K_REG_ISR) & (1 << 6)) == 0) { }
+    while ((inb(driver->iobase + NE2K_REG_ISR) & (1UL << 6UL)) == 0) { }
 
     return 0;
 }
@@ -84,7 +86,7 @@ void ne2k_receive_packet(ethernet_driver *driver, ethernet_packet *packet, size_
     /*outb(driver->iobase + NE2K_REG_COMMAND, 0x22);
     outb(driver->iobase + NE2K_REG_RBCR0, 0x00);
     outb(driver->iobase + NE2K_REG_RBCR1, 0x00);
-    outb(driver->iobase + NE2K_REG_ISR, (1 << 5));
+    outb(driver->iobase + NE2K_REG_ISR, (1UL << 5UL));
     outb(driver->iobase + NE2K_REG_RSAR0, 0x00);
     outb(driver->iobase + NE2K_REG_RSAR1, 0x40);
     outb(driver->iobase + NE2K_REG_COMMAND, 0x12);
@@ -97,5 +99,5 @@ void ne2k_receive_packet(ethernet_driver *driver, ethernet_packet *packet, size_
         ((unsigned char *) packet->data)[i - sizeof(ethernet_packet)] = inb(driver->iobase + NE2K_REG_DATA);
     }
 
-    while ((inb(driver->iobase + NE2K_REG_ISR) & (1 << 5)) == 0) { }*/
+    while ((inb(driver->iobase + NE2K_REG_ISR) & (1UL << 5UL)) == 0) { }*/
 }

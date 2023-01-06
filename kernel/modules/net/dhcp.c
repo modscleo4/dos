@@ -1,5 +1,7 @@
 #include "dhcp.h"
 
+#define DEBUG 1
+
 #include <stdlib.h>
 #include <string.h>
 #include "arp.h"
@@ -83,6 +85,11 @@ static void dhcp_process_ack(ethernet_driver *driver, dhcp_packet *packet) {
     dbgprint("Gateway: %d.%d.%d.%d\n", driver->ipv4.gateway[0], driver->ipv4.gateway[1], driver->ipv4.gateway[2], driver->ipv4.gateway[3]);
     dbgprint("DNS: %d.%d.%d.%d\n", driver->ipv4.dns[0], driver->ipv4.dns[1], driver->ipv4.dns[2], driver->ipv4.dns[3]);
     dbgprint("Lease time: %ds\n", driver->ipv4.lease_time);
+
+    uint8_t gateway_mac[6];
+    if (arp_get_mac(driver, driver->ipv4.gateway, gateway_mac, 100)) {
+        dbgprint("Gateway MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", gateway_mac[0], gateway_mac[1], gateway_mac[2], gateway_mac[3], gateway_mac[4], gateway_mac[5]);
+    }
 }
 
 static void dhcp_udp_listener(ethernet_driver *driver, void *data, size_t data_size) {
@@ -121,7 +128,6 @@ void dhcp_init(ethernet_driver *driver) {
     dhcp_send_discover(driver);
 
     timer_wait(100);
-    dbgwait();
 
     for (int i = 0; i < offer_count; i++) {
         uint8_t mac[6];
@@ -129,6 +135,8 @@ void dhcp_init(ethernet_driver *driver) {
             dbgprint("Offered IP %d.%d.%d.%d from %d.%d.%d.%d is available\n", offers[i].offered_ip[0], offers[i].offered_ip[1], offers[i].offered_ip[2], offers[i].offered_ip[3], offers[i].server_ip[0], offers[i].server_ip[1], offers[i].server_ip[2], offers[i].server_ip[3]);
             dhcp_send_request(driver, offers[i].server_ip, offers[i].offered_ip);
             break;
+        } else {
+            dbgprint("Offered IP %d.%d.%d.%d from %d.%d.%d.%d is not available\n", offers[i].offered_ip[0], offers[i].offered_ip[1], offers[i].offered_ip[2], offers[i].offered_ip[3], offers[i].server_ip[0], offers[i].server_ip[1], offers[i].server_ip[2], offers[i].server_ip[3]);
         }
     }
 }
@@ -152,10 +160,11 @@ void dhcp_send_discover(ethernet_driver *driver) {
     memset(&packet->sname, 0, 64);
     memset(&packet->file, 0, 128);
     packet->magic_cookie = switch_endian_32(0x63825363);
-    packet->options[0] = DHCP_OPTION_MESSAGE_TYPE;
-    packet->options[1] = 1;
-    packet->options[2] = DHCP_OP_DISCOVER;
-    packet->options[3] = DHCP_OPTION_END;
+    int opt = 0;
+    packet->options[opt++] = DHCP_OPTION_MESSAGE_TYPE;
+    packet->options[opt++] = 1;
+    packet->options[opt++] = DHCP_OP_DISCOVER;
+    packet->options[opt++] = DHCP_OPTION_END;
 
     udp_send_packet(driver, (uint8_t[]){0, 0, 0, 0}, 68, (uint8_t[]){255, 255, 255, 255}, 67, packet, sizeof(dhcp_packet));
 
@@ -181,28 +190,29 @@ void dhcp_send_request(ethernet_driver *driver, uint8_t server_ip[4], uint8_t re
     memset(&packet->sname, 0, 64);
     memset(&packet->file, 0, 128);
     packet->magic_cookie = switch_endian_32(0x63825363);
-    packet->options[0] = DHCP_OPTION_MESSAGE_TYPE;
-    packet->options[1] = 1;
-    packet->options[2] = DHCP_OP_REQUEST;
-    packet->options[3] = DHCP_OPTION_REQUESTED_IP;
-    packet->options[4] = 4;
-    packet->options[5] = requested_ip[0];
-    packet->options[6] = requested_ip[1];
-    packet->options[7] = requested_ip[2];
-    packet->options[8] = requested_ip[3];
-    packet->options[9] = DHCP_OPTION_SERVER_IDENTIFIER;
-    packet->options[10] = 4;
-    packet->options[11] = server_ip[0];
-    packet->options[12] = server_ip[1];
-    packet->options[13] = server_ip[2];
-    packet->options[14] = server_ip[3];
-    packet->options[15] = DHCP_OPTION_PARAMETER_REQUEST_LIST;
-    packet->options[16] = 4;
-    packet->options[17] = DHCP_OPTION_SUBNET_MASK;
-    packet->options[18] = DHCP_OPTION_ROUTER;
-    packet->options[19] = DHCP_OPTION_DOMAIN_NAME;
-    packet->options[20] = DHCP_OPTION_DNS_SERVER;
-    packet->options[21] = DHCP_OPTION_END;
+    int opt = 0;
+    packet->options[opt++] = DHCP_OPTION_MESSAGE_TYPE;
+    packet->options[opt++] = 1;
+    packet->options[opt++] = DHCP_OP_REQUEST;
+    packet->options[opt++] = DHCP_OPTION_REQUESTED_IP;
+    packet->options[opt++] = 4;
+    packet->options[opt++] = requested_ip[0];
+    packet->options[opt++] = requested_ip[1];
+    packet->options[opt++] = requested_ip[2];
+    packet->options[opt++] = requested_ip[3];
+    packet->options[opt++] = DHCP_OPTION_SERVER_IDENTIFIER;
+    packet->options[opt++] = 4;
+    packet->options[opt++] = server_ip[0];
+    packet->options[opt++] = server_ip[1];
+    packet->options[opt++] = server_ip[2];
+    packet->options[opt++] = server_ip[3];
+    packet->options[opt++] = DHCP_OPTION_PARAMETER_REQUEST_LIST;
+    packet->options[opt++] = 4;
+    packet->options[opt++] = DHCP_OPTION_SUBNET_MASK;
+    packet->options[opt++] = DHCP_OPTION_ROUTER;
+    packet->options[opt++] = DHCP_OPTION_DOMAIN_NAME;
+    packet->options[opt++] = DHCP_OPTION_DNS_SERVER;
+    packet->options[opt++] = DHCP_OPTION_END;
 
     udp_send_packet(driver, (uint8_t[]){0, 0, 0, 0}, 68, (uint8_t[]){255, 255, 255, 255}, 67, packet, sizeof(dhcp_packet));
 

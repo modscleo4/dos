@@ -1,14 +1,16 @@
 #include "floppy.h"
 
+#define DEBUG 1
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "../bits.h"
 #include "../cpu/irq.h"
 #include "../cpu/pic.h"
 #include "../debug.h"
 #include "../modules/cmos.h"
 #include "../modules/timer.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 unsigned int drives[2] = {0, 0};
 floppy_parameters floppy;
@@ -24,7 +26,7 @@ static void floppy_handler(registers *r, uint32_t int_no) {
     irq_c++;
 }
 
-iodriver *floppy_init(pci_device *device) {
+iodriver *floppy_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func) {
     irq_c = 0;
 
     memcpy(&floppy, (unsigned char *)DISK_PARAMETER_ADDRESS, sizeof(floppy_parameters));

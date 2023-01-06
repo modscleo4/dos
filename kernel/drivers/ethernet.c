@@ -1,7 +1,9 @@
 #include "ethernet.h"
 
+#define DEBUG 1
+
+#include <stdlib.h>
 #include <string.h>
-#include "../../cpu/irq.h"
 #include "e1000.h"
 #include "ne2k.h"
 #include "../modules/net/arp.h"
@@ -9,16 +11,21 @@
 #include "../modules/net/ip.h"
 #include "../../bits.h"
 #include "../../debug.h"
+#include "../../cpu/irq.h"
 
 static void ethernet_handler(registers *r, uint32_t int_no) {
     for (int i = 0; i < 2; i++) {
+        if (!eth[i]) {
+            continue;
+        }
+
         if (eth[i]->int_no == int_no && eth[i]->int_handler) {
             eth[i]->int_handler(eth[i]);
         }
     }
 }
 
-bool ethernet_assign_driver(ethernet_driver *driver) {
+static bool ethernet_assign_driver(ethernet_driver *driver) {
     for (int i = 0; i < 2; i++) {
         if (!eth[i]) {
             eth[i] = driver;
@@ -30,13 +37,13 @@ bool ethernet_assign_driver(ethernet_driver *driver) {
     return false;
 }
 
-void ethernet_init(pci_device *device, pci_header *header) {
+void ethernet_init(pci_device *device, pci_header *header, uint8_t bus, uint8_t slot, uint8_t func) {
     ethernet_driver *driver = NULL;
     switch (header->vendor) {
         case 0x8086: // Intel
             switch (header->device) {
                 case 0x100E: // e1000
-                    driver = e1000_init(device);
+                    driver = e1000_init(device, bus, slot, func);
                     break;
             }
             break;
@@ -44,7 +51,7 @@ void ethernet_init(pci_device *device, pci_header *header) {
         case 0x10EC: // Realtek
             switch (header->device) {
                 case 0x8029: // ne2k
-                    driver = ne2k_init(device);
+                    driver = ne2k_init(device, bus, slot, func);
                     break;
             }
     }
@@ -91,11 +98,11 @@ void ethernet_process_packet(ethernet_driver *driver, ethernet_packet *packet, s
     dbgprint("ethernet_process_packet: %db\n", data_size);
     switch (switch_endian_16(packet->header.ethertype)) {
         case ETHERTYPE_ARP:
-            arp_receive_packet(driver, packet->data);
+            arp_receive_packet(driver, (arp_packet *) packet->data);
             break;
 
         case ETHERTYPE_IPV4:
-            ipv4_receive_packet(driver, packet->data, packet->data + sizeof(ipv4_packet), data_size - sizeof(ethernet_header));
+            ipv4_receive_packet(driver, (ipv4_packet *) packet->data, packet->data + sizeof(ipv4_packet), data_size - sizeof(ethernet_header));
             break;
     }
 }

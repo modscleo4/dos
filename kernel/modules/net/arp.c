@@ -1,5 +1,7 @@
 #include "arp.h"
 
+#define DEBUG 1
+
 #include <string.h>
 #include "../timer.h"
 #include "../../bits.h"

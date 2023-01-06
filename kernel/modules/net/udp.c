@@ -1,5 +1,7 @@
 #include "udp.h"
 
+#define DEBUG 1
+
 #include <stdlib.h>
 #include <string.h>
 #include "../../debug.h"

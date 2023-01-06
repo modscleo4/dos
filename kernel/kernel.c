@@ -1,5 +1,7 @@
 #include "kernel.h"
 
+#define DEBUG 1
+
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -43,13 +45,13 @@ static void iodriver_init(unsigned int boot_drive) {
         //dbgwait();
 
         _tmpio = &ata_io;
-        boot_drive = DISABLE_BIT_INT(boot_drive, 0x80);
+        DISABLE_BIT_INT(boot_drive, 0x80);
     } else {
         dbgprint("Booting from floppy disk\n");
         //dbgwait();
 
         if (floppy_io.device == -2) {
-            if (!floppy_init(NULL)) {
+            if (!floppy_init(NULL, 0, 0, 0)) {
                 dbgwait();
             }
         }
@@ -106,7 +108,8 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     unsigned int boot_partition = -1;
     screen_init(SCREEN_MODE_FRAMEBUFFER);
 
-    framebuffer_init(&fb);
+    framebuffer_setup(&fb);
+    framebuffer_init();
     screen_clear();
     dbgprint("Kernel started\n");
     dbgprint("_esp: 0x%x\n", addr);
@@ -150,7 +153,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
                 }
 
                 dbgprint("Framebuffer: #%d %dx%dx%d %d @ 0x%x\n", fb.type, fb.width, fb.height, fb.bpp, fb.pitch, fb.addr);
-                framebuffer_init(&fb);
+                framebuffer_setup(&fb);
 
                 dbgprint("Switching to Multiboot2 Framebuffer mode\n");
                 //screen_init(SCREEN_MODE_FRAMEBUFFER);
@@ -219,11 +222,6 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     dns_init();
     pci_init();
     dbgwait();
-    if (eth[0]->ipv4.dns[0] || eth[0]->ipv4.dns[1] || eth[0]->ipv4.dns[2] || eth[0]->ipv4.dns[3]) {
-        uint8_t ip[4];
-        dns_query_ipv4(eth[0], eth[0]->ipv4.dns, "google.com", ip, 100);
-        dbgwait();
-    }
     dbgprint("Reading Master Boot Record...\n");
     iodriver_init(boot_drive);
     fs_init(boot_partition);
@@ -231,6 +229,11 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     dbgprint("Reading Root Directory...\n");
     rootfs.list_files(&rootfs_io, &rootfs);
     dbgwait();
+
+    if (eth[0] && (eth[0]->ipv4.dns[0] || eth[0]->ipv4.dns[1] || eth[0]->ipv4.dns[2] || eth[0]->ipv4.dns[3])) {
+        uint8_t ip[4];
+        dns_query_ipv4(eth[0], eth[0]->ipv4.dns, "google.com", ip, 100);
+    }
 
     dbgprint("Starting INIT\n");
     if (system("INIT.ELF")) {

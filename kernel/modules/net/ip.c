@@ -1,5 +1,7 @@
 #include "ip.h"
 
+#define DEBUG 1
+
 #include <stdlib.h>
 #include <string.h>
 #include "arp.h"
@@ -45,8 +47,8 @@ void ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t des
         return;
     } else {
         // Send to gateway
-        if (!arp_get_mac(driver, destination_ip, destination_mac, 100)) {
-            dbgprint("Failed to get MAC address for destination IP address %d.%d.%d.%d\n", destination_ip[0], destination_ip[1], destination_ip[2], destination_ip[3]);
+        if (!arp_get_mac(driver, driver->ipv4.gateway, destination_mac, 100)) {
+            dbgprint("Failed to get MAC address for gateway IP address %d.%d.%d.%d\n", driver->ipv4.gateway[0], driver->ipv4.gateway[1], driver->ipv4.gateway[2], driver->ipv4.gateway[3]);
             return;
         }
     }

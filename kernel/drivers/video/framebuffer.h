@@ -25,7 +25,9 @@ enum FramebufferType {
     FRAMEBUFFER_TYPE_VGA = 3,
 };
 
-void framebuffer_init(framebuffer_config *config);
+void framebuffer_setup(framebuffer_config *config);
+
+void framebuffer_init(void);
 
 char framebuffer_getcolor(void);
 

@@ -6,38 +6,38 @@
 #include "cpuid.h"
 
 enum CR0 {
-    CR0_MP = 1 << 1,
-    CR0_EM = 1 << 2,
-    CR0_TS = 1 << 3,
-    CR0_ET = 1 << 4,
-    CR0_NE = 1 << 5,
-    CR0_WP = 1 << 16,
-    CR0_AM = 1 << 18,
-    CR0_NW = 1 << 29,
-    CR0_CD = 1 << 30,
-    CR0_PG = 1 << 31
+    CR0_MP = 1UL << 1UL,
+    CR0_EM = 1UL << 2UL,
+    CR0_TS = 1UL << 3UL,
+    CR0_ET = 1UL << 4UL,
+    CR0_NE = 1UL << 5UL,
+    CR0_WP = 1UL << 16UL,
+    CR0_AM = 1UL << 18UL,
+    CR0_NW = 1UL << 29UL,
+    CR0_CD = 1UL << 30UL,
+    CR0_PG = 1UL << 31UL
 };
 
 enum CR4 {
-    CR4_VME = 1 << 0,
-    CR4_PVI = 1 << 1,
-    CR4_TSD = 1 << 2,
-    CR4_DE = 1 << 3,
-    CR4_PSE = 1 << 4,
-    CR4_PAE = 1 << 5,
-    CR4_MCE = 1 << 6,
-    CR4_PGE = 1 << 7,
-    CR4_PCE = 1 << 8,
-    CR4_OSFXSR = 1 << 9,
-    CR4_OSXMMEXCPT = 1 << 10,
-    CR4_UMIP = 1 << 11,
-    CR4_VMXE = 1 << 13,
-    CR4_SMXE = 1 << 14,
-    CR4_FSGSBASE = 1 << 16,
-    CR4_PCIDE = 1 << 17,
-    CR4_OSXSAVE = 1 << 18,
-    CR4_SMEP = 1 << 20,
-    CR4_SMAP = 1 << 21
+    CR4_VME = 1UL << 0UL,
+    CR4_PVI = 1UL << 1UL,
+    CR4_TSD = 1UL << 2UL,
+    CR4_DE = 1UL << 3UL,
+    CR4_PSE = 1UL << 4UL,
+    CR4_PAE = 1UL << 5UL,
+    CR4_MCE = 1UL << 6UL,
+    CR4_PGE = 1UL << 7UL,
+    CR4_PCE = 1UL << 8UL,
+    CR4_OSFXSR = 1UL << 9UL,
+    CR4_OSXMMEXCPT = 1UL << 10UL,
+    CR4_UMIP = 1UL << 11UL,
+    CR4_VMXE = 1UL << 13UL,
+    CR4_SMXE = 1UL << 14UL,
+    CR4_FSGSBASE = 1UL << 16UL,
+    CR4_PCIDE = 1UL << 17UL,
+    CR4_OSXSAVE = 1UL << 18UL,
+    CR4_SMEP = 1UL << 20UL,
+    CR4_SMAP = 1UL << 21UL
 };
 
 extern bool fpu_available(void);

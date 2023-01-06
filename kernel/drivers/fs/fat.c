@@ -1,10 +1,12 @@
 #include "fat.h"
 
-#include "../../cpu/panic.h"
-#include "../../debug.h"
+#define DEBUG 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../../debug.h"
+#include "../../cpu/panic.h"
 
 static unsigned short int fat12_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
     unsigned short int table_value = *(unsigned short int *)&buffer[ent_offset];

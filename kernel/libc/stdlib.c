@@ -1,14 +1,16 @@
 #include <stdlib.h>
 
+#define DEBUG 1
+
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
 #include "../debug.h"
 #include "../kernel.h"
 #include "../ring3.h"
 #include "../rootfs.h"
 #include "../cpu/gdt.h"
 #include "../modules/elf.h"
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
 
 float atof(const char *str) {
     return 0.0F;

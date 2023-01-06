@@ -290,11 +290,11 @@ int vsprintf(char *str, const char *format, va_list args) {
 
                 case 'b':
                     if (modifier == 1) {
-                        ltoa(va_arg(args, long int), buf, 2);
+                        lutoa(va_arg(args, unsigned long int), buf, 2);
                     } else if (modifier == 0) {
-                        itoa(va_arg(args, int), buf, 2);
+                        utoa(va_arg(args, unsigned int), buf, 2);
                     } else if (modifier == -1) {
-                        htoa((short int)va_arg(args, int), buf, 2);
+                        hutoa((unsigned short int)va_arg(args, unsigned int), buf, 2);
                     }
 
                     buf_len = strlen(buf);
@@ -314,11 +314,11 @@ int vsprintf(char *str, const char *format, va_list args) {
                     padding_char = '0';
                 case 'x':
                     if (modifier == 1) {
-                        ltoa(va_arg(args, long int), buf, 16);
+                        lutoa(va_arg(args, unsigned long int), buf, 16);
                     } else if (modifier == 0) {
-                        itoa(va_arg(args, int), buf, 16);
+                        utoa(va_arg(args, unsigned int), buf, 16);
                     } else if (modifier == -1) {
-                        htoa((short int)va_arg(args, int), buf, 16);
+                        hutoa((unsigned short int)va_arg(args, unsigned int), buf, 16);
                     }
 
                     buf_len = strlen(buf);

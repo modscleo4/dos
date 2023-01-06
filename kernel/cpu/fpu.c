@@ -1,5 +1,7 @@
 #include "fpu.h"
 
+#define DEBUG 1
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>

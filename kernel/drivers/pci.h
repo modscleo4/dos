@@ -135,6 +135,8 @@ typedef struct pci_cardbus_bridge {
 
 void pci_init(void);
 
+uint64_t pci_get_bar_address(uint32_t bar[], int i);
+
 uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset);
 
 void pci_write_word(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset, uint16_t value);
@@ -143,9 +145,15 @@ void pci_read_header(uint8_t bus, uint8_t slot, uint8_t func, pci_header *header
 
 void pci_read_device(uint8_t bus, uint8_t slot, uint8_t func, pci_header *header, pci_device *device);
 
+void pci_write_device(uint8_t bus, uint8_t slot, uint8_t func, pci_device *device);
+
 void pci_read_pci_bridge(uint8_t bus, uint8_t slot, uint8_t func, pci_header *header, pci_pci_bridge *bridge);
 
+void pci_write_pci_bridge(uint8_t bus, uint8_t slot, uint8_t func, pci_pci_bridge *bridge);
+
 void pci_read_cardbus_bridge(uint8_t bus, uint8_t slot, uint8_t func, pci_header *header, pci_cardbus_bridge *bridge);
+
+void pci_write_cardbus_bridge(uint8_t bus, uint8_t slot, uint8_t func, pci_cardbus_bridge *bridge);
 
 void pci_check_device(uint8_t bus, uint8_t device);
 

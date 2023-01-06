@@ -1,5 +1,7 @@
 #include "isr.h"
 
+#define DEBUG 1
+
 #include <stdio.h>
 #include "idt.h"
 #include "panic.h"

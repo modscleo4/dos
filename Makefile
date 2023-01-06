@@ -7,6 +7,7 @@ FLOPPY_DISK_IMG=floppy_disk.img
 ATA_DISK_IMG=ata_disk.img
 ATA_DISK_EXT2_IMG=ata_disk_ext2.img
 VBOX_DISK_IMG=ata_disk.vdi
+VMWARE_DISK_IMG=ata_disk.vmdk
 GRUB2_BOOT_IMG=/usr/lib/grub/i386-pc/boot.img
 GRUB2_CORE_IMG=grub2.img
 FLOPPY_GRUB2_CORE_SECTOR=floppy_grub2_sector
@@ -96,6 +97,14 @@ ata_ext2: bootloader_ata_ext2 rootfs grub2_ata
 vboxvdi: ata_ext2
 	rm -f $(VBOX_DISK_IMG)
 	"/mnt/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" convertfromraw --format VDI $(ATA_DISK_IMG) $(VBOX_DISK_IMG) --uuid 15a33566-0d13-4091-81ca-4ba330333b2b
+
+vmwarevmdk: ata_ext2
+	rm -f $(VBOX_DISK_IMG)
+	"/mnt/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" convertfromraw --format VMDK $(ATA_DISK_IMG) $(VMWARE_DISK_IMG)
+
+qemu: ata_ext2
+	rm -f $(VBOX_DISK_IMG)
+	"/mnt/c/Program Files/QEMU/qemu-system-x86_64.exe" -hda $(ATA_DISK_IMG) -m 32M -serial file:serial.txt -boot c
 
 startfloppy: floppy
 	"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f ./bochsrc_floppy.bxrc -rc bochsdbg.rc -q

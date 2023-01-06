@@ -150,7 +150,7 @@ enum ATABusMasterRegisters {
 
 iodriver ata_io;
 
-iodriver *ata_init(pci_device *device);
+iodriver *ata_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func);
 
 void ata_400ns_delay(unsigned char channel);
 

@@ -114,9 +114,11 @@ static int framebuffer_text_write(char c) {
     return 0;
 }
 
-void framebuffer_init(framebuffer_config *config) {
+void framebuffer_setup(framebuffer_config *config) {
     fb = config;
+}
 
+void framebuffer_init(void) {
     switch (fb->type) {
         case FRAMEBUFFER_TYPE_TEXT: {
             framebuffer_text_disable_cursor_caret();

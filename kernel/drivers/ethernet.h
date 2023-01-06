@@ -1,6 +1,7 @@
 #ifndef ETHERNET_H
 #define ETHERNET_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include "pci.h"
@@ -25,10 +26,13 @@ typedef struct ipv4_config {
 } ipv4_config;
 
 typedef struct ethernet_driver {
-    unsigned int mmiobase;
-    unsigned int iobase;
+    uint64_t mmiobase;
+    uint32_t iobase;
     uint8_t mac[6];
     ipv4_config ipv4;
+    bool duplex;
+    int speed;
+    bool up;
     uint8_t *rx_buffer;
     unsigned int rx_buffer_size;
     unsigned int rx_tail;
@@ -100,7 +104,7 @@ enum EtherType {
 
 ethernet_driver *eth[2];
 
-void ethernet_init(pci_device *device, pci_header *header);
+void ethernet_init(pci_device *device, pci_header *header, uint8_t bus, uint8_t slot, uint8_t func);
 
 void ethernet_send_packet(ethernet_driver *driver, uint8_t destination_mac[6], uint16_t ethertype, void *data, size_t data_size);
 

@@ -1,5 +1,7 @@
 #include "tcp.h"
 
+#define DEBUG 1
+
 #include <stdlib.h>
 #include "../../debug.h"
 #include "../../bits.h"

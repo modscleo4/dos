@@ -1,5 +1,7 @@
 #include "cpuid.h"
 
+#define DEBUG 1
+
 #include <string.h>
 #include "../debug.h"
 

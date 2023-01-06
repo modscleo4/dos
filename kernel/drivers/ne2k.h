@@ -36,7 +36,7 @@ enum NE2KRegisters {
     NE2K_REG_DATA = 0x10,
 };
 
-ethernet_driver *ne2k_init(pci_device *device);
+ethernet_driver *ne2k_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func);
 
 unsigned int ne2k_send_packet(ethernet_driver *driver, ethernet_packet *packet, size_t packet_length);
 

@@ -1,5 +1,7 @@
 #include "ide.h"
 
+#define DEBUG 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "../bits.h"
@@ -9,7 +11,7 @@
 ide_channel_registers ide_channels[2];
 ide_device ide_devices[4];
 
-unsigned char ide_buf[2048] = {0};
+uint8_t ide_buf[2048] = {0};
 volatile unsigned static char ide_irq_invoked = 0;
 bool support_dma;
 
@@ -20,15 +22,15 @@ iodriver *ide_init(pci_device *device) {
     int count = 0;
 
     if (device->base_address[4]) {
-        support_dma = false;
+        //support_dma = true;
     }
 
-    ide_channels[ATA_PRIMARY].base = (device->base_address[0] & 0xFFFFFFFC) + 0x1F0 * (!device->base_address[0]);
-    ide_channels[ATA_PRIMARY].ctrl = (device->base_address[1] & 0xFFFFFFFC) + 0x3F6 * (!device->base_address[1]);
-    ide_channels[ATA_SECONDARY].base = (device->base_address[2] & 0xFFFFFFFC) + 0x170 * (!device->base_address[2]);
-    ide_channels[ATA_SECONDARY].ctrl = (device->base_address[3] & 0xFFFFFFFC) + 0x376 * (!device->base_address[3]);
-    ide_channels[ATA_PRIMARY].bmide = (device->base_address[4] & 0xFFFFFFFC) + 0;
-    ide_channels[ATA_SECONDARY].bmide = (device->base_address[4] & 0xFFFFFFFC) + 8;
+    ide_channels[ATA_PRIMARY].base = pci_get_bar_address(device->base_address, 0) + 0x1F0 * (!device->base_address[0]);
+    ide_channels[ATA_PRIMARY].ctrl = pci_get_bar_address(device->base_address, 1) + 0x3F6 * (!device->base_address[1]);
+    ide_channels[ATA_SECONDARY].base = pci_get_bar_address(device->base_address, 2) + 0x170 * (!device->base_address[2]);
+    ide_channels[ATA_SECONDARY].ctrl = pci_get_bar_address(device->base_address, 3) + 0x376 * (!device->base_address[3]);
+    ide_channels[ATA_PRIMARY].bmide = pci_get_bar_address(device->base_address, 4) + 0;
+    ide_channels[ATA_SECONDARY].bmide = pci_get_bar_address(device->base_address, 4) + 8;
 
     // Disable interrupts
     ide_write(ATA_PRIMARY, ATA_REG_CONTROL, !support_dma + 2);
@@ -85,14 +87,14 @@ iodriver *ide_init(pci_device *device) {
             ide_devices[count].type = type;
             ide_devices[count].channel = i;
             ide_devices[count].drive = j;
-            ide_devices[count].signature = *((unsigned short int *) (ide_buf + ATA_ID_DEVICETYPE));
-            ide_devices[count].capabilities = *((unsigned short int *) (ide_buf + ATA_ID_CAPABILITIES));
-            ide_devices[count].command_sets = *((unsigned int *) (ide_buf + ATA_ID_COMMANDSETS));
+            ide_devices[count].signature = *((uint16_t *) (ide_buf + ATA_ID_DEVICETYPE));
+            ide_devices[count].capabilities = *((uint16_t *) (ide_buf + ATA_ID_CAPABILITIES));
+            ide_devices[count].command_sets = *((uint32_t *) (ide_buf + ATA_ID_COMMANDSETS));
 
-            if (ISSET_BIT_INT(ide_devices[count].command_sets, (1 << 26))) {
-                ide_devices[count].size = *((unsigned int *) (ide_buf + ATA_ID_MAX_LBA_EXT));
+            if (ISSET_BIT_INT(ide_devices[count].command_sets, (1UL << 26UL))) {
+                ide_devices[count].size = *((uint32_t *) (ide_buf + ATA_ID_MAX_LBA_EXT));
             } else {
-                ide_devices[count].size = *((unsigned int *) (ide_buf + ATA_ID_MAX_LBA));
+                ide_devices[count].size = *((uint32_t *) (ide_buf + ATA_ID_MAX_LBA));
             }
 
             for (int k = 0; k < 40; k += 2) {
@@ -281,7 +283,6 @@ void ide_motor_on(iodriver *driver) {
     if (support_dma) {
         char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND);
         command_register = ENABLE_BIT(command_register, 0);
-        dbgprint("enabling motor, command_register = %x\n", command_register);
         outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, command_register);
     }
 }

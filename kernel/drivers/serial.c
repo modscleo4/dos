@@ -1,5 +1,7 @@
 #include "serial.h"
 
+#define DEBUG 1
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include "../debug.h"

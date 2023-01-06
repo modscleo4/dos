@@ -1,5 +1,7 @@
 #include "acpi.h"
 
+#define DEBUG 1
+
 #include <stdbool.h>
 #include <string.h>
 #include "../debug.h"

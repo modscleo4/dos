@@ -1,27 +1,29 @@
 #include "ata.h"
 
-#include "../bits.h"
-#include "../cpu/irq.h"
-#include "ide.h"
-#include "../debug.h"
-#include <stddef.h>
+#define DEBUG 1
 
-unsigned static char atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+#include <stddef.h>
+#include "ide.h"
+#include "../bits.h"
+#include "../debug.h"
+#include "../cpu/irq.h"
+
+static uint8_t atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 int irq_primary_c;
 int irq_secondary_c;
 
 static void ata_primary_handler(registers *r, uint32_t int_no) {
-    dbgprint("irq14");
+    //dbgprint("irq14");
     irq_primary_c++;
 }
 
 static void ata_secondary_handler(registers *r, uint32_t int_no) {
-    dbgprint("irq14");
+    //dbgprint("irq14");
     irq_secondary_c++;
 }
 
-iodriver *ata_init(pci_device *device) {
+iodriver *ata_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func) {
     irq_primary_c = 0;
     irq_secondary_c = 0;
 

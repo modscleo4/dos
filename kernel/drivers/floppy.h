@@ -87,7 +87,7 @@ static const char *drive_types[6] = {
 
 iodriver floppy_io;
 
-iodriver *floppy_init(pci_device *device);
+iodriver *floppy_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func);
 
 void floppy_detect_types(void);
 
