@@ -1,17 +1,17 @@
 #include "ethernet.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 #include <stdlib.h>
 #include <string.h>
 #include "e1000.h"
 #include "ne2k.h"
+#include "../bits.h"
+#include "../debug.h"
+#include "../cpu/irq.h"
 #include "../modules/net/arp.h"
 #include "../modules/net/dhcp.h"
 #include "../modules/net/ip.h"
-#include "../../bits.h"
-#include "../../debug.h"
-#include "../../cpu/irq.h"
 
 static void ethernet_handler(registers *r, uint32_t int_no) {
     for (int i = 0; i < 2; i++) {
@@ -85,7 +85,7 @@ void ethernet_init(pci_device *device, pci_header *header, uint8_t bus, uint8_t 
 }
 
 void ethernet_send_packet(ethernet_driver *driver, uint8_t destination_mac[6], uint16_t ethertype, void *data, size_t data_size) {
-    static ethernet_packet eth_packet;
+    ethernet_packet eth_packet;
     memcpy(eth_packet.header.source_mac, driver->mac, 6);
     memcpy(eth_packet.header.destination_mac, destination_mac, 6);
     eth_packet.header.ethertype = switch_endian_16(ethertype);

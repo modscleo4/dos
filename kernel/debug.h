@@ -2,8 +2,19 @@
 #define DEBUG 0
 #endif
 
+#ifndef DEBUG_SERIAL
+#define DEBUG_SERIAL 0
+#endif
+
 #if DEBUG
-#define dbgprint(...) _dbgprint(__VA_ARGS__)
+
+#if DEBUG_SERIAL
+#define _dbgprint _serial_dbgprint
+#else
+#define _dbgprint _screen_dbgprint
+#endif
+
+#define dbgprint(...) _dbgprint(__FILE__, __LINE__, __VA_ARGS__)
 #define dbgwait() _dbgwait()
 #else
 #define dbgprint(...)
@@ -17,7 +28,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void _dbgprint(const char *msg, ...);
+void _screen_dbgprint(const char *filename, int line, const char *msg, ...);
+void _serial_dbgprint(const char *filename, int line, const char *msg, ...);
 
 void _dbgwait(void);
 

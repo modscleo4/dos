@@ -24,7 +24,7 @@ static dns_ip_cache_entry *dns_ip_cache;
 static size_t curr_dns_ip = 0;
 
 static void dns_handle_response(ethernet_driver *driver, dns_header *header, size_t data_size) {
-    dbgprint("dns_handle_response: %d %x\n", header->id, *(uint16_t *)&header->flags);
+    dbgprint("dns_handle_response: %d %x\n", header->id, header->flags.raw);
 
     if (header->flags.rcode != DNS_RCODE_NO_ERROR) {
         dbgprint("Received DNS response with error code %d, ignoring\n", header->flags.rcode);
@@ -117,7 +117,7 @@ static void dns_udp_listener(ethernet_driver *driver, void *data, size_t data_si
     dns_header *header = (dns_header *) data;
 
     header->id = switch_endian_16(header->id);
-    *(uint16_t *)&header->flags = switch_endian_16(*(uint16_t *)&header->flags);
+    header->flags.raw = switch_endian_16(header->flags.raw);
     header->questions = switch_endian_16(header->questions);
     header->answers = switch_endian_16(header->answers);
     header->authority = switch_endian_16(header->authority);
@@ -138,7 +138,7 @@ void dns_init(void) {
     dns_ip_cache = calloc(dns_ip_cache_size, sizeof(dns_ip_cache_entry));
 }
 
-void dns_send_query(ethernet_driver *driver, uint8_t dns_server_ip[4], const char *domain, int type) {
+bool dns_send_query(ethernet_driver *driver, uint8_t dns_server_ip[4], const char *domain, int type) {
     dbgprint("dns_send_query: %d\n", dns_id);
     size_t domain_length = strlen(domain);
     dns_header *packet = malloc(sizeof(dns_header) + 1 + domain_length + 1 + sizeof(dns_query));
@@ -151,6 +151,7 @@ void dns_send_query(ethernet_driver *driver, uint8_t dns_server_ip[4], const cha
     packet->flags.ra = 0;
     packet->flags.z = 0;
     packet->flags.rcode = 0;
+    packet->flags.raw = switch_endian_16(packet->flags.raw);
     packet->questions = switch_endian_16(1);
     packet->answers = switch_endian_16(0);
     packet->authority = switch_endian_16(0);
@@ -169,9 +170,11 @@ void dns_send_query(ethernet_driver *driver, uint8_t dns_server_ip[4], const cha
     query->type = switch_endian_16(type);
     query->class = switch_endian_16(DNS_CLASS_IN);
 
-    udp_send_packet(driver, driver->ipv4.ip, 43085, dns_server_ip, 53, packet, sizeof(dns_header) + 1 + domain_length + 1 + 4);
+    bool ret = udp_send_packet(driver, driver->ipv4.ip, 43085, dns_server_ip, 53, packet, sizeof(dns_header) + 1 + domain_length + 1 + 4);
 
     free(packet);
+
+    return ret;
 }
 
 bool dns_query_ipv4(ethernet_driver *driver, uint8_t dns_server_ip[4], const char *domain, uint8_t ip[4], int timeout) {
@@ -185,17 +188,23 @@ bool dns_query_ipv4(ethernet_driver *driver, uint8_t dns_server_ip[4], const cha
         }
     }
 
-    dns_send_query(driver, dns_server_ip, domain, DNS_TYPE_A);
-    timer_wait(timeout);
+    if (!dns_send_query(driver, dns_server_ip, domain, DNS_TYPE_A)) {
+        return false;
+    }
 
-    for (int i = 0; i < curr_dns_ip; i++) {
-        if (!strcmp(dns_ip_cache[i].domain, domain)) {
-            memcpy(ip, dns_ip_cache[i].ip, 4);
-            return true;
+    for (int t = 0; t < timeout; t += 10) {
+        timer_wait(10);
+
+        for (int i = 0; i < curr_dns_ip; i++) {
+            if (!strcmp(dns_ip_cache[i].domain, domain)) {
+                memcpy(ip, dns_ip_cache[i].ip, 4);
+                dbgprint("DNS response received in %d ms\n", t + 10);
+                return true;
+            }
         }
     }
 
-    dbgprint("No DNS response received in %dms\n", timeout);
+    dbgprint("No DNS response received in %d ms\n", timeout);
 
     return false;
 }

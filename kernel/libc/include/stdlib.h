@@ -5,8 +5,11 @@ typedef unsigned int size_t;
 
 typedef int wchar_t;
 
-#define EXIT_FAILURE 1
-#define EXIT_SUCCESS 0
+enum ExitCodes {
+    EXIT_SUCCESS = 0,
+    EXIT_FAILURE = 1,
+};
+
 #define MB_CUR_MAX 8
 #ifndef NULL
 #define NULL (void *)0
@@ -22,6 +25,8 @@ typedef struct ldiv_t {
     long int quot;
     long int rem;
 } ldiv_t;
+
+#define _MIN_MALLOC_SIZE 16
 
 float atof(const char *str);
 
@@ -51,11 +56,17 @@ long int strtol(const char *str, char **endptr, int base);
 
 unsigned long int strtoul(const char *str, char **endptr, int base);
 
+void kernel_malloc_init(void);
+
 void *calloc(size_t num, size_t size);
+
+void *calloc_align(size_t num, size_t size, size_t align);
 
 void free(void *ptr);
 
 void *malloc(size_t size);
+
+void *malloc_align(size_t size, size_t align);
 
 void *realloc(void *ptr, size_t size);
 

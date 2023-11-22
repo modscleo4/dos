@@ -83,6 +83,6 @@ typedef struct acpi_fadt {
     uint8_t reserved3[3];
 } __attribute__((packed)) acpi_fadt;
 
-void acpi_init(void *rdsp_addr);
+void acpi_init(acpi_rsdp *rsdp);
 
 #endif // KERNEL_ACPI_H

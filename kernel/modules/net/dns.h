@@ -5,20 +5,21 @@
 #include <stdint.h>
 #include "../../drivers/ethernet.h"
 
-typedef struct dns_header_flags {
-    uint8_t rcode : 4;
-    uint8_t z : 3;
-    bool ra: 1;
-    bool rd: 1;
-    bool tc: 1;
-    bool aa: 1;
-    uint8_t opcode: 4;
-    bool qr: 1;
-} __attribute__((packed)) dns_header_flags;
-
 typedef struct dns_header {
     uint16_t id;
-    dns_header_flags flags;
+    union {
+        struct {
+            uint8_t rcode : 4;
+            uint8_t z : 3;
+            bool ra : 1;
+            bool rd : 1;
+            bool tc : 1;
+            bool aa : 1;
+            uint8_t opcode : 4;
+            bool qr : 1;
+        } __attribute__((packed));
+        uint16_t raw;
+    } flags;
     uint16_t questions;
     uint16_t answers;
     uint16_t authority;
@@ -82,7 +83,7 @@ enum DNSClass {
 
 void dns_init(void);
 
-void dns_send_query(ethernet_driver *driver, uint8_t dns_server_ip[4], const char *domain, int type);
+bool dns_send_query(ethernet_driver *driver, uint8_t dns_server_ip[4], const char *domain, int type);
 
 bool dns_query_ipv4(ethernet_driver *driver, uint8_t dns_server_ip[4], const char *domain, uint8_t ip[4], int timeout);
 

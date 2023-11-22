@@ -33,7 +33,7 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
 }
 
 int _getchar(void) {
-    in_buf_pos = syscall(3, 0, in_buf, 1);
+    in_buf_pos = syscall(3, STDIN_FILENO, in_buf, 1);
     if (in_buf_pos != 1) {
         return EOF;
     }
@@ -55,7 +55,7 @@ static int _flush(void) {
         return 0;
     }
 
-    int ret = syscall(4, 1, out_buf, out_buf_pos);
+    int ret = syscall(4, STDOUT_FILENO, out_buf, out_buf_pos);
     out_buf_pos = 0;
     return ret;
 }
@@ -80,6 +80,8 @@ static int _puts(const char *str) {
             return EOF;
         }
     }
+
+    return 0;
 }
 
 int puts(const char *str) {

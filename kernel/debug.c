@@ -1,18 +1,32 @@
 #include "debug.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "kernel.h"
 #include "rootfs.h"
+#include "cpu/mmu.h"
 #include "drivers/keyboard.h"
 #include "drivers/screen.h"
+#include "drivers/serial.h"
 #include "modules/elf.h"
 
-void _dbgprint(const char *msg, ...) {
+void _screen_dbgprint(const char *filename, int line, const char *msg, ...) {
     va_list args;
     va_start(args, msg);
 
+    printf("[%s@%d] ", filename, line);
     vprintf(msg, args);
+
+    va_end(args);
+}
+
+void _serial_dbgprint(const char *filename, int line, const char *msg, ...) {
+    va_list args;
+    va_start(args, msg);
+
+    serial_write_str(SERIAL_COM1, "[%s@%d] ", filename, line);
+    serial_write_str_varargs(SERIAL_COM1, msg, args);
 
     va_end(args);
 }
@@ -80,19 +94,23 @@ typedef struct stackframe {
 
 void callstack(uint32_t ebp) {
     static void *kernel_file_inode = (void *) 1;
+    static void *kernel_file_addr = NULL;
+    static size_t kernel_file_size = 0;
     if (kernel_file_inode == (void *) 1) {
         kernel_file_inode = rootfs.search_file(&rootfs_io, &rootfs, "KERNEL.ELF");
 
-        if (!rootfs.load_file_at(&rootfs_io, &rootfs, kernel_file_inode, (void *)0x1000000)) {
+        if (!(kernel_file_addr = rootfs.load_file(&rootfs_io, &rootfs, kernel_file_inode))) {
             return;
         }
+
+        kernel_file_size = rootfs.get_file_size(&rootfs, kernel_file_inode);
     }
 
-    if (!kernel_file_inode) {
+    if (!kernel_file_inode || !kernel_file_addr || !kernel_file_size) {
         return;
     }
 
-    elf32_header *kernel_header = (elf32_header *) 0x1000000;
+    elf32_header *kernel_header = (elf32_header *) kernel_file_addr;
     elf32_section_header *section_debuginfo = NULL;
     elf32_section_header *section_strtab = NULL;
     elf32_section_header *section_symtab = NULL;
@@ -120,7 +138,7 @@ void callstack(uint32_t ebp) {
 
         for (int i = 1; i <= kernel_header->section_header_count; i++) {
             //dbgprint("  section %d:\n", i);
-            unsigned char *section_name = (unsigned char *) ((void *)kernel_header) + section_name_header->offset + section_header->name;
+            char *section_name = (char *) ((void *)kernel_header) + section_name_header->offset + section_header->name;
 
             if (strcmp(section_name, ".debug_info") == 0) {
                 section_debuginfo = section_header;
@@ -145,6 +163,10 @@ void callstack(uint32_t ebp) {
         }
     }
 
+    if (!section_debuginfo || !section_strtab || !section_symtab) {
+        return;
+    }
+
     stackframe *stk;
     if (!ebp) {
         asm("movl %%ebp, %0" : "=r"(stk));
@@ -154,8 +176,9 @@ void callstack(uint32_t ebp) {
 
     printf("Call Stack:\n");
     while (stk) {
-        printf("[%p]", stk->eip);
-        if (stk->eip >= kernel_header->entry && stk->eip <= kernel_header->entry + rootfs.get_file_size(&rootfs, kernel_file_inode) && section_symtab) {
+        uint32_t eip = stk->eip;
+        printf("[%p]", (void *)eip);
+        if (eip >= (uint32_t)kernel_start_addr && eip <= (uint32_t)kernel_start_addr + kernel_file_size && section_symtab) {
             uint32_t func_addr = 0;
             elf32_symbol_table_entry *func = NULL;
 
@@ -166,7 +189,7 @@ void callstack(uint32_t ebp) {
                 if (symbol_table->name) {
                     uint32_t symbol_address = symbol_table->value;
                     //if (ELF32_ST_TYPE(symbol_table->info) == ELF_SYMBOLTABLE_TYPE_FUNC) {
-                        if (symbol_table->value > func_addr && symbol_table->value < stk->eip) {
+                        if (symbol_table->value > func_addr && symbol_table->value < eip) {
                             func_addr = symbol_table->value;
                             func = symbol_table;
                         }
@@ -187,7 +210,7 @@ void callstack(uint32_t ebp) {
             }
 
             if (func) {
-                printf(" %s (offset %x)", (unsigned char *)((void *)kernel_header) + section_strtab->offset + func->name, stk->eip - func->value);
+                printf(" %s (@ %x)", (unsigned char *)((void *)kernel_header) + section_strtab->offset + func->name, eip - func->value);
             }
         }
 
@@ -195,4 +218,6 @@ void callstack(uint32_t ebp) {
 
         stk = stk->ebp;
     }
+
+    //free(kernel_file_addr);
 }

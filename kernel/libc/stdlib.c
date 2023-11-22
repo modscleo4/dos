@@ -1,7 +1,9 @@
 #include <stdlib.h>
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,14 +12,20 @@
 #include "../ring3.h"
 #include "../rootfs.h"
 #include "../cpu/gdt.h"
+#include "../cpu/panic.h"
+#include "../cpu/mmu.h"
+#include "../modules/bitmap.h"
 #include "../modules/elf.h"
+#include "../modules/heap.h"
+
+static const char numbase[] = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz";
 
 float atof(const char *str) {
     return 0.0F;
 }
 
 int atoi(const char *str) {
-    return 0;
+    return (int)atol(str);
 }
 
 char *htoa(short int value, char *str, int base) {
@@ -51,7 +59,7 @@ char *ltoa(long int value, char *str, int base) {
     low = ptr;
 
     do {
-        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + value % base];
+        *ptr++ = numbase[35 + value % base];
         value /= base;
     } while (value);
 
@@ -89,7 +97,7 @@ char *lutoa(unsigned long int value, char *str, int base) {
     low = ptr;
 
     do {
-        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + value % base];
+        *ptr++ = numbase[35 + value % base];
         value /= base;
     } while (value);
 
@@ -156,7 +164,7 @@ char *lftoa(double value, char *str, int precision) {
 }
 
 long int atol(const char *str) {
-    return 0;
+    return strtol(str, NULL, 10);
 }
 
 double strtod(const char *str, char **endptr) {
@@ -164,14 +172,101 @@ double strtod(const char *str, char **endptr) {
 }
 
 long int strtol(const char *str, char **endptr, int base) {
-    return 0;
+    if (base < 0 || base == 1 || base > 36) {
+        if (endptr) {
+            *endptr = (char *)str;
+        }
+
+        return 0;
+    }
+
+    while (isspace(*str)) {
+        str++;
+    }
+
+    int sign = 1;
+    if (*str == '-') {
+        sign = -1;
+        str++;
+    } else if (*str == '+') {
+        str++;
+    }
+
+    if (base == 0) {
+        if (*str == '0') {
+            if (str[1] == 'x' || str[1] == 'X') {
+                base = 16;
+                str += 2;
+            } else {
+                base = 8;
+                str++;
+            }
+        } else {
+            base = 10;
+        }
+    } else if (base == 16) {
+        if (*str == '0' && (str[1] == 'x' || str[1] == 'X')) {
+            str += 2;
+        }
+    }
+
+    if (!*str) {
+        return 0;
+    }
+
+    long int value = 0;
+    while (*str) {
+        int digit = 0;
+        if (*str >= '0' && *str <= '9') {
+            digit = *str - '0';
+        } else if (*str >= 'a' && *str <= 'z') {
+            digit = *str - 'a' + 10;
+        } else if (*str >= 'A' && *str <= 'Z') {
+            digit = *str - 'A' + 10;
+        } else {
+            return 0;
+        }
+
+        if (digit >= base) {
+            return 0;
+        }
+
+        value = value * base + digit;
+        str++;
+    }
+
+    if (endptr) {
+        *endptr = (char *)str;
+    }
+
+    return value * sign;
 }
 
 unsigned long int strtoul(const char *str, char **endptr, int base) {
     return 0;
 }
 
-uint32_t __curr_malloc_addr = 0x1000000;
+static heap kernel_heap;
+
+void kernel_malloc_init(void) {
+    void *addr = bitmap_alloc_page();
+
+    heap_init(&kernel_heap);
+    heap_add_block(&kernel_heap, addr, BITMAP_PAGE_SIZE, 16);
+
+    dbgprint("kernel_heap: &%x\n", &kernel_heap);
+    dbgprint("kernel_heap.first_block: &%x\n", kernel_heap.first_block);
+    dbgprint("kernel_heap.first_block->size: %d\n", kernel_heap.first_block->size);
+    dbgprint("kernel_heap.first_block->next: %d\n", kernel_heap.first_block->next);
+    dbgprint("kernel_heap.first_block->used: %d\n", kernel_heap.first_block->used);
+}
+
+static void align_malloc_addr(size_t align) {
+    /*uint32_t mod = __curr_malloc_addr % align;
+    if (mod) {
+        __curr_malloc_addr += align - mod;
+    }*/
+}
 
 void *calloc(size_t num, size_t size) {
     void *addr = malloc(num * size);
@@ -182,8 +277,18 @@ void *calloc(size_t num, size_t size) {
     return addr;
 }
 
+void *calloc_align(size_t num, size_t size, size_t align) {
+    align_malloc_addr(align);
+    return calloc(num, size);
+}
+
 void free(void *ptr) {
-    //
+    if (!ptr) {
+        return;
+    }
+
+    bitmap_free_page(ptr);
+    mmu_unmap_pages(current_pdt, (uint32_t)ptr, 1);
 }
 
 void *malloc(size_t size) {
@@ -191,11 +296,35 @@ void *malloc(size_t size) {
         return NULL;
     }
 
-    void *addr = (void *)__curr_malloc_addr;
+    if (size < _MIN_MALLOC_SIZE) {
+        size = _MIN_MALLOC_SIZE;
+    }
 
-    __curr_malloc_addr += size;
+    if (size > BITMAP_PAGE_SIZE) {
+        dbgprint("malloc: size(%d) > BITMAP_PAGE_SIZE(%d)\n", size, BITMAP_PAGE_SIZE);
+    }
+
+    //dbgprint("malloc(%d) -> &%x\n", size, heap_alloc(&kernel_heap, size));
+
+    void *addr = NULL;
+    for (size_t l = 0; l < size; l += BITMAP_PAGE_SIZE) {
+        dbgprint("malloc:l = %d, size = %d\n", l, size);
+        void *_addr = bitmap_alloc_page();
+        if (!_addr) {
+            return NULL;
+        }
+
+        if (!addr) {
+            addr = _addr;
+        }
+    }
 
     return addr;
+}
+
+void *malloc_align(size_t size, size_t align) {
+    align_malloc_addr(align);
+    return malloc(size);
 }
 
 void *realloc(void *ptr, size_t size) {
@@ -225,6 +354,8 @@ int system(const char *command) {
         return -1;
     }
 
+    size_t elf_file_size = rootfs.get_file_size(&rootfs, f);
+
     void *addr;
     if (!(addr = rootfs.load_file(&rootfs_io, &rootfs, f))) {
         dbgprint("Could not allocate or load file.\n");
@@ -233,16 +364,16 @@ int system(const char *command) {
 
     dbgprint("%s loaded at address 0x%x\n", command, addr);
 
-    elf_header_ident *_header = (elf_header_ident *) addr;
-    if (memcmp(_header->magic, elf_magic, 4)) {
+    elf_header_ident *header = (elf_header_ident *) addr;
+    if (memcmp(header->magic, elf_magic, 4)) {
         dbgprint("Not an ELF file\n");
         return -1;
     }
 
-    if (_header->version == ELF_ARCH_X86) {
+    if (header->version == ELF_ARCH_X86) {
         elf32_header *exec_header = (elf32_header *) addr;
 
-        dbgprint("x86 ELF file\n");
+        dbgprint("x86 ELF file (%d bytes)\n", elf_file_size);
         dbgprint("Entry point: %x\n", exec_header->entry);
 
         elf32_section_header *section_text = elf32_find_section(exec_header, ".text");
@@ -251,8 +382,14 @@ int system(const char *command) {
             return -1;
         }
 
-        switch_ring3((uint32_t)(addr + section_text->offset + exec_header->entry), (uint32_t)(addr + 0x10000));
-    } else if (_header->version == ELF_ARCH_X86_64) {
+        page_directory_table *process_page_directory = mmu_new_page_directory();
+
+        mmu_map_pages(current_pdt, (uintptr_t)addr, (uintptr_t)addr, (elf_file_size + 0x4000) / BITMAP_PAGE_SIZE + 1, true, true, true);
+
+        dbgprint("Switching to ring 3...\n");
+
+        switch_ring3(process_page_directory, (addr + section_text->offset + exec_header->entry), (uintptr_t)(addr + elf_file_size + 0x4000));
+    } else if (header->version == ELF_ARCH_X86_64) {
         elf64_header *exec_header = (elf64_header *) addr;
 
         dbgprint("x86_64 ELF file\n");
@@ -264,21 +401,100 @@ int system(const char *command) {
             return -1;
         }
 
-        switch_ring3((uint32_t)(addr + section_text->offset + exec_header->entry), (uint32_t)(addr + 0x10000));
+        dbgprint("Switching to ring 3...\n");
+
+        switch_ring3(NULL, (addr + section_text->offset + exec_header->entry), (uint32_t)(addr + 0x10000));
     } else {
-        dbgprint("Unsupported architecture: %x\n", _header->version);
+        dbgprint("Unsupported architecture: %x\n", header->version);
         return -1;
     }
 
     return 0;
 }
 
+void swap(void *a, void *b, size_t size) {
+    char tmp[size];
+    memcpy(tmp, a, size);
+
+    memcpy(a, b, size);
+    memcpy(b, tmp, size);
+}
+
+/**
+ * Binary Search implementation
+ *
+ * Assume that the array is sorted in ascending order.
+ * 1. Compare x with the middle element.
+ * 2. If x matches with middle element, we return the mid index.
+ * 3. Else if x is greater than the mid element, then x can only lie in right half subarray after the mid element.
+ *  So we recur for right half.
+ * 4. Else (x is smaller) recur for the left half.
+ * Go to step 1 while start <= end.
+ * 5. We reach here if element was not present in array.
+ */
 void *bsearch(const void *key, const void *base, size_t num, size_t size, int (*compar)(const void *, const void *)) {
+    size_t start = 0;
+    size_t end = num;
+
+    while (start < end) {
+        size_t mid = (start + end) / 2;
+        int cmp = compar(key, base + mid * size);
+        if (cmp == 0) {
+            return (void *)base + mid * size;
+        } else if (cmp < 0) {
+            end = mid;
+        } else {
+            start = mid + 1;
+        }
+    }
+
     return NULL;
 }
 
+/**
+ * Quick Sort implementation in-place
+ *
+ * 1. Choose a pivot element from the list. We can choose the first element as the pivot element for simplicity.
+ * 2. Reorder the list so that all elements with values less than the pivot element come before the pivot element,
+ *   while all elements with values greater than the pivot element come after it (equal values can go either way).
+ *  After this partitioning, the pivot element is in its final position. This is called the partition operation.
+ * 3. Recursively apply the above steps to the sub-list of elements with smaller values and separately the sub-list
+ *  of elements with greater values.
+ *
+ * Example:
+ * | 5 | 3 | 7 | 6 | 2 | 9 | 1 | 4 | 8 |
+ *   ^
+ *  pivot
+ *
+ * After partitioning:
+ * | 3 | 2 | 1 | 4 | 5 | 7 | 6 | 9 | 8 |
+ */
+void qsort_inplace(void *base, size_t num, size_t size, int (*compar)(const void *, const void *), size_t start, size_t end) {
+    if (end - start <= 1) {
+        return;
+    }
+
+    // Partition
+    // Move all elements smaller than the pivot to the left, and all greater than the pivot to the right
+    size_t pivot_index = end - 1;
+
+    size_t i = start - 1;
+    for (size_t j = start; j < end - 1; j++) {
+        int cmp = compar(base + j * size, base + pivot_index * size);
+        if (cmp < 0) { // Smaller
+            i++;
+            swap(base + i * size, base + j * size, size);
+        }
+    }
+    swap(base + (i + 1) * size, base + pivot_index * size, size);
+    pivot_index = i + 1;
+
+    qsort_inplace(base, num, size, compar, start, pivot_index);
+    qsort_inplace(base, num, size, compar, pivot_index + 1, end);
+}
+
 void qsort(void *base, size_t num, size_t size, int (*compar)(const void *, const void *)) {
-    //
+    qsort_inplace(base, num, size, compar, 0, num);
 }
 
 div_t div(int numer, int denom) {
@@ -291,7 +507,8 @@ div_t div(int numer, int denom) {
 ldiv_t ldiv(long int numer, long int denom) {
     return (ldiv_t){
         0,
-        0};
+        0
+    };
 }
 
 int abs(int x) {

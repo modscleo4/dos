@@ -1,5 +1,6 @@
 [bits 32]
 
+global _start
 global kernel_start
 global switch_ring3
 
@@ -33,16 +34,65 @@ framebuffer_tag_end:
     dd 8
 multiboot_header_end:
 
-section .text
+section .text.setup
 
-kernel_start:
+_start:
+    mov esp, proto_stack
+    push ebx
+    push eax
+
+    mov eax, 0x0 ; Counter
+    mov ebx, 0x0 ; Real address
+    .fill_id_table:
+        mov ecx, ebx
+        or ecx, 3
+        mov [table_0 + eax * 4], ecx
+        invlpg [table_0 + eax * 4]
+        add ebx, 4096
+        inc eax
+        cmp eax, 1024
+        jne .fill_id_table
+
+    mov eax, 0x0 ; Counter
+    mov ebx, 0x000000 ; Real address
+    .fill_kernel_table:
+        mov ecx, ebx
+        or ecx, 3
+        mov [table_768 + eax * 4], ecx
+        invlpg [table_768 + eax * 4]
+        add ebx, 4096
+        inc eax
+        cmp eax, 1024
+        jne .fill_kernel_table
+
+enable_paging:
+    mov ebx, table_0
+    or ebx, 3
+    mov [page_directory + 0], ebx
+
+    mov ebx, table_768
+    or ebx, 3
+    mov [page_directory + 768 * 4], ebx
+
+    mov eax, page_directory
+    mov cr3, eax
+    mov eax, cr0
+    or eax, 0x80000000
+    mov cr0, eax
+
+    pop eax
+    pop ebx
+
     jmp stublet
+
+section .text
 
 stublet:
     extern kernel_main
     extern _esp
 
     mov esp, sys_stack
+    mov ebp, esp
     mov [_esp], esp
 
     push 0
@@ -68,9 +118,9 @@ switch_ring3:
     call set_kernel_stack
     add esp, 4
 
-    mov eax, [esp + 4]
+    mov eax, [esp + 8]
     mov [__ring3_addr], eax
-    mov esp, [esp + 8]
+    mov esp, [esp + 12]
 
     push ebx ; Return address when ring3 _start returns
 
@@ -89,11 +139,27 @@ switch_ring3:
 
     mov eax, [__ring3_addr]
     push eax
+
+    ;mov eax, [esp + 4]
+    ;mov cr3, eax
+
     iret
     ret
 
 section .bss
 
-sys_stack_start:
-    resb 16384
+sys_stack_bottom:
+    resb 0x8000
 sys_stack:
+
+section .bss.setup
+
+page_directory:
+    resd 1024
+table_0:
+    resd 1024
+table_768:
+    resd 1024
+proto_stack_bottom:
+    resb 0x100
+proto_stack:

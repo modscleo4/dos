@@ -1,6 +1,7 @@
 #include "timer.h"
 
 #define DEBUG 1
+#define DEBUG_TIMER 0
 
 #include <stdio.h>
 #include "cmos.h"
@@ -47,9 +48,10 @@ void timer_phase(int hz) {
 }
 
 static void timer_irq_handler(registers *r, uint32_t int_no) {
-    timer_ticks += 10;
+    timer_ticks += 100;
 
     if (timer_ticks % 1000 == 0) {
+#if DEBUG_TIMER
         read_rtc();
         char color;
         int x;
@@ -57,12 +59,13 @@ static void timer_irq_handler(registers *r, uint32_t int_no) {
         color = screen_getcolor();
         screen_getxy(&x, &y);
 
-        screen_gotoxy(80-19, 0);
-        screen_setcolor(COLOR_RED << 4 | COLOR_GRAY);
+        screen_gotoxy(-19, 0);
+        screen_setcolor(COLOR_BLUE << 4 | COLOR_GRAY);
         printf("%02d/%02d/%04d %02d:%02d:%02d", d.day, d.month, d.year, t.hour, t.minute, t.second);
 
         screen_gotoxy(x, y);
         screen_setcolor(color);
+#endif
     }
 }
 

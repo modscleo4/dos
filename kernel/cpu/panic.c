@@ -14,7 +14,7 @@
 #include "../drivers/screen.h"
 
 void panic(const char *msg, ...) {
-    static char buf[1024];
+    char buf[1024] = "";
 
     va_list args;
     va_start(args, msg);
@@ -115,7 +115,7 @@ void panic_handler(const char *msg, registers *r) {
             }
         }
 
-        screen_gotoxy(0, 24);
+        screen_gotoxy(0, -1);
         screen_setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
         printf("%-80s", r ? "<R> - Registers | <S> - Call Stack. | <Q> Restart." : "<S> - Call Stack. | <Q> Restart.");
         screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);

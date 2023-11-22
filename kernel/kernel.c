@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "ring3.h"
 #include "bits.h"
 #include "rootfs.h"
@@ -29,14 +30,20 @@
 #include "drivers/screen.h"
 #include "drivers/serial.h"
 #include "drivers/video/framebuffer.h"
+#include "modules/bitmap.h"
 #include "modules/timer.h"
 #include "modules/multiboot2.h"
 #include "modules/process.h"
+#include "modules/spinlock.h"
 #include "modules/kblayout/kb.h"
 #include "modules/net/arp.h"
 #include "modules/net/dns.h"
+#include "modules/net/http.h"
+#include "modules/net/icmp.h"
 #include "modules/net/tcp.h"
 #include "modules/net/udp.h"
+
+uint32_t _esp;
 
 static void iodriver_init(unsigned int boot_drive) {
     iodriver *_tmpio;
@@ -45,7 +52,7 @@ static void iodriver_init(unsigned int boot_drive) {
         //dbgwait();
 
         _tmpio = &ata_io;
-        DISABLE_BIT_INT(boot_drive, 0x80);
+        boot_drive = DISABLE_BIT_INT(boot_drive, 0x80);
     } else {
         dbgprint("Booting from floppy disk\n");
         //dbgwait();
@@ -91,9 +98,12 @@ static void check_multiboot2(unsigned long int magic, unsigned long int addr) {
     }
 }
 
+static int cmp(const void *a, const void *b) {
+    return *(int *)b - *(int *)a;
+}
+
 void kernel_main(unsigned long int magic, unsigned long int addr) {
     framebuffer_config fb = {
-        .id = 2,
         .addr = 0xB8000,
         .pitch = 160,
         .width = 80,
@@ -102,23 +112,21 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
         .type = FRAMEBUFFER_TYPE_TEXT,
     };
     size_t max_ram = 0;
-    const char *boot_cmdline = NULL;
+    char *boot_cmdline = "";
     void *acpi_rsdp_addr = NULL;
     unsigned int boot_drive = -1;
     unsigned int boot_partition = -1;
-    screen_init(SCREEN_MODE_FRAMEBUFFER);
 
-    framebuffer_setup(&fb);
-    framebuffer_init();
-    screen_clear();
-    dbgprint("Kernel started\n");
-    dbgprint("_esp: 0x%x\n", addr);
+    serial_init(SERIAL_COM1, 1);
+    serial_write_str(SERIAL_COM1, "Kernel started\n");
+    serial_write_str(SERIAL_COM1, "_esp: 0x%x\n", _esp);
 
     floppy_io.device = -2;
     ata_io.device = -2;
     check_multiboot2(magic, addr);
 
-    dbgprint("Multiboot2 magic number: %x\n", magic);
+    serial_write_str(SERIAL_COM1, "Multiboot2 magic number: %x\n", magic);
+    serial_write_str(SERIAL_COM1, "Multiboot2 address: 0x%x\n", addr);
 
     for (struct multiboot_tag *tag = (struct multiboot_tag *)(addr + 8); tag->type != MULTIBOOT_TAG_TYPE_END; tag = (struct multiboot_tag *)((unsigned int)tag + ((tag->size + 7) & ~7))) {
         switch (tag->type) {
@@ -129,6 +137,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
 
             case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
                 max_ram = 1024 + ((struct multiboot_tag_basic_meminfo *)tag)->mem_upper;
+                bitmap_init(kernel_end_real_addr + 0x10000, max_ram * 1024);
                 break;
 
             case MULTIBOOT_TAG_TYPE_CMDLINE:
@@ -142,23 +151,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
                 fb.width = fbtag->common.framebuffer_width;
                 fb.height = fbtag->common.framebuffer_height;
                 fb.bpp = fbtag->common.framebuffer_bpp;
-                fb.id = fbtag->common.framebuffer_type;
-                switch (fb.id) {
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                        fb.type = FRAMEBUFFER_TYPE_TEXT;
-                        break;
-                }
-
-                dbgprint("Framebuffer: #%d %dx%dx%d %d @ 0x%x\n", fb.type, fb.width, fb.height, fb.bpp, fb.pitch, fb.addr);
-                framebuffer_setup(&fb);
-
-                dbgprint("Switching to Multiboot2 Framebuffer mode\n");
-                //screen_init(SCREEN_MODE_FRAMEBUFFER);
-                // screen_clear();
-
+                fb.type = fbtag->common.framebuffer_type;
                 break;
             }
 
@@ -166,6 +159,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
                 if (!acpi_rsdp_addr) {
                     struct multiboot_tag_old_acpi *acpi = (struct multiboot_tag_old_acpi *)tag;
                     acpi_rsdp_addr = (void *)acpi->rsdp;
+                    serial_write_str(SERIAL_COM1, "ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
                 }
                 break;
             }
@@ -173,66 +167,103 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
             case MULTIBOOT_TAG_TYPE_ACPI_NEW: {
                 struct multiboot_tag_new_acpi *acpi = (struct multiboot_tag_new_acpi *)tag;
                 acpi_rsdp_addr = (void *)acpi->rsdp;
-                dbgprint("ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
+                serial_write_str(SERIAL_COM1, "ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
                 break;
             }
         }
     }
 
+    mmu_init((uintptr_t)kernel_start_real_addr, (uintptr_t)kernel_end_real_addr, (uintptr_t)kernel_start_addr, (uintptr_t)kernel_end_addr);
+    kernel_malloc_init();
+
+    // ID Map the framebuffer
+    mmu_map_pages(current_pdt, fb.addr, fb.addr, (fb.width * fb.height * fb.bpp) / 8 / BITMAP_PAGE_SIZE + 1, true, false, true);
+
+    serial_write_str(SERIAL_COM1, "Framebuffer: #%d %dx%dx%d %d @ 0x%x\n", fb.type, fb.width, fb.height, fb.bpp, fb.pitch, fb.addr);
+    screen_init(SCREEN_MODE_FRAMEBUFFER);
+    framebuffer_setup(&fb);
+    framebuffer_init();
+    screen_clear();
+
     dbgprint("Boot device: %x:%x\n", boot_drive, boot_partition);
     dbgprint("Available RAM: %d MiB\n", max_ram / 1024);
     dbgprint("Boot command line: %s\n", boot_cmdline);
+    dbgprint("Kernel bounds at &%x &%x (&%x &%x)\n", kernel_start_addr, kernel_end_addr, kernel_start_real_addr, kernel_end_real_addr);
 
     if (boot_drive == -1 || boot_partition == -1) {
         panic("No boot device found from MBI.");
     }
 
-    cpu_info cpuinfo;
-    if (!get_cpuid_info(&cpuinfo)) {
+    if (max_ram == 0) {
+        panic("No available RAM found from MBI.");
+    }
+
+    if (!get_cpuid_info()) {
         panic("CPUID not available");
     }
     dbgprint("CPUID Vendor ID: %.12s\n", cpuinfo.vendor_id);
 
+    fpu_init();
     gdt_init();
     idt_init();
     isr_init();
     irq_init();
-    mmu_init();
-    syscall_init();
     pic_remap(32, 40);
-    fpu_init(&cpuinfo);
+    dbgprint("GDT, IDT, ISR, IRQ and PIC initialized\n");
 
-    timer_init();
-    serial_device *com1 = serial_init(SERIAL_COM1, 1);
-    if (!com1) {
-        dbgprint("Failed to initialize serial port COM1.\n");
+    dbgprint("Testing malloc...\n");
+    int *arr = malloc(sizeof(int) * 10);
+    for (int i = 0; i < 10; i++) {
+        arr[i] = i + 1;
     }
-    serial_write_str(com1, "Serial port initialized.\r\n");
+
+    char buf[100];
+    memset(buf, 0, 100);
+    for (int i = 0; i < 10; i++) {
+        sprintf(buf + strlen(buf), "%d%c", arr[i], i == 9 ? '\n' : ' ');
+    }
+    dbgprint(buf);
+
+    dbgprint("Testing qsort...\n");
+    qsort(arr, 10, sizeof(int), cmp);
+    memset(buf, 0, 100);
+    for (int i = 0; i < 10; i++) {
+        sprintf(buf + strlen(buf), "%d%c", arr[i], i == 9 ? '\n' : ' ');
+    }
+    dbgprint(buf);
+
+    free(arr);
+
+    syscall_init();
+    timer_init();
     keyboard_init();
     asm("sti");
     dbgprint("Interruptions enabled\n");
     dbgwait();
     if (acpi_rsdp_addr) {
-        acpi_init(acpi_rsdp_addr);
+        acpi_init((acpi_rsdp *)acpi_rsdp_addr);
     } else {
         dbgprint("ACPI not available\n");
     }
 
     udp_init();
+    tcp_init();
     dns_init();
     pci_init();
-    dbgwait();
+    //dbgwait();
     dbgprint("Reading Master Boot Record...\n");
     iodriver_init(boot_drive);
     fs_init(boot_partition);
-    dbgwait();
+    //dbgwait();
     dbgprint("Reading Root Directory...\n");
     rootfs.list_files(&rootfs_io, &rootfs);
-    dbgwait();
+    //dbgwait();
 
     if (eth[0] && (eth[0]->ipv4.dns[0] || eth[0]->ipv4.dns[1] || eth[0]->ipv4.dns[2] || eth[0]->ipv4.dns[3])) {
         uint8_t ip[4];
-        dns_query_ipv4(eth[0], eth[0]->ipv4.dns, "google.com", ip, 100);
+        if (dns_query_ipv4(eth[0], eth[0]->ipv4.dns, "modscleo4.dev.br", ip, 1000)) {
+            http_send_request(eth[0], ip, 80, "GET", "/", "modscleo4.dev.br");
+        }
     }
 
     dbgprint("Starting INIT\n");

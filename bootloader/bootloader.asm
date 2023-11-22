@@ -110,6 +110,11 @@ disk_error:
     call puts
     jmp $
 
+disk_error_sectors:
+    mov si, disk_error_sectors_msg
+    call puts
+    jmp $
+
 find_bootable_partition:
     mov bx, 0x01BE
     add bx, 0x0600
@@ -154,6 +159,7 @@ find_bootable_partition:
 
 loading_msg db "Loading...", 0xD, 0xA, 0x00
 disk_error_msg db "Disk read error", 0xD, 0xA, 0x0
+disk_error_sectors_msg db "Disk read error: Sectors read not equal to sectors requested", 0xD, 0xA, 0x0
 no_bootable_partition db "No bootable partition found", 0xD, 0xA, 0x0
 invalid_mbr_msg db "Invalid MBR", 0xD, 0xA, 0x0
 user_data dw 0

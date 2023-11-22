@@ -1,27 +1,87 @@
 #include <string.h>
 
 #include <ctype.h>
+#include <stdint.h>
+#include "../bits.h"
+#include "../cpu/cpuid.h"
 
-void memcpy(void *destination, const void *source, size_t n) {
-    unsigned char *c_src = (unsigned char *)source;
-    unsigned char *c_dest = (unsigned char *)destination;
+void *memcpy(void *restrict destination, const void *restrict source, size_t n) {
+    size_t i = 0;
+    void *ret = destination;
 
-    for (int i = 0; i < n; i++) {
-        c_dest[i] = c_src[i];
+    if (ISSET_BIT_INT(cpuinfo.edx, CPUID_FEAT_EDX_SSE)) {
+        for (i = 0; i < n / 16; i++) {
+            asm volatile (
+                "movdqu (%0), %%xmm0;"
+                "movdqu %%xmm0, (%1);"
+                :
+                : "r"(source), "r"(destination)
+                : "memory"
+            );
+
+            source += 16;
+            destination += 16;
+        }
+
+        n -= i * 16;
     }
+
+    if (ISSET_BIT_INT(cpuinfo.edx, CPUID_FEAT_EDX_MMX)) {
+        for (i = 0; i < n / 8; i++) {
+            asm volatile (
+                "movq (%0), %%mm0;"
+                "movq %%mm0, (%1);"
+                :
+                : "r"(source), "r"(destination)
+                : "memory"
+            );
+
+            source += 8;
+            destination += 8;
+        }
+
+        n -= i * 8;
+    }
+
+    for (i = 0; i < n / 4; i++) {
+        *(uint32_t *)destination = *(uint32_t *)source;
+
+        source += 4;
+        destination += 4;
+    }
+
+    n -= i * 4;
+
+    for (i = 0; i < n / 2; i++) {
+        *(uint16_t *)destination = *(uint16_t *)source;
+
+        source += 2;
+        destination += 2;
+    }
+
+    n -= i * 2;
+
+    uint8_t *c_src = (uint8_t *)source;
+    uint8_t *c_dest = (uint8_t *)destination;
+
+    while (n--) {
+        *c_dest++ = *c_src++;
+    }
+
+    return ret;
 }
 
 char *strcpy(char *destination, const char *source) {
     size_t len = strlen(source);
-    strncpy(destination, source, len);
-
-    return destination + len;
+    return strncpy(destination, source, len);
 }
 
-void strncpy(char *destination, const char *source, size_t n) {
+char *strncpy(char *destination, const char *source, size_t n) {
     memcpy(destination, source, n);
 
     destination[n] = 0;
+
+    return destination;
 }
 
 void *memmove(void *dest, const void *source, size_t n) {
@@ -45,9 +105,8 @@ char* strcat(char *destination, const char *source) {
 
 char* strncat(char *destination, const char *source, size_t n) {
     size_t dest_len = strlen(destination);
-    memcpy(destination + dest_len, source, n);
+    strncpy(destination + dest_len, source, n);
 
-    destination[dest_len + n] = 0;
     return destination;
 }
 
@@ -72,8 +131,8 @@ char *strlwr(char *str) {
 }
 
 int memcmp(const void *ptr1, const void *ptr2, size_t num) {
-    unsigned char *c_ptr1 = (unsigned char *)ptr1;
-    unsigned char *c_ptr2 = (unsigned char *)ptr2;
+    uint8_t *c_ptr1 = (uint8_t *)ptr1;
+    uint8_t *c_ptr2 = (uint8_t *)ptr2;
 
     while (num-- > 0) {
         if (*c_ptr1 != *c_ptr2) {
@@ -140,13 +199,15 @@ size_t strlen(const char *str) {
 }
 
 void *memset(void *ptr, int value, size_t num) {
-    unsigned char *c_ptr = ptr;
+    int d0;
+    int d1;
 
-    while (num > 0) {
-        *c_ptr = (unsigned char)value;
-        c_ptr++;
-        num--;
-    }
+    asm volatile (
+        "rep stosb"
+        : "=&c" (d0), "=&D" (d1)
+        : "a" ((uint8_t) value), "1" (ptr), "0" (num)
+        : "memory"
+    );
 
     return ptr;
 }

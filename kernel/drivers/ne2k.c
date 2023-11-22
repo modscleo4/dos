@@ -8,6 +8,8 @@
 #include "../debug.h"
 
 ethernet_driver *ne2k_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func) {
+    dbgprint("Initializing ne2k Ethernet controller\n");
+
     int iobase = pci_get_bar_address(device->base_address, 0);
 
     outb(iobase + 0x1F, inb(iobase + 0x1F));
@@ -39,10 +41,10 @@ ethernet_driver *ne2k_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_
         outb(iobase + 0x01 + i, prom[i]);
     }
 
-    // outb(iobase + NE2K_REG_COMMAND, (1UL << 5UL) | 1); // page 0, no DMA, stop
+    outb(iobase + NE2K_REG_COMMAND, (1UL << 5UL) | 1); // page 0, no DMA, stop
 
     ethernet_driver *driver = malloc(sizeof(ethernet_driver));
-    driver->mmiobase = device->base_address[0];
+    driver->mmiobase = 0;
     driver->iobase = iobase;
     memcpy(&driver->mac, prom, 6);
     driver->ipv4.ip[0] = 0;
@@ -63,7 +65,7 @@ ethernet_driver *ne2k_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_
 }
 
 unsigned int ne2k_send_packet(ethernet_driver *driver, ethernet_packet *packet, size_t data_size) {
-    dbgprint("packet_length: %d\n", data_size);
+    dbgprint("ne2k: packet_length: %d\n", data_size);
 
     outb(driver->iobase + NE2K_REG_COMMAND, 0x22);
     outb(driver->iobase + NE2K_REG_RBCR0, data_size & 0xFF);
@@ -73,8 +75,12 @@ unsigned int ne2k_send_packet(ethernet_driver *driver, ethernet_packet *packet, 
     outb(driver->iobase + NE2K_REG_RSAR1, 0x00);
     outb(driver->iobase + NE2K_REG_COMMAND, 0x12);
 
-    for (int i = 0; i < data_size; i++) {
+    for (int i = 0; i < sizeof(ethernet_header); i++) {
         outb(driver->iobase + NE2K_REG_DATA, ((unsigned char *) packet)[i]);
+    }
+
+    for (int i = 0; i < data_size; i++) {
+        outb(driver->iobase + NE2K_REG_DATA + sizeof(ethernet_header), ((unsigned char *) packet->data)[i]);
     }
 
     while ((inb(driver->iobase + NE2K_REG_ISR) & (1UL << 6UL)) == 0) { }

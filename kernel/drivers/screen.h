@@ -24,17 +24,17 @@ enum ScreenMode {
     SCREEN_MODE_FRAMEBUFFER,
 };
 
-void screen_init(int mode);
+void screen_init(enum ScreenMode mode);
 
-char screen_getcolor(void);
+unsigned char screen_getcolor(void);
 
-void screen_setcolor(char c);
+void screen_setcolor(unsigned char c);
 
 void screen_clear(void);
 
 void screen_getxy(int *x, int *y);
 
-void screen_gotoxy(const int x, const int y);
+void screen_gotoxy(int x, int y);
 
 int screen_write(const char c);
 

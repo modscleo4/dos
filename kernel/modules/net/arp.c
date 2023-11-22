@@ -1,6 +1,6 @@
 #include "arp.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 #include <string.h>
 #include "../timer.h"
@@ -24,20 +24,26 @@ bool arp_get_mac(ethernet_driver *driver, uint8_t ip[4], uint8_t mac[6], int tim
     }
 
     arp_send_request(driver, ip);
-    timer_wait(timeout);
 
-    for (int i = 0; i < curr_arp; i++) {
-        if (arp_list[i].ip[0] == ip[0] && arp_list[i].ip[1] == ip[1] && arp_list[i].ip[2] == ip[2] && arp_list[i].ip[3] == ip[3]) {
-            memcpy(mac, arp_list[i].mac, 6);
-            return true;
+    for (int t = 0; t < timeout; t += 10) {
+        timer_wait(10);
+
+        for (int i = 0; i < curr_arp; i++) {
+            if (arp_list[i].ip[0] == ip[0] && arp_list[i].ip[1] == ip[1] && arp_list[i].ip[2] == ip[2] && arp_list[i].ip[3] == ip[3]) {
+                dbgprint("ARP: found MAC for IP %d.%d.%d.%d in %d ms\n", ip[0], ip[1], ip[2], ip[3], t + 10);
+                memcpy(mac, arp_list[i].mac, 6);
+                return true;
+            }
         }
     }
+
+    dbgprint("ARP: failed to find MAC for IP %d.%d.%d.%d in %d ms\n", ip[0], ip[1], ip[2], ip[3], timeout);
 
     return false;
 }
 
 void arp_send_request(ethernet_driver *driver, uint8_t ip[4]) {
-    static arp_packet packet;
+    arp_packet packet;
     packet.hardware_type = switch_endian_16(0x0001);
     packet.protocol_type = switch_endian_16(0x0800);
     packet.hardware_size = 0x06;
@@ -66,7 +72,7 @@ void arp_send_request(ethernet_driver *driver, uint8_t ip[4]) {
 }
 
 void arp_send_reply(ethernet_driver *driver, uint8_t ip[4], uint8_t mac[6]) {
-    static arp_packet packet;
+    arp_packet packet;
     packet.hardware_type = switch_endian_16(0x0001);
     packet.protocol_type = switch_endian_16(0x0800);
     packet.hardware_size = 0x06;

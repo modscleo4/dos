@@ -14,6 +14,8 @@ typedef struct cpu_info {
     uint32_t edx;
 } cpu_info;
 
+cpu_info cpuinfo;
+
 enum CPUIDFeatureECX {
     CPUID_FEAT_ECX_SSE3 = 1UL << 0UL,
     CPUID_FEAT_ECX_PCLMUL = 1UL << 1UL,
@@ -86,6 +88,6 @@ enum CPUIDFeatureEDX {
 
 extern bool cpuid_available(void);
 
-bool get_cpuid_info(cpu_info *cpuinfo);
+bool get_cpuid_info(void);
 
 #endif // KERNEL_CPUID_H

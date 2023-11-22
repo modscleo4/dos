@@ -23,6 +23,10 @@ FILE *stdin;
 FILE *stdout;
 FILE *stderr;
 
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+
 int fclose(FILE *stream);
 
 int fflush(FILE *stream);
@@ -35,9 +39,9 @@ int getchar(void);
 
 int putchar(char c);
 
-int read(char *buf, int size);
+int read(int fd, void *buf, int size);
 
-int write(const char *buf, int size);
+int write(int fd, const void *buf, int size);
 
 int puts(const char *str);
 

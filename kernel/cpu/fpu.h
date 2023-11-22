@@ -44,8 +44,8 @@ extern bool fpu_available(void);
 
 void fpu_load_control_word(const uint16_t control);
 
-void fpu_init(cpu_info *cpuinfo);
+void fpu_init(void);
 
-void sse_init(cpu_info *cpuinfo);
+void sse_init(void);
 
 #endif // KERNEL_FPU_H

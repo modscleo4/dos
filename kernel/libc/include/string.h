@@ -3,11 +3,11 @@
 
 #include <stddef.h>
 
-void memcpy(void *destination, const void *source, size_t n);
+void *memcpy(void *destination, const void *source, size_t n);
 
 char *strcpy(char *destination, const char *source);
 
-void strncpy(char *destination, const char *source, size_t n);
+char *strncpy(char *destination, const char *source, size_t n);
 
 void *memmove(void *dest, const void *source, size_t n);
 

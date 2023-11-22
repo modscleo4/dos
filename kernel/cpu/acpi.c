@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include "mmu.h"
 #include "../debug.h"
 
 static bool acpi_rsdp_checksum(acpi_rsdp *rsdp) {
@@ -65,6 +66,9 @@ static void acpi_read_fadt(acpi_fadt *fadt) {
 }
 
 static void acpi_read_rsdt(acpi_rsdt *rsdt) {
+    // Map the RSDT into memory
+    mmu_map_pages(current_pdt, (uint32_t)rsdt, (uint32_t)rsdt, 1, true, false, true);
+
     if (!acpi_rsdt_checksum(rsdt)) {
         dbgprint("ACPI RSDT checksum failed!\n");
         return;
@@ -92,8 +96,10 @@ static void acpi_read_rsdt(acpi_rsdt *rsdt) {
     }
 }
 
-void acpi_init(void *rdsp_addr) {
-    acpi_rsdp *rsdp = (acpi_rsdp *)rdsp_addr;
+void acpi_init(acpi_rsdp *rsdp) {
+    // Map the RSDP into memory
+    mmu_map_pages(current_pdt, (uint32_t)rsdp, (uint32_t)rsdp, 1, true, false, true);
+
     if (acpi_rsdp_checksum(rsdp)) {
         dbgprint("ACPI RSDP found at &0x%x\n", rsdp);
 
@@ -104,6 +110,6 @@ void acpi_init(void *rdsp_addr) {
 
         acpi_rsdt *rsdt = (acpi_rsdt *)rsdp->rsdt_address;
         acpi_read_rsdt(rsdt);
-        dbgwait();
+        //dbgwait();
     }
 }

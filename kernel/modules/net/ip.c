@@ -1,10 +1,11 @@
 #include "ip.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 #include <stdlib.h>
 #include <string.h>
 #include "arp.h"
+#include "icmp.h"
 #include "tcp.h"
 #include "udp.h"
 #include "../../bits.h"
@@ -34,7 +35,7 @@ static uint16_t ipv4_calculate_checksum(ipv4_packet *packet) {
     return ~checksum;
 }
 
-void ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], uint8_t protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size) {
+bool ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], uint8_t protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size) {
     dbgprint("ip_send_packet\n");
 
     uint8_t destination_mac[6];
@@ -44,12 +45,12 @@ void ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t des
     } else if (ipv4_is_cidr_subnet(destination_ip, driver->ipv4.ip, driver->ipv4.netmask) && !arp_get_mac(driver, destination_ip, destination_mac, 100)) {
         // IP is in subnet, but no MAC address is known
         dbgprint("Failed to get MAC address for destination IP address %d.%d.%d.%d\n", destination_ip[0], destination_ip[1], destination_ip[2], destination_ip[3]);
-        return;
+        return false;
     } else {
         // Send to gateway
         if (!arp_get_mac(driver, driver->ipv4.gateway, destination_mac, 100)) {
             dbgprint("Failed to get MAC address for gateway IP address %d.%d.%d.%d\n", driver->ipv4.gateway[0], driver->ipv4.gateway[1], driver->ipv4.gateway[2], driver->ipv4.gateway[3]);
-            return;
+            return false;
         }
     }
 
@@ -76,6 +77,8 @@ void ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t des
     ethernet_send_packet(driver, destination_mac, ETHERTYPE_IPV4, packet, sizeof(ipv4_packet) + protocol_size + data_size);
 
     free(packet);
+
+    return true;
 }
 
 void ipv4_receive_packet(ethernet_driver *driver, ipv4_packet *packet, void *data, size_t data_size) {
@@ -96,7 +99,7 @@ void ipv4_receive_packet(ethernet_driver *driver, ipv4_packet *packet, void *dat
 
     switch (packet->protocol) {
         case IP_PROTOCOL_ICMP:
-            //icmp_receive_packet(driver, packet, data, data_size);
+            icmp_receive_packet(driver, packet, data, data + sizeof(icmp_packet));
             break;
         case IP_PROTOCOL_UDP:
             udp_receive_packet(driver, packet, data, data + sizeof(udp_packet));

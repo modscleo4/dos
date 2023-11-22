@@ -36,27 +36,33 @@ int putchar(char c) {
     return screen_write(c);
 }
 
-int read(char *buf, int size) {
+int read(int fd, void *buf, int size) {
+    if (fd != STDIN_FILENO) {
+        return -1;
+    }
+
+    char *_buf = (char *)buf;
+
     int i;
     for (i = 0; i < size;) {
-        buf[i] = getchar();
-        if (buf[i] == EOF) {
+        _buf[i] = getchar();
+        if (_buf[i] == EOF) {
             break;
         }
 
-        if (buf[i] == '\b') {
+        if (_buf[i] == '\b') {
             if (i > 0) {
-                putchar(buf[i]);
+                putchar(_buf[i]);
                 i--;
             }
 
             continue;
         }
 
-        putchar(buf[i]);
+        putchar(_buf[i]);
 
-        if (buf[i] == '\n') {
-            buf[i] = 0;
+        if (_buf[i] == '\n') {
+            _buf[i] = 0;
             break;
         }
 
@@ -66,10 +72,16 @@ int read(char *buf, int size) {
     return i;
 }
 
-int write(const char *buf, int size) {
+int write(int fd, const void *buf, int size) {
+    if (fd != STDOUT_FILENO) {
+        return -1;
+    }
+
+    char *_buf = (char *)buf;
+
     int i;
     for (i = 0; i < size; i++) {
-        if (putchar(buf[i]) == EOF) {
+        if (putchar(_buf[i]) == EOF) {
             break;
         }
     }
@@ -78,20 +90,16 @@ int write(const char *buf, int size) {
 }
 
 static int _puts(const char *str) {
-    while (*str) {
-        if (putchar(*str++) == EOF) {
-            return EOF;
-        }
+    if (screen_write_str(str)) {
+        return EOF;
     }
 
     return 0;
 }
 
 int puts(const char *str) {
-    while (*str) {
-        if (putchar(*str++) == EOF) {
-            return EOF;
-        }
+    if (_puts(str)) {
+        return EOF;
     }
 
     putchar('\n');
@@ -100,7 +108,7 @@ int puts(const char *str) {
 }
 
 int vprintf(const char *format, va_list args) {
-    char buf[1024] = {0};
+    char buf[4096] = "";
 
     int ret = vsprintf(buf, format, args);
     _puts(buf);
@@ -118,7 +126,7 @@ int printf(const char *format, ...) {
 }
 
 int vsprintf(char *str, const char *format, va_list args) {
-    char buf[1024] = {0};
+    char buf[1024] = "";
 
     int modifier = 0;
     char curr_mod = 0;
@@ -130,7 +138,11 @@ int vsprintf(char *str, const char *format, va_list args) {
     int precision = 0;
     bool left_align = false;
 
+    int ret = 0;
+
     while (*format) {
+        char *old_str = str;
+
         if (modifier || padding || curr_mod || *format == '%') {
             format++;
 
@@ -209,8 +221,8 @@ int vsprintf(char *str, const char *format, va_list args) {
 
                         strncpy(buf, va_arg(args, char *), buf_len);
                     } else {
-                        char *buf_start = buf;
-                        buf_len = strcpy(buf, va_arg(args, char *)) - buf_start;
+                        strcpy(buf, va_arg(args, char *));
+                        buf_len = strlen(buf);
                     }
 
                     if (width > buf_len) {
@@ -380,10 +392,12 @@ int vsprintf(char *str, const char *format, va_list args) {
             str++;
         }
 
+        ret += str - old_str;
+
         format++;
     }
 
-    return 0;
+    return ret;
 }
 
 int sprintf(char *str, const char *format, ...) {

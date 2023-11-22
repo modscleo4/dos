@@ -2,9 +2,10 @@
 #define RING3_H
 
 #include <stdint.h>
+#include "cpu/mmu.h"
 
-uint32_t _esp;
+extern uint32_t _esp;
 
-extern void switch_ring3(void *addr, uint32_t stack);
+extern void switch_ring3(page_directory_table *pdt, void *addr, uint32_t stack);
 
 #endif // RING3_H

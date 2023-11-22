@@ -12,7 +12,6 @@ ide_channel_registers ide_channels[2];
 ide_device ide_devices[4];
 
 uint8_t ide_buf[2048] = {0};
-volatile unsigned static char ide_irq_invoked = 0;
 bool support_dma;
 
 iodriver *ide_init(pci_device *device) {
@@ -33,8 +32,8 @@ iodriver *ide_init(pci_device *device) {
     ide_channels[ATA_SECONDARY].bmide = pci_get_bar_address(device->base_address, 4) + 8;
 
     // Disable interrupts
-    ide_write(ATA_PRIMARY, ATA_REG_CONTROL, !support_dma + 2);
-    ide_write(ATA_SECONDARY, ATA_REG_CONTROL, !support_dma + 2);
+    ide_write(ATA_PRIMARY, ATA_REG_CONTROL, 2);
+    ide_write(ATA_SECONDARY, ATA_REG_CONTROL, 2);
 
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 2; j++) {
@@ -354,7 +353,7 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
     if (lba_mode == 2 && support_dma && direction == io_write) cmd = ATA_CMD_WRITE_DMA_EXT;
 
     if (!support_dma) {
-        ide_write(ide_channel, ATA_REG_CONTROL, ide_channels[ide_channel].n_ien = (ide_irq_invoked = 0) + 0x02);
+        ide_write(ide_channel, ATA_REG_CONTROL, ide_channels[ide_channel].n_ien = 0 + 0x02);
         ide_polling(ide_channel, 0);
     } else {
         prd_table prdt;
@@ -365,7 +364,7 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
 
         outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, 0);
 
-        outl(ide_channels[ide_channel].bmide + ATA_BMR_PRDT, (unsigned int)&prdt);
+        outl(ide_channels[ide_channel].bmide + ATA_BMR_PRDT, (uint32_t)&prdt);
 
         ide_polling(ide_channel, 0);
 

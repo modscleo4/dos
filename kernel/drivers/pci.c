@@ -8,8 +8,14 @@
 #include "floppy.h"
 #include "../bits.h"
 #include "../debug.h"
+#include "../cpu/mmu.h"
 
 void pci_init(void) {
+    dbgprint("Initializing PCI\n");
+
+    // Map the PCI configuration space into memory
+    mmu_map_pages(current_pdt, PCI_BASE_ADDRESS, PCI_BASE_ADDRESS, 4, true, false, true);
+
     pci_discover_devices();
 }
 
@@ -32,17 +38,20 @@ uint64_t pci_get_bar_address(uint32_t bar[], int i) {
         ret = bar[i] & 0xFFFFFFFC;
     }
 
+    // Map the BAR into memory
+    mmu_map_pages(current_pdt, ret, ret, 8, true, false, true);
+
     return ret;
 }
 
 uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset) {
-    uint32_t address = 0x80000000 | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
+    uint32_t address = PCI_BASE_ADDRESS | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
     outl(PCI_CONFIG_ADDRESS, address);
     return (uint16_t) (inl(PCI_CONFIG_DATA) >> ((offset & 2) * 8)) & 0xFFFF;
 }
 
 void pci_write_word(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset, uint16_t value) {
-    uint32_t address = 0x80000000 | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
+    uint32_t address = PCI_BASE_ADDRESS | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
     outl(PCI_CONFIG_ADDRESS, address);
     outl(PCI_CONFIG_DATA, value);
 }

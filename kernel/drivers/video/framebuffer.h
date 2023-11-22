@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 typedef struct framebuffer_config {
-    uint8_t id;
     uint64_t addr;
     uint32_t pitch;
     uint32_t width;
@@ -19,26 +18,27 @@ enum ScreenRegisters {
 };
 
 enum FramebufferType {
-    FRAMEBUFFER_TYPE_TEXT = 0,
-    FRAMEBUFFER_TYPE_CGA = 1,
-    FRAMEBUFFER_TYPE_EGA = 2,
-    FRAMEBUFFER_TYPE_VGA = 3,
+    FRAMEBUFFER_TYPE_INDEXED = 0,
+    FRAMEBUFFER_TYPE_RGB = 1,
+    FRAMEBUFFER_TYPE_TEXT = 2,
 };
 
 void framebuffer_setup(framebuffer_config *config);
 
 void framebuffer_init(void);
 
-char framebuffer_getcolor(void);
+unsigned char framebuffer_getcolor(void);
 
-void framebuffer_setcolor(char c);
+void framebuffer_setcolor(unsigned char c);
 
 void framebuffer_clear(void);
 
 void framebuffer_getxy(int *x, int *y);
 
-void framebuffer_gotoxy(const int x, const int y);
+void framebuffer_gotoxy(int x, int y);
 
 int framebuffer_write(const char c);
+
+int framebuffer_write_str(const char *str);
 
 #endif // KERNEL_FRAMEBUFFER_H

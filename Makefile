@@ -61,9 +61,9 @@ floppy: bootloader_floppy rootfs grub2_floppy
 	dd conv=notrunc if=$(BIOSPARAMS) of=$(FLOPPY_DISK_IMG) bs=1 count=60 seek=262659
 	MTOOLSRC=./mtoolsrc mlabel -n a:MARCOSLIRA
 	MTOOLSRC=./mtoolsrc mcopy -m -s rootfs/boot a:
-	MTOOLSRC=./mtoolsrc mcopy -m rootfs/kernel a:
+	MTOOLSRC=./mtoolsrc mcopy -m rootfs/kernel.elf a:
 	MTOOLSRC=./mtoolsrc mcopy -m rootfs/init.elf a:
-	MTOOLSRC=./mtoolsrc mattrib +s a:/kernel
+	MTOOLSRC=./mtoolsrc mattrib +s a:/kernel.elf
 	MTOOLSRC=./mtoolsrc mattrib +s a:/init.elf
 
 ata: bootloader_ata rootfs grub2_ata
@@ -77,9 +77,9 @@ ata: bootloader_ata rootfs grub2_ata
 	dd conv=notrunc if=$(BIOSPARAMS) of=$(ATA_DISK_IMG) bs=1 count=60 seek=262659
 	MTOOLSRC=./mtoolsrc mlabel -n c:MARCOSLIRA
 	MTOOLSRC=./mtoolsrc mcopy -m -s rootfs/boot c:
-	MTOOLSRC=./mtoolsrc mcopy -m rootfs/kernel c:
+	MTOOLSRC=./mtoolsrc mcopy -m rootfs/kernel.elf c:
 	MTOOLSRC=./mtoolsrc mcopy -m rootfs/init.elf c:
-	MTOOLSRC=./mtoolsrc mattrib +s c:/kernel
+	MTOOLSRC=./mtoolsrc mattrib +s c:/kernel.elf
 	MTOOLSRC=./mtoolsrc mattrib +s c:/init.elf
 
 ata_ext2: bootloader_ata_ext2 rootfs grub2_ata

@@ -2,17 +2,20 @@
 
 #include <ctype.h>
 
-void memcpy(void *dest, const void *source, size_t n) {
+void memcpy(void *destination, const void *source, size_t n) {
     unsigned char *c_src = (unsigned char *)source;
-    unsigned char *c_dest = (unsigned char *)dest;
+    unsigned char *c_dest = (unsigned char *)destination;
 
     for (int i = 0; i < n; i++) {
         c_dest[i] = c_src[i];
     }
 }
 
-void strcpy(char *destination, const char *source) {
-    strncpy(destination, source, strlen(source));
+char *strcpy(char *destination, const char *source) {
+    size_t len = strlen(source);
+    strncpy(destination, source, len);
+
+    return destination + len;
 }
 
 void strncpy(char *destination, const char *source, size_t n) {
@@ -41,9 +44,10 @@ char *strcat(char *destination, const char *source) {
 }
 
 char *strncat(char *destination, const char *source, size_t n) {
-    memcpy(destination + strlen(destination), source, n);
+    size_t dest_len = strlen(destination);
+    memcpy(destination + dest_len, source, n);
 
-    destination[n] = 0;
+    destination[dest_len + n] = 0;
     return destination;
 }
 
@@ -95,7 +99,19 @@ int strcmp(const char *str1, const char *str2) {
     size_t len_1 = strlen(str1);
     size_t len_2 = strlen(str2);
 
-    return memcmp(str1, str2, len_1 < len_2 ? len_1 : len_2) || (len_1 < len_2 ? str1[len_1] - str2[len_1] : str1[len_2] - str2[len_2]);
+    return strncmp(str1, str2, len_1 < len_2 ? len_1 : len_2) || (len_1 < len_2 ? str1[len_1] - str2[len_1] : str1[len_2] - str2[len_2]);
+}
+
+int strncmp(const char *str1, const char *str2, size_t num) {
+    if (!*str1) {
+        return *str2;
+    }
+
+    if (!*str2) {
+        return -*str1;
+    }
+
+    return memcmp(str1, str2, num);
 }
 
 void *memchr(void *ptr, int value, size_t num) {

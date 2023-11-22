@@ -9,9 +9,13 @@
 #include "../debug.h"
 #include "../ring3.h"
 #include "../cpu/gdt.h"
+#include "../drivers/ethernet.h"
+#include "../modules/net/dns.h"
+#include "../modules/net/tcp.h"
+#include "../modules/net/udp.h"
 
 // This var is to store the current SYSCALL return value
-int __syscall_ret;
+long int __syscall_ret;
 
 static long int syscall_exit(registers *r, int exit_code) {
     // Stay on ring0
@@ -29,12 +33,24 @@ static long int syscall_exit(registers *r, int exit_code) {
     return exit_code;
 }
 
-static long int syscall_read(registers *r, int fd, char *buf, size_t count) {
-    return read(buf, count);
+static long int syscall_read(registers *r, int fd, void *buf, size_t count) {
+    return read(fd, buf, count);
 }
 
-static long int syscall_write(registers *r, int fd, char *buf, size_t count) {
-    return write(buf, count);
+static long int syscall_write(registers *r, int fd, void *buf, size_t count) {
+    return write(fd, buf, count);
+}
+
+static long int syscall_dns(registers *r, int eth_driver, char* type, char *domain, uint8_t *ip) {
+    return dns_query_ipv4(eth[eth_driver], eth[eth_driver]->ipv4.dns, domain, ip, 1000);
+}
+
+static long int syscall_listen_tcp(registers *r, uint16_t port, tcp_listener callback) {
+    return tcp_install_listener(port, callback);
+}
+
+static long int syscall_listen_udp(registers *r, uint16_t port, udp_listener callback) {
+    return udp_install_listener(port, callback);
 }
 
 static void *syscalls[] = {
@@ -43,9 +59,9 @@ static void *syscalls[] = {
     NULL,
     &syscall_read,
     &syscall_write,
-    NULL,
-    NULL,
-    NULL,
+    &syscall_dns,
+    &syscall_listen_tcp,
+    &syscall_listen_udp,
     NULL,
     NULL,
     NULL,
@@ -180,7 +196,7 @@ int run_syscall(registers *r) {
     uint32_t arg3 = r->esi;
     uint32_t arg4 = r->edi;
     uint32_t arg5 = r->ebp;
-    //dbgprint("syscall: %x(%x %x %x %x %x %x)\n", no, arg0, arg1, arg2, arg3, arg4, arg5);
+    //dbgprint("syscall: %x(%x, %x, %x, %x, %x, %x)\n", no, arg0, arg1, arg2, arg3, arg4, arg5);
 
     if (syscalls[no]) {
         uint32_t (*syscall_fn)(registers *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) = syscalls[no];

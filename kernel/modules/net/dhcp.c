@@ -127,7 +127,15 @@ void dhcp_init(ethernet_driver *driver) {
     udp_install_listener(68, dhcp_udp_listener);
     dhcp_send_discover(driver);
 
-    timer_wait(100);
+    int timeout = 10000;
+
+    for (int t = 0; t < timeout; t += 10) {
+        timer_wait(10);
+
+        if (offer_count > 0) {
+            break;
+        }
+    }
 
     for (int i = 0; i < offer_count; i++) {
         uint8_t mac[6];

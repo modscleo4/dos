@@ -1,6 +1,6 @@
 #include "udp.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 #include <stdlib.h>
 #include <string.h>
@@ -14,21 +14,25 @@ void udp_init(void) {
 }
 
 uint16_t udp_calculate_checksum(udp_packet *packet, uint8_t source_ip[4], uint8_t destination_ip[4], void *data, size_t data_size) {
-    udp_pseudo_header pseudo_header;
-    memcpy(pseudo_header.source_ip, source_ip, 4);
-    memcpy(pseudo_header.destination_ip, destination_ip, 4);
-    pseudo_header.zero = 0;
-    pseudo_header.protocol = IP_PROTOCOL_UDP;
-    pseudo_header.length = packet->length;
-    pseudo_header.source_port = packet->source_port;
-    pseudo_header.destination_port = packet->destination_port;
-    pseudo_header.udp_length = packet->length;
+    ipv4_pseudo_header ipv4_header;
+    udp_packet pseudo_header;
+    memcpy(ipv4_header.source_ip, source_ip, 4);
+    memcpy(ipv4_header.destination_ip, destination_ip, 4);
+    ipv4_header.zero = 0;
+    ipv4_header.protocol = IP_PROTOCOL_UDP;
+    ipv4_header.length = packet->length;
+    memcpy(&pseudo_header, packet, sizeof(udp_packet));
     pseudo_header.checksum = 0;
 
     uint32_t checksum = 0;
 
-    uint16_t *data16 = (uint16_t *)&pseudo_header;
-    for (size_t i = 0; i < sizeof(udp_pseudo_header) / 2; i++) {
+    uint16_t *data16 = (uint16_t *)&ipv4_header;
+    for (size_t i = 0; i < sizeof(ipv4_pseudo_header) / 2; i++) {
+        checksum += data16[i];
+    }
+
+    data16 = (uint16_t *)&pseudo_header;
+    for (size_t i = 0; i < sizeof(udp_packet) / 2; i++) {
         checksum += data16[i];
     }
 
@@ -48,15 +52,16 @@ uint16_t udp_calculate_checksum(udp_packet *packet, uint8_t source_ip[4], uint8_
     return ~checksum;
 }
 
-void udp_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint16_t source_port, uint8_t destination_ip[4], uint16_t destination_port, void *data, size_t data_size) {
+bool udp_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint16_t source_port, uint8_t destination_ip[4], uint16_t destination_port, void *data, size_t data_size) {
     dbgprint("udp_send_packet\n");
-    static udp_packet packet;
+    udp_packet packet;
+    memset(&packet, 0, sizeof(udp_packet));
     packet.source_port = switch_endian_16(source_port);
     packet.destination_port = switch_endian_16(destination_port);
     packet.length = switch_endian_16(data_size + sizeof(udp_packet));
     packet.checksum = udp_calculate_checksum(&packet, source_ip, destination_ip, data, data_size);
 
-    ipv4_send_packet(driver, source_ip, destination_ip, IP_PROTOCOL_UDP, &packet, sizeof(udp_packet), data, data_size);
+    return ipv4_send_packet(driver, source_ip, destination_ip, IP_PROTOCOL_UDP, &packet, sizeof(udp_packet), data, data_size);
 }
 
 bool udp_install_listener(uint16_t port, udp_listener listener) {

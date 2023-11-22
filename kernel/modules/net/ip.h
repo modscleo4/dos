@@ -1,6 +1,7 @@
 #ifndef IP_H
 #define IP_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include "../../drivers/ethernet.h"
 
@@ -19,6 +20,14 @@ typedef struct ipv4_packet {
     uint8_t source_ip[4];
     uint8_t destination_ip[4];
 } __attribute__((packed)) ipv4_packet;
+
+typedef struct ipv4_pseudo_header {
+    uint8_t source_ip[4];
+    uint8_t destination_ip[4];
+    uint8_t zero;
+    uint8_t protocol;
+    uint16_t length;
+} __attribute__((packed)) ipv4_pseudo_header;
 
 enum IPProtocol {
     IP_PROTOCOL_HOPOPT = 0x00,
@@ -168,7 +177,7 @@ enum IPProtocol {
     IP_PROTOCOL_ETHERNET = 0x8F,
 };
 
-void ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], uint8_t protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size);
+bool ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], uint8_t protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size);
 
 void ipv4_receive_packet(ethernet_driver *driver, ipv4_packet *packet, void *data, size_t data_size);
 
