@@ -42,7 +42,8 @@ void bitmap_init(void *start_address, size_t max_memory) {
 }
 
 void bitmap_id_map(void) {
-    mmu_map_pages(current_pdt, (uint32_t)bitmap, (uint32_t)bitmap, frames, true, false, true);
+    // ID Map the entire bitmap
+    mmu_map_pages(current_pdt, (uintptr_t)bitmap, (uintptr_t)bitmap, frames, true, false, true);
 }
 
 void *bitmap_alloc_page(void) {

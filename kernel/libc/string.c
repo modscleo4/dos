@@ -1,8 +1,12 @@
 #include <string.h>
 
+#define DEBUG 1
+#define DEBUG_SERIAL 1
+
 #include <ctype.h>
 #include <stdint.h>
 #include "../bits.h"
+#include "../debug.h"
 #include "../cpu/cpuid.h"
 
 void *memcpy(void *restrict destination, const void *restrict source, size_t n) {

@@ -1,6 +1,7 @@
 #include "floppy.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +9,9 @@
 #include "../bits.h"
 #include "../cpu/irq.h"
 #include "../cpu/pic.h"
+#include "../cpu/mmu.h"
 #include "../debug.h"
+#include "../modules/bitmap.h"
 #include "../modules/cmos.h"
 #include "../modules/timer.h"
 
@@ -17,7 +20,6 @@ floppy_parameters floppy;
 int floppy_motor_state[2] = {0, 0}; /* 0: OFF, 1: ON; 2: WAIT */
 
 int irq_c;
-unsigned char io_buffer[512];
 
 unsigned int FLOPPY_PRIMARY_BASE = 0x3F0;
 unsigned int FLOPPY_SECONDARY_BASE = 0x370;
@@ -28,8 +30,9 @@ static void floppy_handler(registers *r, uint32_t int_no) {
 
 iodriver *floppy_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func) {
     irq_c = 0;
+    uint8_t *io_buffer = (uint8_t *)malloc_align(512, BITMAP_PAGE_SIZE);
 
-    memcpy(&floppy, (unsigned char *)DISK_PARAMETER_ADDRESS, sizeof(floppy_parameters));
+    memcpy(&floppy, (uint8_t *)DISK_PARAMETER_ADDRESS, sizeof(floppy_parameters));
     irq_install_handler(device ? device->interrupt_line : IRQ_FLOPPY, floppy_handler);
 
     floppy_detect_types();
@@ -267,13 +270,13 @@ void floppy_motor_off(iodriver *driver) {
     floppy_motor_state[driver->device] = 0;
 }
 
-static void floppy_dma_init(io_operation direction, unsigned char *buffer) {
+static void floppy_dma_init(IOOperation direction, unsigned char *buffer) {
     union {
         unsigned char b[4];
         unsigned long int l;
     } addr, count;
 
-    addr.l = (unsigned long int)buffer;
+    addr.l = (unsigned long int)mmu_get_physical_address((uintptr_t)buffer);
     count.l = (unsigned long int)511;
 
     if ((addr.l >> 24) || (count.l >> 16) || (((addr.l & 0xffff) + count.l) >> 16)) {
@@ -284,11 +287,11 @@ static void floppy_dma_init(io_operation direction, unsigned char *buffer) {
     unsigned char mode;
 
     switch (direction) {
-        case io_read:
+        case IO_READ:
             mode = 0x46;
             break;
 
-        case io_write:
+        case IO_WRITE:
             mode = 0x4a;
             break;
 
@@ -310,7 +313,7 @@ static void floppy_dma_init(io_operation direction, unsigned char *buffer) {
     outb(0x0a, 0x02);
 }
 
-int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buffer, io_operation direction, bool keepOn) {
+int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buffer, IOOperation direction, bool keepOn) {
     unsigned char command;
     static const int flags = 0xC0;
 
@@ -318,18 +321,13 @@ int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buf
     lba2chs(lba, &c, floppy);
 
     switch (direction) {
-        case io_read:
+        case IO_READ:
             command = FLOPPY_READ_DATA | flags;
             break;
 
-        case io_write:
+        case IO_WRITE:
             command = FLOPPY_WRITE_DATA | flags;
             break;
-
-        default:
-            dbgprint("%s: invalid direction", __func__);
-            asm("hlt");
-            return 0;
     }
 
     if (floppy_seek(driver, c.cylinder, c.head)) {
@@ -458,9 +456,9 @@ int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buf
 }
 
 int floppy_sector_read(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn) {
-    return floppy_do_sector(driver, lba, data, io_read, keepOn);
+    return floppy_do_sector(driver, lba, data, IO_READ, keepOn);
 }
 
 int floppy_sector_write(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn) {
-    return floppy_do_sector(driver, lba, data, io_write, keepOn);
+    return floppy_do_sector(driver, lba, data, IO_WRITE, keepOn);
 }

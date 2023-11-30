@@ -249,23 +249,16 @@ unsigned long int strtoul(const char *str, char **endptr, int base) {
 static heap kernel_heap;
 
 void kernel_malloc_init(void) {
-    void *addr = bitmap_alloc_page();
+    void *addr = mmu_alloc_pages(256); // 1 MB
 
     heap_init(&kernel_heap);
-    heap_add_block(&kernel_heap, addr, BITMAP_PAGE_SIZE, 16);
+    heap_add_block(&kernel_heap, addr, 256 * BITMAP_PAGE_SIZE, 16);
 
     dbgprint("kernel_heap: &%x\n", &kernel_heap);
     dbgprint("kernel_heap.first_block: &%x\n", kernel_heap.first_block);
     dbgprint("kernel_heap.first_block->size: %d\n", kernel_heap.first_block->size);
     dbgprint("kernel_heap.first_block->next: %d\n", kernel_heap.first_block->next);
     dbgprint("kernel_heap.first_block->used: %d\n", kernel_heap.first_block->used);
-}
-
-static void align_malloc_addr(size_t align) {
-    /*uint32_t mod = __curr_malloc_addr % align;
-    if (mod) {
-        __curr_malloc_addr += align - mod;
-    }*/
 }
 
 void *calloc(size_t num, size_t size) {
@@ -278,8 +271,12 @@ void *calloc(size_t num, size_t size) {
 }
 
 void *calloc_align(size_t num, size_t size, size_t align) {
-    align_malloc_addr(align);
-    return calloc(num, size);
+    void *addr = calloc(1, num * size + align);
+    if (addr) {
+        addr = (void *)(uintptr_t)addr + (align - (uintptr_t)addr % align);
+    }
+
+    return addr;
 }
 
 void free(void *ptr) {
@@ -287,8 +284,10 @@ void free(void *ptr) {
         return;
     }
 
-    bitmap_free_page(ptr);
-    mmu_unmap_pages(current_pdt, (uint32_t)ptr, 1);
+    if (!heap_free(&kernel_heap, ptr)) {
+        dbgprint("free: could not free &%x\n", ptr);
+        return;
+    }
 }
 
 void *malloc(size_t size) {
@@ -300,31 +299,29 @@ void *malloc(size_t size) {
         size = _MIN_MALLOC_SIZE;
     }
 
-    if (size > BITMAP_PAGE_SIZE) {
-        dbgprint("malloc: size(%d) > BITMAP_PAGE_SIZE(%d)\n", size, BITMAP_PAGE_SIZE);
+    void *addr = heap_alloc(&kernel_heap, size);
+    if (!addr) {
+        heap_add_block(&kernel_heap, mmu_alloc_pages(256), 256 * BITMAP_PAGE_SIZE, 16);
+        addr = heap_alloc(&kernel_heap, size);
     }
 
-    //dbgprint("malloc(%d) -> &%x\n", size, heap_alloc(&kernel_heap, size));
-
-    void *addr = NULL;
-    for (size_t l = 0; l < size; l += BITMAP_PAGE_SIZE) {
-        dbgprint("malloc:l = %d, size = %d\n", l, size);
-        void *_addr = bitmap_alloc_page();
-        if (!_addr) {
-            return NULL;
-        }
-
-        if (!addr) {
-            addr = _addr;
-        }
+    if (!addr) {
+        dbgprint("malloc: could not allocate %d bytes\n", size);
+        return NULL;
     }
+
+    dbgprint("malloc(%d) -> &%x\n", size, addr);
 
     return addr;
 }
 
 void *malloc_align(size_t size, size_t align) {
-    align_malloc_addr(align);
-    return malloc(size);
+    void *addr = malloc(size + align);
+    if (addr && (uintptr_t)addr % align != 0) {
+        addr = (void *)(uintptr_t)addr + (align - (uintptr_t)addr % align);
+    }
+
+    return addr;
 }
 
 void *realloc(void *ptr, size_t size) {
@@ -355,6 +352,7 @@ int system(const char *command) {
     }
 
     size_t elf_file_size = rootfs.get_file_size(&rootfs, f);
+    dbgprint("File size: %d bytes\n", elf_file_size);
 
     void *addr;
     if (!(addr = rootfs.load_file(&rootfs_io, &rootfs, f))) {
@@ -384,7 +382,7 @@ int system(const char *command) {
 
         page_directory_table *process_page_directory = mmu_new_page_directory();
 
-        mmu_map_pages(current_pdt, (uintptr_t)addr, (uintptr_t)addr, (elf_file_size + 0x4000) / BITMAP_PAGE_SIZE + 1, true, true, true);
+        mmu_map_pages(current_pdt, mmu_get_physical_address((uintptr_t)addr), (uintptr_t)addr, (elf_file_size + 0x4000) / BITMAP_PAGE_SIZE + 1, true, true, true);
 
         dbgprint("Switching to ring 3...\n");
 
@@ -469,7 +467,7 @@ void *bsearch(const void *key, const void *base, size_t num, size_t size, int (*
  * After partitioning:
  * | 3 | 2 | 1 | 4 | 5 | 7 | 6 | 9 | 8 |
  */
-void qsort_inplace(void *base, size_t num, size_t size, int (*compar)(const void *, const void *), size_t start, size_t end) {
+static void qsort_inplace(void *base, size_t num, size_t size, int (*compar)(const void *, const void *), size_t start, size_t end) {
     if (end - start <= 1) {
         return;
     }

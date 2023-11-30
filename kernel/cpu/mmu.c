@@ -12,6 +12,8 @@
 #include "../debug.h"
 #include "../modules/bitmap.h"
 
+static uintptr_t kernel_end;
+
 static void page_fault_handler(registers *r, uint32_t int_no) {
     uint32_t cr2;
     asm volatile(
@@ -83,13 +85,37 @@ void mmu_init(uintptr_t kernel_start_real_addr, uintptr_t kernel_end_real_addr, 
 
     isr_install_handler(14, page_fault_handler);
 
+    kernel_end = kernel_end_addr + 0x1000;
+    if (kernel_end % BITMAP_PAGE_SIZE != 0) {
+        kernel_end += BITMAP_PAGE_SIZE - (kernel_end % BITMAP_PAGE_SIZE);
+    }
+
     dbgprint("Page directory table initialized\n");
     mmu_enable_paging(current_pdt);
     dbgprint("Paging enabled\n");
 }
 
+bool mmu_is_mapped(page_directory_table *pdt, uintptr_t virt_addr) {
+    uint32_t pd_index = virt_addr >> 22;
+    uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
+
+    page_directory *pd = &pdt->entries[pd_index];
+    if (!pd->present) {
+        return false;
+    }
+
+    page_table *pt = (page_table *)(pd->address << 12);
+
+    page *p = &pt->entries[pt_index];
+    if (!p->present) {
+        return false;
+    }
+
+    return true;
+}
+
 void mmu_map_pages(page_directory_table *pdt, uintptr_t real_addr, uintptr_t virt_addr, size_t len, bool rw, bool user, bool executable) {
-    dbgprint("Mapping %d pages starting from 0x%x to 0x%x (rw=%c, user=%c, exec=%c)\n", len, real_addr, virt_addr, rw ? 'Y' : 'N', user ? 'Y' : 'N', executable ? 'Y' : 'N');
+    dbgprint("Mapping %d pages starting from 0x%lx to 0x%lx (rw=%c, user=%c, exec=%c)\n", len, real_addr, virt_addr, rw ? 'Y' : 'N', user ? 'Y' : 'N', executable ? 'Y' : 'N');
 
     for (size_t i = 0; i < len; i++) {
         uint32_t pd_index = virt_addr >> 22;
@@ -143,5 +169,53 @@ void mmu_unmap_pages(page_directory_table *pdt, uintptr_t virt_addr, size_t len)
         }
 
         virt_addr += BITMAP_PAGE_SIZE;
+    }
+}
+
+// Alloc `pages` pages of kernel memory in a contiguous block and return a pointer to the first page
+void *mmu_alloc_pages(size_t pages) {
+    void *start_addr = NULL;
+    for (uintptr_t addr = kernel_end; addr < 0xFFFFFFFF; addr += BITMAP_PAGE_SIZE) {
+        // Search for `pages` pages of contiguous memory
+        size_t i;
+        for (i = 0; i < pages; i++) {
+            if (mmu_is_mapped(current_pdt, addr + i * BITMAP_PAGE_SIZE)) {
+                break;
+            }
+        }
+
+        if (i == pages) {
+            start_addr = (void *)addr;
+            break;
+        }
+    }
+
+    if (!start_addr) {
+        dbgprint("Failed to allocate %d pages\n", pages);
+        return NULL;
+    }
+
+    for (size_t i = 0; i < pages; i++) {
+        uintptr_t virt_addr = (uintptr_t)start_addr + i * BITMAP_PAGE_SIZE;
+        uintptr_t real_addr = (uintptr_t)bitmap_alloc_page();
+
+        mmu_map_pages(current_pdt, real_addr, virt_addr, 1, true, false, false);
+    }
+
+    return start_addr;
+}
+
+void mmu_free_pages(void *addr, size_t pages) {
+    for (size_t i = 0; i < pages; i++) {
+        uintptr_t virt_addr = (uintptr_t)addr + i * BITMAP_PAGE_SIZE;
+        uintptr_t real_addr = mmu_get_physical_address(virt_addr);
+
+        if (!mmu_is_mapped(current_pdt, virt_addr)) {
+            continue;
+        }
+
+        bitmap_free_page((void *)real_addr);
+
+        mmu_unmap_pages(current_pdt, virt_addr, 1);
     }
 }

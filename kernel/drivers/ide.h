@@ -51,7 +51,7 @@ void ide_motor_on(iodriver *driver);
 
 void ide_motor_off(iodriver *driver);
 
-int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, unsigned char *buffer, bool keepOn);
+int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, unsigned char *buffer, bool keepOn);
 
 int ide_sector_read(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn);
 

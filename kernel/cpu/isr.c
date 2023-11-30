@@ -8,7 +8,7 @@
 #include "pic.h"
 #include "../debug.h"
 
-void *isr_routines[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+void (*isr_routines[32])(registers *, uint32_t) = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void isr_install_handler(int isr, void (*handler)(registers *, uint32_t)) {
     isr_routines[isr] = handler;
@@ -92,8 +92,7 @@ static const char *exception_messages[] = {
 void isr_fault_handler(registers *r) {
     if (r->int_no < 32 || r->int_no == 127) {
         if (r->int_no < 32 && isr_routines[r->int_no]) {
-            void (*handler)(registers *, uint32_t) = isr_routines[r->int_no];
-            handler(r, r->int_no);
+            isr_routines[r->int_no](r, r->int_no);
             return;
         }
 

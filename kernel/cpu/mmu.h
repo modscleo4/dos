@@ -49,8 +49,12 @@ page_directory_table *mmu_new_page_directory(void);
 
 void mmu_init(uintptr_t kernel_start_real_addr, uintptr_t kernel_end_real_addr, uintptr_t kernel_start_addr, uintptr_t kernel_end_addr);
 
+bool mmu_is_mapped(page_directory_table *pdt, uintptr_t virt_addr);
+
 void mmu_map_pages(page_directory_table *pdt, uintptr_t real_addr, uintptr_t virt_addr, size_t len, bool rw, bool user, bool executable);
 
 void mmu_unmap_pages(page_directory_table *pdt, uintptr_t virt_addr, size_t len);
+
+void *mmu_alloc_pages(size_t pages);
 
 #endif // KERNEL_MMU_H

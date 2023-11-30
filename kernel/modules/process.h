@@ -10,6 +10,8 @@ typedef struct process {
     uint32_t entry;
 } __attribute__((packed)) process;
 
+void process_init(void);
+
 uint32_t create_process(uint32_t entry, uint32_t stack);
 
 void destroy_process(uint32_t pid);

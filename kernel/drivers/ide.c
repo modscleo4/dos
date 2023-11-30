@@ -1,22 +1,26 @@
 #include "ide.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "../bits.h"
 #include "../debug.h"
+#include "../cpu/mmu.h"
+#include "../modules/bitmap.h"
 #include "../modules/timer.h"
 
 ide_channel_registers ide_channels[2];
 ide_device ide_devices[4];
 
-uint8_t ide_buf[2048] = {0};
 bool support_dma;
 
 iodriver *ide_init(pci_device *device) {
     dbgprint("IDE: Initializing IDE controller...\n");
     support_dma = false;
+
+    uint8_t *ide_buf = (uint8_t *)malloc_align(2048, BITMAP_PAGE_SIZE);
 
     int count = 0;
 
@@ -296,7 +300,7 @@ void ide_motor_off(iodriver *driver) {
     }
 }
 
-int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, unsigned char *buffer, bool keepOn) {
+int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, unsigned char *buffer, bool keepOn) {
     unsigned int ide_channel = ide_devices[driver->device].channel;
     unsigned int ide_drive = ide_devices[driver->device].drive;
 
@@ -339,18 +343,18 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
     }
 
     int cmd = 0;
-    if (lba_mode == 0 && !support_dma && direction == io_read) cmd = ATA_CMD_READ_PIO;
-    if (lba_mode == 1 && !support_dma && direction == io_read) cmd = ATA_CMD_READ_PIO;
-    if (lba_mode == 2 && !support_dma && direction == io_read) cmd = ATA_CMD_READ_PIO_EXT;
-    if (lba_mode == 0 && support_dma && direction == io_read) cmd = ATA_CMD_READ_DMA;
-    if (lba_mode == 1 && support_dma && direction == io_read) cmd = ATA_CMD_READ_DMA;
-    if (lba_mode == 2 && support_dma && direction == io_read) cmd = ATA_CMD_READ_DMA_EXT;
-    if (lba_mode == 0 && !support_dma && direction == io_write) cmd = ATA_CMD_WRITE_PIO;
-    if (lba_mode == 1 && !support_dma && direction == io_write) cmd = ATA_CMD_WRITE_PIO;
-    if (lba_mode == 2 && !support_dma && direction == io_write) cmd = ATA_CMD_WRITE_PIO_EXT;
-    if (lba_mode == 0 && support_dma && direction == io_write) cmd = ATA_CMD_WRITE_DMA;
-    if (lba_mode == 1 && support_dma && direction == io_write) cmd = ATA_CMD_WRITE_DMA;
-    if (lba_mode == 2 && support_dma && direction == io_write) cmd = ATA_CMD_WRITE_DMA_EXT;
+    if (lba_mode == 0 && !support_dma && direction == IO_READ) cmd = ATA_CMD_READ_PIO;
+    if (lba_mode == 1 && !support_dma && direction == IO_READ) cmd = ATA_CMD_READ_PIO;
+    if (lba_mode == 2 && !support_dma && direction == IO_READ) cmd = ATA_CMD_READ_PIO_EXT;
+    if (lba_mode == 0 && support_dma && direction == IO_READ) cmd = ATA_CMD_READ_DMA;
+    if (lba_mode == 1 && support_dma && direction == IO_READ) cmd = ATA_CMD_READ_DMA;
+    if (lba_mode == 2 && support_dma && direction == IO_READ) cmd = ATA_CMD_READ_DMA_EXT;
+    if (lba_mode == 0 && !support_dma && direction == IO_WRITE) cmd = ATA_CMD_WRITE_PIO;
+    if (lba_mode == 1 && !support_dma && direction == IO_WRITE) cmd = ATA_CMD_WRITE_PIO;
+    if (lba_mode == 2 && !support_dma && direction == IO_WRITE) cmd = ATA_CMD_WRITE_PIO_EXT;
+    if (lba_mode == 0 && support_dma && direction == IO_WRITE) cmd = ATA_CMD_WRITE_DMA;
+    if (lba_mode == 1 && support_dma && direction == IO_WRITE) cmd = ATA_CMD_WRITE_DMA;
+    if (lba_mode == 2 && support_dma && direction == IO_WRITE) cmd = ATA_CMD_WRITE_DMA_EXT;
 
     if (!support_dma) {
         ide_write(ide_channel, ATA_REG_CONTROL, ide_channels[ide_channel].n_ien = 0 + 0x02);
@@ -369,7 +373,7 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
         ide_polling(ide_channel, 0);
 
         unsigned char command_register = 0;
-        if (direction == io_read) {
+        if (direction == IO_READ) {
             command_register = ENABLE_BIT(command_register, 3);
         } else {
             command_register = DISABLE_BIT(command_register, 3);
@@ -429,7 +433,7 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
             return 1;
         }
 
-        insm(ide_channels[ide_channel].base, buffer, 256);
+        insm(ide_channels[ide_channel].base, (uint8_t *)buffer, 256);
         ide_polling(ide_channel, 0);
 
         if (!keepOn) {
@@ -441,9 +445,9 @@ int ide_do_sector(io_operation direction, iodriver *driver, unsigned long int lb
 }
 
 int ide_sector_read(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn) {
-    return ide_do_sector(io_read, driver, lba, 1, buffer, keepOn);
+    return ide_do_sector(IO_READ, driver, lba, 1, buffer, keepOn);
 }
 
 int ide_sector_write(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn) {
-    return ide_do_sector(io_write, driver, lba, 1, buffer, keepOn);
+    return ide_do_sector(IO_WRITE, driver, lba, 1, buffer, keepOn);
 }

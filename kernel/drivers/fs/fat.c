@@ -1,15 +1,17 @@
 #include "fat.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../../debug.h"
 #include "../../cpu/panic.h"
+#include "../../modules/bitmap.h"
 
-static unsigned short int fat12_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
-    unsigned short int table_value = *(unsigned short int *)&buffer[ent_offset];
+static uint16_t fat12_next_cluster(unsigned int cluster, const uint8_t *buffer, unsigned int ent_offset) {
+    uint16_t table_value = *(uint16_t *)&buffer[ent_offset];
 
     if (cluster & 0x0001) {
         table_value = table_value >> 4;
@@ -20,8 +22,8 @@ static unsigned short int fat12_next_cluster(unsigned int cluster, const unsigne
     return table_value;
 }
 
-static unsigned short int fat16_next_cluster(unsigned int cluster, const unsigned char *buffer, unsigned int ent_offset) {
-    unsigned short int table_value = *(unsigned short int *)&buffer[ent_offset];
+static uint16_t fat16_next_cluster(unsigned int cluster, const uint8_t *buffer, unsigned int ent_offset) {
+    uint16_t table_value = *(uint16_t *)&buffer[ent_offset];
 
     return table_value;
 }
@@ -99,10 +101,12 @@ fat_entry *fat_search_file(iodriver *driver, filesystem *fs, const char *filenam
         }
 
         if (strcmp(dos83toStr(f->name, f->ext), filename) == 0) {
+            dbgprint("Found file %s at sector %d\n", filename, rootdir_sector - 1);
             return f;
         }
     }
 
+    free(f);
     return NULL;
 }
 
@@ -112,7 +116,7 @@ void *fat_load_file(iodriver *driver, filesystem *fs, const void *_f) {
         return NULL;
     }
 
-    void *addr = malloc(f->size);
+    void *addr = malloc_align(f->size, BITMAP_PAGE_SIZE);
     return fat_load_file_at(driver, fs, f, addr);
 }
 
@@ -129,11 +133,11 @@ void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *a
     unsigned int cl = 0;
     unsigned int last_fat_sector = 0;
 
-    unsigned char fat_buffer[512];
+    uint8_t *fat_buffer = (uint8_t *) malloc(2 * params->bytes_per_sector);
 
     unsigned int rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
 
-    unsigned int invalid;
+    unsigned int invalid = 0xFFFF;
     if (fs->type == FS_FAT12) {
         invalid = 0xFF8;
     } else if (fs->type == FS_FAT16) {
@@ -153,11 +157,16 @@ void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *a
 
         fat_sector = first_fat_sector + (fat_offset / params->bytes_per_sector);
         ent_offset = fat_offset % params->bytes_per_sector;
+        dbgprint("fat_sector = %d\n", fat_sector);
+        dbgprint("ent_offset = %d\n", ent_offset);
 
         unsigned int sector = (cluster - 2) * params->sectors_per_cluster + rootdir_sector + (params->rootdir_entries * sizeof(fat_entry) / params->bytes_per_sector);
 
         if (!last_fat_sector || last_fat_sector != fat_sector) {
             driver->read_sector(driver, fat_sector, fat_buffer, true);
+            if (fs->type == FS_FAT12) {
+                driver->read_sector(driver, fat_sector + 1, fat_buffer + params->bytes_per_sector, true);
+            }
         }
 
         driver->read_sector(driver, sector, driver->io_buffer, true);
@@ -172,7 +181,11 @@ void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *a
         } else if (fs->type == FS_FAT16) {
             cluster = fat16_next_cluster(cluster, fat_buffer, ent_offset);
         }
+
+        dbgprint("Next cluster: %d\n", cluster);
     }
+
+    free(fat_buffer);
 
     driver->stop(driver);
 

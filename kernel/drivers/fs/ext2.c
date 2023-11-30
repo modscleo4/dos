@@ -1,14 +1,17 @@
 #include "ext2.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../../debug.h"
 #include "../../bits.h"
+#include "../../debug.h"
+#include "../../cpu/panic.h"
+#include "../../modules/bitmap.h"
 
-static uint8_t block_buffer[4096];
+static uint8_t *block_buffer;
 
 static void ext2_read_block(iodriver *driver, filesystem *fs, int block) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
@@ -80,6 +83,8 @@ static void ext2_read_inode(iodriver *driver, filesystem *fs, ext2_inode *inode,
 }
 
 void ext2_init(iodriver *driver, filesystem *fs) {
+    block_buffer = malloc_align(2048, BITMAP_PAGE_SIZE);
+
     dbgprint("Reading Superblock (sector %x)...\n", fs->start_lba);
 
     ext2_extended_superblock *superblock = malloc(sizeof(ext2_extended_superblock));
@@ -87,7 +92,7 @@ void ext2_init(iodriver *driver, filesystem *fs) {
     driver->read_sector(driver, fs->start_lba + 2, block_buffer, true);
     memcpy(superblock, block_buffer, sizeof(ext2_extended_superblock) / 2);
     driver->read_sector(driver, fs->start_lba + 3, block_buffer, true);
-    memcpy(superblock + sizeof(ext2_extended_superblock) / 2, block_buffer, sizeof(ext2_extended_superblock) / 2);
+    memcpy(((uint8_t *)superblock) + sizeof(ext2_extended_superblock) / 2, block_buffer, sizeof(ext2_extended_superblock) / 2);
 
     if (superblock->base.ext2_signature != EXT2_SIGNATURE) {
         dbgprint("Invalid signature: %x\n", superblock->base.ext2_signature);
@@ -172,7 +177,7 @@ void *ext2_load_file(iodriver *driver, filesystem *fs, const void *_f) {
         return 0;
     }
 
-    void *addr = malloc(f->size);
+    void *addr = malloc_align(f->size, BITMAP_PAGE_SIZE);
     return ext2_load_file_at(driver, fs, f, addr);
 }
 

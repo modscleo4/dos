@@ -132,14 +132,14 @@ static void e1000_receive_init(ethernet_driver *driver) {
     dbgprint("e1000: RX buffer: %x\n", buffer);
     //static e1000_receive_descriptor buffer[RX_LEN] __attribute__((aligned(16)));
     for (int i = 0; i < RX_LEN; i++) {
-        buffer[i].buffer_address = (uint64_t)malloc(8192+16);
+        buffer[i].buffer_address = (uint64_t)mmu_get_physical_address((uintptr_t)malloc(8192));
         buffer[i].status = 0;
         dbgprint("e1000: RX buffer %d: %x\n", i, buffer[i].buffer_address);
     }
     driver->rx_buffer = (uint8_t *)buffer;
     driver->rx_buffer_size = RX_LEN * sizeof(e1000_transmit_descriptor);
-    e1000_write(driver, E1000_REG_RDBAL, (uint32_t)buffer);
-    e1000_write(driver, E1000_REG_RDBAH, (uint32_t)((uint64_t)buffer >> 32));
+    e1000_write(driver, E1000_REG_RDBAL, (uint32_t)mmu_get_physical_address((uintptr_t)buffer));
+    e1000_write(driver, E1000_REG_RDBAH, (uint32_t)((uint64_t)mmu_get_physical_address((uintptr_t)buffer) >> 32));
 
     e1000_write(driver, E1000_REG_RDLEN, driver->rx_buffer_size);
 
@@ -160,8 +160,8 @@ static void e1000_transmit_init(ethernet_driver *driver) {
     }
     driver->tx_buffer = (uint8_t *)buffer;
     driver->tx_buffer_size = TX_LEN * sizeof(e1000_transmit_descriptor);
-    e1000_write(driver, E1000_REG_TDBAL, (uint32_t)buffer);
-    e1000_write(driver, E1000_REG_TDBAH, (uint32_t)((uint64_t)buffer >> 32));
+    e1000_write(driver, E1000_REG_TDBAL, (uint32_t)mmu_get_physical_address((uintptr_t)buffer));
+    e1000_write(driver, E1000_REG_TDBAH, (uint32_t)((uint64_t)mmu_get_physical_address((uintptr_t)buffer) >> 32));
 
     e1000_write(driver, E1000_REG_TDLEN, driver->tx_buffer_size);
 

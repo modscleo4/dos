@@ -15,9 +15,9 @@ typedef struct iodriver {
     int (*write_sector)(struct iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
 } iodriver;
 
-typedef enum {
-    io_read = 0,
-    io_write = 1
-} io_operation;
+typedef enum IOOperation {
+    IO_READ = 0,
+    IO_WRITE = 1
+} IOOperation;
 
 #endif // IODRIVER_H

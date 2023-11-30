@@ -196,6 +196,8 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
 
     if (max_ram == 0) {
         panic("No available RAM found from MBI.");
+    } else if (max_ram < 31 * 1024) { // GRUB reports 1 MiB less than the actual amount of RAM
+        panic("Not enough RAM. At least 32 MiB required.");
     }
 
     if (!get_cpuid_info()) {
@@ -213,6 +215,10 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
 
     dbgprint("Testing malloc...\n");
     int *arr = malloc(sizeof(int) * 10);
+    if (!arr) {
+        panic("malloc failed");
+    }
+
     for (int i = 0; i < 10; i++) {
         arr[i] = i + 1;
     }
@@ -246,6 +252,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
         dbgprint("ACPI not available\n");
     }
 
+    process_init();
     udp_init();
     tcp_init();
     dns_init();

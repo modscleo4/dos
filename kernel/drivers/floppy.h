@@ -121,9 +121,9 @@ void floppy_motor_on(iodriver *driver);
 
 void floppy_motor_off(iodriver *driver);
 
-static void floppy_dma_init(io_operation direction, unsigned char *buffer);
+static void floppy_dma_init(IOOperation direction, unsigned char *buffer);
 
-int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buffer, io_operation direction, bool keepOn);
+int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buffer, IOOperation direction, bool keepOn);
 
 int floppy_sector_read(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
 

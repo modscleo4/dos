@@ -1,6 +1,7 @@
 #include "heap.h"
 
-#define DEBUG 1
+#define DEBUG 0
+#define DEBUG_SERIAL 1
 
 #include "../debug.h"
 
@@ -63,11 +64,12 @@ void *heap_alloc(heap *this, size_t size) {
             blocks_needed = (size / hb->block_size) * hb->block_size < size ? size / hb->block_size + 1 : size / hb->block_size;
             bitmap = (uint8_t *)&hb[1];
             dbgprint("Heap block has enough room\n");
+            dbgprint("  hb->size: %d, hb->block_size: %d\n", hb->size, hb->block_size);
             dbgprint("  block_count: %d\n", block_count);
             dbgprint("  blocks_needed: %d\n", blocks_needed);
             dbgprint("  x: %d, lfb = %d\n", (hb->lfb + 1 >= block_count ? 0 : hb->lfb + 1), hb->lfb);
 
-            for (x = (hb->lfb + 1 >= block_count ? 0 : hb->lfb + 1); x < hb->lfb; x++) {
+            for (x = (hb->lfb + 1 >= block_count ? 0 : hb->lfb + 1); x != hb->lfb; x++) {
                 /* just wrap around */
                 if (x >= block_count) {
                     x = 0;
@@ -112,7 +114,7 @@ void *heap_alloc(heap *this, size_t size) {
     return NULL;
 }
 
-void heap_free(heap *this, void *addr) {
+bool heap_free(heap *this, void *addr) {
     heap_block *hb;
     uintptr_t pointer_offset;
     uint32_t bi, x;
@@ -137,10 +139,10 @@ void heap_free(heap *this, void *addr) {
             }
             /* update free block count */
             hb->used -= x - bi;
-            return;
+            return true;
         }
     }
 
     /* this error needs to be raised or reported somehow */
-    return;
+    return false;
 }

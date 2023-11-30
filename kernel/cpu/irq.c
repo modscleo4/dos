@@ -18,7 +18,7 @@ void irq_remap(void) {
     outb(0xA1, 0x0);
 }
 
-void *irq_routines[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+void (*irq_routines[16])(registers *, uint32_t) = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void irq_install_handler(int irq, void (*handler)(registers *, uint32_t)) {
     irq_routines[irq] = handler;
@@ -49,10 +49,8 @@ void irq_init(void) {
 }
 
 void irq_handler(registers *r) {
-    void (*handler)(registers *, uint32_t) = irq_routines[r->int_no - 32];
-
-    if (handler) {
-        handler(r, r->int_no - 32);
+    if (irq_routines[r->int_no - 32]) {
+        irq_routines[r->int_no - 32](r, r->int_no - 32);
     }
 
     pic_send_eoi(r->int_no);

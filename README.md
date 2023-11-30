@@ -49,7 +49,7 @@ The Kernel is built on top of a primitive libc. It is located in `kernel/libc`. 
 - [x] Ext2
 - [x] Syscalls
 - [ ] Multitasking
-- [ ] Virtual Memory
+- [x] Virtual Memory
 - [x] ELF parsing
 - [x] Kernel Modules
 - [x] Networking

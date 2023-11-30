@@ -12,9 +12,13 @@
 #include "../drivers/filesystem.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/screen.h"
+#include "../drivers/serial.h"
 
 void panic(const char *msg, ...) {
     char buf[1024] = "";
+    serial_write_str(SERIAL_COM1, "==================== PANIC ====================\n");
+    serial_write_str(SERIAL_COM1, "%s", msg);
+    serial_write_str(SERIAL_COM1, "\n================================================\n");
 
     va_list args;
     va_start(args, msg);
@@ -32,18 +36,26 @@ static void read_gdt_segment(uint16_t segment) {
     printf("( %04x|% 2x|% 3x) %08x %08x %d %d\n", segment / 8, ss.bits.code, ss.bits.DPL, ss.bits.base_high << 16 | ss.bits.base_low, ss.bits.limit_high << 16 | ss.bits.limit_low, ss.bits.granularity, ss.bits.code_data_segment);
 }
 
+static int is_interrupts_enabled(void) {
+    uint32_t eflags;
+    asm volatile("pushf; pop %0" : "=r"(eflags));
+    return ISSET_BIT(eflags, 9);
+}
+
 void panic_handler(const char *msg, registers *r) {
-    for (int i = 0; i <= 15; i++) {
-        if (i == IRQ_KEYBOARD) {
-            continue;
+    if (is_interrupts_enabled()) {
+        for (int i = 0; i <= 15; i++) {
+            if (i == IRQ_KEYBOARD) {
+                continue;
+            }
+
+            irq_uninstall_handler(i);
         }
 
-        irq_uninstall_handler(i);
+        asm volatile("sti");
     }
 
-    asm volatile("sti");
-
-    char c = r ? 'I' : 'S';
+    char c = r ? 'R' : 'S';
     do {
         screen_clear();
         screen_setcolor(COLOR_RED << 4 | COLOR_WHITE);

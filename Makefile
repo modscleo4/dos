@@ -58,7 +58,6 @@ floppy: bootloader_floppy rootfs grub2_floppy
 	dd conv=notrunc if=$(BIOSPARAMS) of=$(FLOPPY_DISK_IMG) bs=1 count=94 seek=515
 	dd conv=notrunc if=$(FLOPPY_GRUB2_CORE_SECTOR) of=$(GRUB2_CORE_IMG) bs=1 seek=500 count=1
 	dd conv=notrunc if=$(GRUB2_CORE_IMG) of=$(FLOPPY_DISK_IMG) bs=512 seek=2
-	dd conv=notrunc if=$(BIOSPARAMS) of=$(FLOPPY_DISK_IMG) bs=1 count=60 seek=262659
 	MTOOLSRC=./mtoolsrc mlabel -n a:MARCOSLIRA
 	MTOOLSRC=./mtoolsrc mcopy -m -s rootfs/boot a:
 	MTOOLSRC=./mtoolsrc mcopy -m rootfs/kernel.elf a:
@@ -74,7 +73,6 @@ ata: bootloader_ata rootfs grub2_ata
 	dd conv=notrunc if=$(BIOSPARAMS) of=$(ATA_DISK_IMG) bs=1 count=94 seek=515
 	dd conv=notrunc if=$(ATA_GRUB2_CORE_SECTOR) of=$(GRUB2_CORE_IMG) bs=1 seek=500 count=1
 	dd conv=notrunc if=$(GRUB2_CORE_IMG) of=$(ATA_DISK_IMG) bs=512 seek=2
-	dd conv=notrunc if=$(BIOSPARAMS) of=$(ATA_DISK_IMG) bs=1 count=60 seek=262659
 	MTOOLSRC=./mtoolsrc mlabel -n c:MARCOSLIRA
 	MTOOLSRC=./mtoolsrc mcopy -m -s rootfs/boot c:
 	MTOOLSRC=./mtoolsrc mcopy -m rootfs/kernel.elf c:
