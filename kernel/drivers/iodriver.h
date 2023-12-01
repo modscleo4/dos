@@ -2,17 +2,18 @@
 #define IODRIVER_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct iodriver {
     unsigned int device;
-    unsigned char *io_buffer;
+    uint8_t *io_buffer;
     unsigned int sector_size;
     void *partitions;
     int (*reset)(struct iodriver *driver);
     void (*start)(struct iodriver *driver);
     void (*stop)(struct iodriver *driver);
-    int (*read_sector)(struct iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
-    int (*write_sector)(struct iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
+    int (*read_sector)(struct iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn);
+    int (*write_sector)(struct iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn);
 } iodriver;
 
 typedef enum IOOperation {

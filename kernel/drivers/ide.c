@@ -300,16 +300,18 @@ void ide_motor_off(iodriver *driver) {
     }
 }
 
-int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, unsigned char *buffer, bool keepOn) {
+int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, uint8_t *buffer, bool keepOn) {
     unsigned int ide_channel = ide_devices[driver->device].channel;
     unsigned int ide_drive = ide_devices[driver->device].drive;
 
     unsigned int lba_mode = 0;
-    unsigned char _lba[6];
+    uint8_t _lba[6];
 
     unsigned int head;
     unsigned int cylinder;
     unsigned int sector;
+
+    uint8_t bmr_command_reg = 0;
 
     if (lba >= 0x10000000) {
         lba_mode = 2;
@@ -372,19 +374,19 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
 
         ide_polling(ide_channel, 0);
 
-        unsigned char command_register = 0;
+        bmr_command_reg = 0;
         if (direction == IO_READ) {
-            command_register = ENABLE_BIT(command_register, 3);
+            bmr_command_reg = ENABLE_BIT(bmr_command_reg, 3);
         } else {
-            command_register = DISABLE_BIT(command_register, 3);
+            bmr_command_reg = DISABLE_BIT(bmr_command_reg, 3);
         }
-        outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, command_register);
+        outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, bmr_command_reg);
 
         ide_polling(ide_channel, 0);
 
-        unsigned char status_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS);
-        status_register = DISABLE_BIT(status_register, 1);
-        status_register = DISABLE_BIT(status_register, 2);
+        uint8_t status_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS);
+        status_register = DISABLE_BIT(status_register, 1); // Clear interrupt
+        status_register = DISABLE_BIT(status_register, 2); // Clear error
         outb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS, status_register);
     }
 
@@ -409,6 +411,9 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
     ide_write(ide_channel, ATA_REG_COMMAND, cmd);
 
     if (support_dma) {
+        bmr_command_reg = ENABLE_BIT(bmr_command_reg, 0); // Start
+        outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, bmr_command_reg);
+
         ide_motor_on(driver);
 
         if (ide_channel == 0) {
@@ -417,19 +422,22 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
             ata_wait_irq_secondary();
         }
 
+        bmr_command_reg = DISABLE_BIT(bmr_command_reg, 0); // Stop
+        outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, bmr_command_reg);
+
         if (!keepOn) {
             ide_motor_off(driver);
         }
 
-        ide_polling(ide_channel, 0);
+        ide_polling(ide_channel, false);
 
-        unsigned char status_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS);
-        if (ISSET_BIT_INT(status_register, 1)) {
-            status_register = DISABLE_BIT(status_register, 1);
-            outb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS, status_register);
+        uint8_t status_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS);
+        if (ISSET_BIT(status_register, 1)) { // Error
+            outb(ide_channels[ide_channel].bmide + ATA_BMR_STATUS, 2);
+            return 1;
         }
     } else {
-        if (ide_print_error(driver, ide_polling(ide_channel, 1))) {
+        if (ide_print_error(driver, ide_polling(ide_channel, true))) {
             return 1;
         }
 
@@ -444,10 +452,10 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
     return 0;
 }
 
-int ide_sector_read(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn) {
+int ide_sector_read(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn) {
     return ide_do_sector(IO_READ, driver, lba, 1, buffer, keepOn);
 }
 
-int ide_sector_write(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn) {
+int ide_sector_write(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn) {
     return ide_do_sector(IO_WRITE, driver, lba, 1, buffer, keepOn);
 }

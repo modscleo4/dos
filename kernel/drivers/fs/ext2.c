@@ -13,13 +13,18 @@
 
 static uint8_t *block_buffer;
 
-static void ext2_read_block(iodriver *driver, filesystem *fs, int block) {
+static bool ext2_read_block(iodriver *driver, filesystem *fs, int block) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
     int block_size = 1024 << superblock->base.log2_block_size;
 
     for (int i = 0; i < block_size; i += driver->sector_size) {
-        driver->read_sector(driver, fs->start_lba + block * block_size / driver->sector_size + i / driver->sector_size, block_buffer + i, true);
+        if (driver->read_sector(driver, fs->start_lba + block * block_size / driver->sector_size + i / driver->sector_size, block_buffer + i, true)) {
+            dbgprint("Failed to read block %d\n", block);
+            return false;
+        }
     }
+
+    return true;
 }
 
 static void ext2_read_bgd(iodriver *driver, filesystem *fs, ext2_block_group_descriptor *bgd, int index) {
@@ -27,7 +32,7 @@ static void ext2_read_bgd(iodriver *driver, filesystem *fs, ext2_block_group_des
     int block_size = 1024 << superblock->base.log2_block_size;
     int bgd_block = block_size == 1024 ? 2 : 1;
 
-    ext2_read_block(driver, fs, bgd_block);
+    while (!ext2_read_block(driver, fs, bgd_block)) {}
     memcpy(bgd, block_buffer + (index * sizeof(ext2_block_group_descriptor)), sizeof(ext2_block_group_descriptor));
 
     dbgprint("Block usage bitmap: %d\n", bgd->block_usage_bitmap);
@@ -54,7 +59,7 @@ static void ext2_read_inode(iodriver *driver, filesystem *fs, ext2_inode *inode,
     dbgprint("inode index: %d\n", inode_index);
     dbgprint("block: %d\n", block);
 
-    ext2_read_block(driver, fs, block);
+    while (!ext2_read_block(driver, fs, block)) {}
     memcpy(inode, block_buffer + (inode_index * sizeof(ext2_inode)), sizeof(ext2_inode));
 
     dbgprint("Inode type/permissions: %hx\n", inode->type_permission);
@@ -93,10 +98,6 @@ void ext2_init(iodriver *driver, filesystem *fs) {
 
     if (superblock->base.ext2_signature != EXT2_SIGNATURE) {
         dbgprint("Invalid signature: %x\n", superblock->base.ext2_signature);
-        return;
-    }
-
-    if (superblock->base.inodes_per_group == 0) {
         return;
     }
 

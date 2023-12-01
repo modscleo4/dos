@@ -4,12 +4,13 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include "gdt.h"
 #include "idt.h"
+#include "interrupts.h"
+#include "panic.h"
 #include "system.h"
 #include "../debug.h"
 #include "../ring3.h"
-#include "../cpu/gdt.h"
-#include "../cpu/interrupts.h"
 #include "../drivers/ethernet.h"
 #include "../modules/net/dns.h"
 #include "../modules/net/tcp.h"
@@ -19,6 +20,7 @@
 long int __syscall_ret;
 
 static long int syscall_exit(registers *r, int exit_code) {
+    panic_handler(r, "Process exited with code %d\n", exit_code);
     // Stay on ring0
     asm volatile("mov %%cs, %0" : "=r"(r->cs));
     asm volatile("mov %%ds, %0" : "=r"(r->ds));

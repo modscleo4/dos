@@ -160,7 +160,7 @@ void kernel_main(uint32_t magic, uint32_t addr) {
                 if (!acpi_rsdp_addr) {
                     struct multiboot_tag_old_acpi *acpi = (struct multiboot_tag_old_acpi *)tag;
                     acpi_rsdp_addr = (void *)acpi->rsdp;
-                    serial_write_str(SERIAL_COM1, "ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
+                    dbgprint("ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
                 }
                 break;
             }
@@ -168,7 +168,7 @@ void kernel_main(uint32_t magic, uint32_t addr) {
             case MULTIBOOT_TAG_TYPE_ACPI_NEW: {
                 struct multiboot_tag_new_acpi *acpi = (struct multiboot_tag_new_acpi *)tag;
                 acpi_rsdp_addr = (void *)acpi->rsdp;
-                serial_write_str(SERIAL_COM1, "ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
+                dbgprint("ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
                 break;
             }
         }

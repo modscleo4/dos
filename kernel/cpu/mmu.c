@@ -11,8 +11,10 @@
 #include "../bits.h"
 #include "../debug.h"
 #include "../modules/bitmap.h"
+#include "../modules/spinlock.h"
 
 static uintptr_t kernel_end;
+static spinlock *mmu_lock = NULL;
 
 static void page_fault_handler(registers *r, uint32_t int_no) {
     uint32_t cr2;
@@ -72,6 +74,10 @@ page_directory_table *mmu_new_page_directory(void) {
 }
 
 void mmu_init(uintptr_t kernel_start_real_addr, uintptr_t kernel_end_real_addr, uintptr_t kernel_start_addr, uintptr_t kernel_end_addr) {
+    if (!mmu_lock) {
+        mmu_lock = spinlock_init();
+    }
+
     page_directory_table *pdt = mmu_new_page_directory();
     current_pdt = pdt;
 
@@ -117,6 +123,8 @@ bool mmu_is_mapped(page_directory_table *pdt, uintptr_t virt_addr) {
 void mmu_map_pages(page_directory_table *pdt, uintptr_t real_addr, uintptr_t virt_addr, size_t len, bool rw, bool user, bool executable) {
     dbgprint("Mapping %d pages starting from 0x%lx to 0x%lx (rw=%c, user=%c, exec=%c)\n", len, real_addr, virt_addr, rw ? 'Y' : 'N', user ? 'Y' : 'N', executable ? 'Y' : 'N');
 
+    spinlock_lock(mmu_lock);
+
     for (size_t i = 0; i < len; i++) {
         uint32_t pd_index = virt_addr >> 22;
         uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
@@ -148,9 +156,15 @@ void mmu_map_pages(page_directory_table *pdt, uintptr_t real_addr, uintptr_t vir
         real_addr += BITMAP_PAGE_SIZE;
         virt_addr += BITMAP_PAGE_SIZE;
     }
+
+    spinlock_unlock(mmu_lock);
 }
 
 void mmu_unmap_pages(page_directory_table *pdt, uintptr_t virt_addr, size_t len) {
+    dbgprint("Unmapping %d pages starting from 0x%lx\n", len, virt_addr);
+
+    spinlock_lock(mmu_lock);
+
     for (size_t i = 0; i < len; i++) {
         uint32_t pd_index = virt_addr >> 22;
         uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
@@ -170,10 +184,14 @@ void mmu_unmap_pages(page_directory_table *pdt, uintptr_t virt_addr, size_t len)
 
         virt_addr += BITMAP_PAGE_SIZE;
     }
+
+    spinlock_unlock(mmu_lock);
 }
 
 // Alloc `pages` pages of kernel memory in a contiguous block and return a pointer to the first page
 void *mmu_alloc_pages(size_t pages) {
+    spinlock_lock(mmu_lock);
+
     void *start_addr = NULL;
     for (uintptr_t addr = kernel_end; addr < 0xFFFFFFFF; addr += BITMAP_PAGE_SIZE) {
         // Search for `pages` pages of contiguous memory
@@ -189,6 +207,8 @@ void *mmu_alloc_pages(size_t pages) {
             break;
         }
     }
+
+    spinlock_unlock(mmu_lock);
 
     if (!start_addr) {
         dbgprint("Failed to allocate %d pages\n", pages);

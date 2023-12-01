@@ -121,12 +121,12 @@ void floppy_motor_on(iodriver *driver);
 
 void floppy_motor_off(iodriver *driver);
 
-static void floppy_dma_init(IOOperation direction, unsigned char *buffer);
+static void floppy_dma_init(IOOperation direction, uint8_t *buffer);
 
-int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buffer, IOOperation direction, bool keepOn);
+int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, IOOperation direction, bool keepOn);
 
-int floppy_sector_read(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
+int floppy_sector_read(iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn);
 
-int floppy_sector_write(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn);
+int floppy_sector_write(iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn);
 
 #endif //FLOPPY_H

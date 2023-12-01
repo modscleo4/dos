@@ -17,6 +17,7 @@
 #include "../modules/bitmap.h"
 #include "../modules/elf.h"
 #include "../modules/heap.h"
+#include "../modules/spinlock.h"
 
 static const char numbase[] = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz";
 
@@ -247,8 +248,13 @@ unsigned long int strtoul(const char *str, char **endptr, int base) {
 }
 
 static heap kernel_heap;
+static spinlock *malloc_lock = NULL;
 
 void kernel_malloc_init(void) {
+    if (!malloc_lock) {
+        malloc_lock = spinlock_init();
+    }
+
     void *addr = mmu_alloc_pages(256); // 1 MB
 
     heap_init(&kernel_heap);
@@ -284,18 +290,25 @@ void free(void *ptr) {
         return;
     }
 
+    spinlock_lock(malloc_lock);
+
     dbgprint("free(&%x)\n", ptr);
 
     if (!heap_free(&kernel_heap, ptr)) {
+        spinlock_unlock(malloc_lock);
         dbgprint("free: could not free &%x\n", ptr);
         return;
     }
+
+    spinlock_unlock(malloc_lock);
 }
 
 void *malloc(size_t size) {
     if (size == 0) {
         return NULL;
     }
+
+    spinlock_lock(malloc_lock);
 
     if (size < _MIN_MALLOC_SIZE) {
         size = _MIN_MALLOC_SIZE;
@@ -306,6 +319,8 @@ void *malloc(size_t size) {
         heap_add_block(&kernel_heap, mmu_alloc_pages(256), 256 * BITMAP_PAGE_SIZE, 16);
         addr = heap_alloc(&kernel_heap, size);
     }
+
+    spinlock_unlock(malloc_lock);
 
     if (!addr) {
         dbgprint("malloc: could not allocate %d bytes\n", size);

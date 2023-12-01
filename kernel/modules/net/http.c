@@ -15,7 +15,7 @@ void http_send_request(ethernet_driver *driver, uint8_t destination_ip[4], uint1
     sprintf(request, "%s %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", method, path, host);
     tcp_install_listener(source_port, http_receive_request);
     uint32_t ack;
-    if (tcp_syn(driver, destination_ip, destination_port, source_port, 1000, &ack)) {
+    if (tcp_syn(driver, destination_ip, destination_port, source_port, 10000, &ack)) {
         tcp_send_packet(driver, driver->ipv4.ip, source_port, destination_ip, destination_port, 0, ack, false, true, false, true, request, strlen(request));
         // tcp_close_connection(driver, destination_ip, destination_port, source_port);
     }

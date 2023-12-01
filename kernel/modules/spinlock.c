@@ -9,6 +9,10 @@ static spinlock locks[16];
 static volatile int lock_index = 0;
 
 spinlock *spinlock_init(void) {
+    if (lock_index >= 16) {
+        panic("spinlock_init: too many locks");
+    }
+
     spinlock *lock = &locks[lock_index++];
     lock->locked = 0;
     return lock;

@@ -270,14 +270,14 @@ void floppy_motor_off(iodriver *driver) {
     floppy_motor_state[driver->device] = 0;
 }
 
-static void floppy_dma_init(IOOperation direction, unsigned char *buffer) {
+static void floppy_dma_init(IOOperation direction, uint8_t *buffer) {
     union {
-        unsigned char b[4];
-        unsigned long int l;
+        uint8_t b[4];
+        uint32_t l;
     } addr, count;
 
-    addr.l = (unsigned long int)mmu_get_physical_address((uintptr_t)buffer);
-    count.l = (unsigned long int)511;
+    addr.l = (uint32_t)mmu_get_physical_address((uintptr_t)buffer);
+    count.l = (uint32_t)511;
 
     if ((addr.l >> 24) || (count.l >> 16) || (((addr.l & 0xffff) + count.l) >> 16)) {
         dbgprint("%s: buffer problem\n", __func__);
@@ -313,7 +313,7 @@ static void floppy_dma_init(IOOperation direction, unsigned char *buffer) {
     outb(0x0a, 0x02);
 }
 
-int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buffer, IOOperation direction, bool keepOn) {
+int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, IOOperation direction, bool keepOn) {
     unsigned char command;
     static const int flags = 0xC0;
 
@@ -455,10 +455,10 @@ int floppy_do_sector(iodriver *driver, unsigned long int lba, unsigned char *buf
     return -1;
 }
 
-int floppy_sector_read(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn) {
+int floppy_sector_read(iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn) {
     return floppy_do_sector(driver, lba, data, IO_READ, keepOn);
 }
 
-int floppy_sector_write(iodriver *driver, unsigned long int lba, unsigned char *data, bool keepOn) {
+int floppy_sector_write(iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn) {
     return floppy_do_sector(driver, lba, data, IO_WRITE, keepOn);
 }

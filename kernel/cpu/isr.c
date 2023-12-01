@@ -96,15 +96,11 @@ void isr_fault_handler(registers *r) {
             return;
         }
 
-        char buf[128] = "";
-
         // only print err_code if the exception set it
         if (r->int_no == 8 || r->int_no == 10 || r->int_no == 11 || r->int_no == 12 || r->int_no == 13 || r->int_no == 14 || r->int_no == 17 || r->int_no == 21 || r->int_no == 29 || r->int_no == 30) {
-            sprintf(buf, "%d: %s", r->err_code, exception_messages[r->int_no]);
+            panic_handler(r, "%d: %s", r->err_code, exception_messages[r->int_no]);
         } else {
-            sprintf(buf, "%s", exception_messages[r->int_no]);
+            panic_handler(r, "%s", exception_messages[r->int_no]);
         }
-
-        panic_handler(buf, r);
     }
 }

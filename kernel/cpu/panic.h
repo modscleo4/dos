@@ -6,6 +6,6 @@
 
 void panic(const char *msg, ...);
 
-void panic_handler(const char *msg, registers *r);
+void panic_handler(registers *r, const char *msg, ...);
 
 #endif // KERNEL_PANIC_H

@@ -17,20 +17,6 @@
 #include "../drivers/screen.h"
 #include "../drivers/serial.h"
 
-void panic(const char *msg, ...) {
-    char buf[1024] = "";
-    serial_write_str(SERIAL_COM1, "==================== PANIC ====================\n");
-    serial_write_str(SERIAL_COM1, "%s", msg);
-    serial_write_str(SERIAL_COM1, "\n================================================\n");
-
-    va_list args;
-    va_start(args, msg);
-    vsprintf(buf, msg, args);
-    va_end(args);
-
-    panic_handler(buf, NULL);
-}
-
 static void read_gdt_segment(uint16_t segment) {
     gdt_ptr gdt_ptr;
     asm volatile("sgdt %0" : "=m"(gdt_ptr));
@@ -39,7 +25,7 @@ static void read_gdt_segment(uint16_t segment) {
     printf("( %04x|% 2x|% 3x) %08x %08x %d %d\n", segment / 8, ss.bits.code, ss.bits.DPL, ss.bits.base_high << 16 | ss.bits.base_low, ss.bits.limit_high << 16 | ss.bits.limit_low, ss.bits.granularity, ss.bits.code_data_segment);
 }
 
-void panic_handler(const char *msg, registers *r) {
+static void panic_handler_varargs(registers *r, const char *msg, va_list args) {
     for (int i = 0; i <= 15; i++) {
         if (i == IRQ_KEYBOARD || i == IRQ_ATA_PRIMARY || i == IRQ_ATA_SECONDARY || i == IRQ_FLOPPY) {
             continue;
@@ -56,7 +42,8 @@ void panic_handler(const char *msg, registers *r) {
         screen_setcolor(COLOR_RED << 4 | COLOR_WHITE);
         printf("                                   MVLIRA05 OS                                  \n");
         screen_setcolor(COLOR_BLACK << 4 | COLOR_WHITE);
-        printf("PANIC!\n%s\n", msg);
+        printf("PANIC!\n");
+        vprintf(msg, args);
         screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
         switch (c) {
@@ -84,23 +71,40 @@ void panic_handler(const char *msg, registers *r) {
                     printf("ss: %04hx\n", r->ss);
 
                     printf("eflags: %x", r->eflags);
-                    if (r->eflags.carry) printf(" CF");
-                    if (r->eflags.parity) printf(" PF");
-                    if (r->eflags.adjust) printf(" AF");
-                    if (r->eflags.zero) printf(" ZF");
-                    if (r->eflags.sign) printf(" SF");
-                    if (r->eflags.trap) printf(" TF");
-                    if (r->eflags.interrupt) printf(" IF");
-                    if (r->eflags.direction) printf(" DF");
-                    if (r->eflags.overflow) printf(" OF");
-                    if (r->eflags.iopl) printf(" IOPL");
-                    if (r->eflags.nt) printf(" NT");
-                    if (r->eflags.resume) printf(" RF");
-                    if (r->eflags.virtual_86) printf(" VM");
-                    if (r->eflags.alignment) printf(" AC");
-                    if (r->eflags.virtual_interrupt) printf(" VIF");
-                    if (r->eflags.virtual_interrupt_pending) printf(" VIP");
-                    if (r->eflags.id) printf(" ID");
+                    if (r->eflags.carry)
+                        printf(" CF");
+                    if (r->eflags.parity)
+                        printf(" PF");
+                    if (r->eflags.adjust)
+                        printf(" AF");
+                    if (r->eflags.zero)
+                        printf(" ZF");
+                    if (r->eflags.sign)
+                        printf(" SF");
+                    if (r->eflags.trap)
+                        printf(" TF");
+                    if (r->eflags.interrupt)
+                        printf(" IF");
+                    if (r->eflags.direction)
+                        printf(" DF");
+                    if (r->eflags.overflow)
+                        printf(" OF");
+                    if (r->eflags.iopl)
+                        printf(" IOPL");
+                    if (r->eflags.nt)
+                        printf(" NT");
+                    if (r->eflags.resume)
+                        printf(" RF");
+                    if (r->eflags.virtual_86)
+                        printf(" VM");
+                    if (r->eflags.alignment)
+                        printf(" AC");
+                    if (r->eflags.virtual_interrupt)
+                        printf(" VIF");
+                    if (r->eflags.virtual_interrupt_pending)
+                        printf(" VIP");
+                    if (r->eflags.id)
+                        printf(" ID");
                     printf(" IOPL: %d", r->eflags.iopl);
                     printf("\n");
 
@@ -114,7 +118,7 @@ void panic_handler(const char *msg, registers *r) {
                     if (r) {
                         ebp = r->ebp;
                     } else {
-                        asm volatile("mov %%ebp, %0" : "=r" (ebp));
+                        asm volatile("mov %%ebp, %0" : "=r"(ebp));
                     }
                     callstack(ebp);
                 }
@@ -124,7 +128,7 @@ void panic_handler(const char *msg, registers *r) {
 
         screen_gotoxy(0, -1);
         screen_setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
-        printf("%-80s", r ? "<R> - Registers | <S> - Call Stack. | <Q> Restart. | <P> - Power Off." : "<S> - Call Stack. | <Q> Restart. | <P> - Power Off.");
+        printf("%-80s", r ? "<R> - Registers | <S> - Call Stack | <Q> Restart | <P> - Power Off." : "<S> - Call Stack | <Q> Restart | <P> - Power Off.");
         screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
         c = getchar();
@@ -141,4 +145,23 @@ void panic_handler(const char *msg, registers *r) {
     while (true) {
         asm volatile("hlt");
     }
+}
+
+void panic(const char *msg, ...) {
+    char buf[1024] = "";
+    serial_write_str(SERIAL_COM1, "==================== PANIC ====================\n");
+    serial_write_str(SERIAL_COM1, "%s", msg);
+    serial_write_str(SERIAL_COM1, "\n================================================\n");
+
+    va_list args;
+    va_start(args, msg);
+    panic_handler_varargs(NULL, buf, args);
+    va_end(args);
+}
+
+void panic_handler(registers *r, const char *msg, ...) {
+    va_list args;
+    va_start(args, msg);
+    panic_handler_varargs(r, msg, args);
+    va_end(args);
 }

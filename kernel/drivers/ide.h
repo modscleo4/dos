@@ -51,10 +51,10 @@ void ide_motor_on(iodriver *driver);
 
 void ide_motor_off(iodriver *driver);
 
-int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, unsigned char *buffer, bool keepOn);
+int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, uint8_t *buffer, bool keepOn);
 
-int ide_sector_read(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn);
+int ide_sector_read(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn);
 
-int ide_sector_write(iodriver *driver, unsigned long int lba, unsigned char *buffer, bool keepOn);
+int ide_sector_write(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn);
 
 #endif // IDE_H
