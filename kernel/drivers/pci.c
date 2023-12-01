@@ -44,10 +44,22 @@ uint64_t pci_get_bar_address(uint32_t bar[], int i) {
     return ret;
 }
 
+uint8_t pci_read_byte(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset) {
+    uint32_t address = PCI_BASE_ADDRESS | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
+    outl(PCI_CONFIG_ADDRESS, address);
+    return (uint8_t) (inl(PCI_CONFIG_DATA) >> ((offset & 2) * 8)) & 0xFF;
+}
+
 uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset) {
     uint32_t address = PCI_BASE_ADDRESS | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
     outl(PCI_CONFIG_ADDRESS, address);
     return (uint16_t) (inl(PCI_CONFIG_DATA) >> ((offset & 2) * 8)) & 0xFFFF;
+}
+
+void pci_write_byte(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset, uint8_t value) {
+    uint32_t address = PCI_BASE_ADDRESS | (bus << 16) | (slot << 11) | (func << 8) | (offset & 0xFC);
+    outl(PCI_CONFIG_ADDRESS, address);
+    outl(PCI_CONFIG_DATA, value);
 }
 
 void pci_write_word(uint8_t bus, uint8_t slot, uint8_t func, uint16_t offset, uint16_t value) {

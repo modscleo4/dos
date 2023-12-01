@@ -25,7 +25,7 @@ iodriver *ide_init(pci_device *device) {
     int count = 0;
 
     if (device->base_address[4]) {
-        //support_dma = true;
+        support_dma = true;
     }
 
     ide_channels[ATA_PRIMARY].base = pci_get_bar_address(device->base_address, 0) + 0x1F0 * (!device->base_address[0]);
@@ -361,14 +361,14 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
         ide_polling(ide_channel, 0);
     } else {
         prd_table prdt;
-        prdt.addr = (uint32_t)buffer;
-        prdt.size = number_of_sectors;
+        prdt.addr = (uint32_t)mmu_get_physical_address((uintptr_t)buffer);
+        prdt.size = number_of_sectors * driver->sector_size;
         prdt.reserved = 0;
-        prdt.last = 1;
+        prdt.last = true;
 
         outb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND, 0);
 
-        outl(ide_channels[ide_channel].bmide + ATA_BMR_PRDT, (uint32_t)&prdt);
+        outl(ide_channels[ide_channel].bmide + ATA_BMR_PRDT, (uint32_t)mmu_get_physical_address((uintptr_t)&prdt));
 
         ide_polling(ide_channel, 0);
 

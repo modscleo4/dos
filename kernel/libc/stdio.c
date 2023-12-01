@@ -26,7 +26,7 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
 
 int getchar(void) {
     char ret;
-    while (ISSET_BIT_INT(ret = keyboard_read(), 0x80)) {}
+    while (ISSET_BIT_INT(ret = keyboard_read(), 0x80)) { asm volatile("hlt"); }
     ret = kblayout[ret];
 
     return ret;

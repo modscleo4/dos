@@ -1,7 +1,7 @@
 #include "timer.h"
 
 #define DEBUG 1
-#define DEBUG_TIMER 0
+#define DEBUG_TIMER 1
 
 #include <stdio.h>
 #include "cmos.h"
@@ -71,7 +71,7 @@ static void timer_irq_handler(registers *r, uint32_t int_no) {
 
 void timer_wait(int ms) {
     unsigned long elapsed_ticks = timer_ticks + ms;
-    while (timer_ticks < elapsed_ticks) {}
+    while (timer_ticks < elapsed_ticks) { asm volatile("hlt"); }
 }
 
 void timer_init(void) {

@@ -284,6 +284,8 @@ void free(void *ptr) {
         return;
     }
 
+    dbgprint("free(&%x)\n", ptr);
+
     if (!heap_free(&kernel_heap, ptr)) {
         dbgprint("free: could not free &%x\n", ptr);
         return;

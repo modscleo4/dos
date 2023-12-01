@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+// Root System Description Pointer
 typedef struct acpi_rsdp {
     char signature[8];
     uint8_t checksum;
@@ -11,6 +12,7 @@ typedef struct acpi_rsdp {
     uint32_t rsdt_address;
 } __attribute__((packed)) acpi_rsdp;
 
+// Root System Description Table
 typedef struct acpi_rsdt {
     char signature[4];
     uint32_t length;
@@ -32,6 +34,21 @@ typedef struct acpi_generic_address_structure {
     uint64_t address;
 } __attribute__((packed)) acpi_generic_address_structure;
 
+enum ACPIAddressSpaceID {
+    ACPI_ADDRESS_SPACE_SYSTEM_MEMORY = 0,
+    ACPI_ADDRESS_SPACE_SYSTEM_IO,
+    ACPI_ADDRESS_SPACE_PCI_CONFIGURATION_SPACE,
+    ACPI_ADDRESS_SPACE_EMBEDDED_CONTROLLER,
+    ACPI_ADDRESS_SPACE_SMBUS,
+    ACPI_ADDRESS_SPACE_CMOS,
+    ACPI_ADDRESS_SPACE_PCI_BAR_TARGET,
+    ACPI_ADDRESS_SPACE_IPMI,
+    ACPI_ADDRESS_SPACE_GPIO,
+    ACPI_ADDRESS_SPACE_GENERIC_SERIAL_BUS,
+    ACPI_ADDRESS_SPACE_PLATFORM_COMMUNICATION_CHANNEL
+};
+
+// Fixed ACPI Description Table
 typedef struct acpi_fadt {
     acpi_rsdt header;
     uint32_t firmware_ctrl;
@@ -83,6 +100,23 @@ typedef struct acpi_fadt {
     uint8_t reserved3[3];
 } __attribute__((packed)) acpi_fadt;
 
+// Differentiated System Description Table
+typedef struct acpi_dsdt {
+    acpi_rsdt header;
+    uint8_t definition_block[0];
+} __attribute__((packed)) acpi_dsdt;
+
+enum ACPIPM1AControlRegisters {
+    ACPI_PM1A_CONTROL_SCI_EN = 1 << 0,
+    ACPI_PM1A_CONTROL_BM_RLD = 1 << 1,
+    ACPI_PM1A_CONTROL_GBL_RLS = 1 << 2,
+    ACPI_PM1A_CONTROL_SLP_EN = 1 << 13
+};
+
 void acpi_init(acpi_rsdp *rsdp);
+
+void acpi_shutdown(void);
+
+void acpi_reboot(void);
 
 #endif // KERNEL_ACPI_H

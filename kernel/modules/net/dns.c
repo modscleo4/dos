@@ -1,6 +1,7 @@
 #include "dns.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +36,7 @@ static void dns_handle_response(ethernet_driver *driver, dns_header *header, siz
     uint16_t answer_count = header->answers;
     uint16_t authority_count = header->authority;
     uint16_t additional_count = header->additional;
-    //dbgprint("Received DNS response with %d questions, %d answers, %d authority RR and %d additional RR\n", question_count, answer_count, authority_count, additional_count);
+    dbgprint("Received DNS response with %d questions, %d answers, %d authority RR and %d additional RR\n", question_count, answer_count, authority_count, additional_count);
 
     uint8_t *data = (uint8_t *) header + sizeof(dns_header);
     for (int i = 0; i < question_count; i++) {

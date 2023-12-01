@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 extern void _init_stdio(void);
 extern int main();

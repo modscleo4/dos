@@ -9,6 +9,7 @@
 #include "../debug.h"
 #include "../ring3.h"
 #include "../cpu/gdt.h"
+#include "../cpu/interrupts.h"
 #include "../drivers/ethernet.h"
 #include "../modules/net/dns.h"
 #include "../modules/net/tcp.h"
@@ -187,7 +188,7 @@ static void *syscalls[] = {
 int run_syscall(registers *r) {
     uint32_t esp;
     int ret = -1;
-    asm("sti");
+    interrupts_reenable();
     uint32_t no = r->eax;
 
     uint32_t arg0 = r->ebx;

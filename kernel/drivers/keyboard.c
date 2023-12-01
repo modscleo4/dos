@@ -47,7 +47,7 @@ void keyboard_init(void) {
 }
 
 void keyboard_wait_irq(void) {
-    while (irq_c <= 0) {}
+    while (irq_c <= 0) { asm volatile("hlt"); }
     irq_c--;
 }
 

@@ -4,8 +4,11 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "acpi.h"
 #include "gdt.h"
+#include "interrupts.h"
 #include "irq.h"
+#include "power.h"
 #include "../bits.h"
 #include "../debug.h"
 #include "../rootfs.h"
@@ -36,24 +39,16 @@ static void read_gdt_segment(uint16_t segment) {
     printf("( %04x|% 2x|% 3x) %08x %08x %d %d\n", segment / 8, ss.bits.code, ss.bits.DPL, ss.bits.base_high << 16 | ss.bits.base_low, ss.bits.limit_high << 16 | ss.bits.limit_low, ss.bits.granularity, ss.bits.code_data_segment);
 }
 
-static int is_interrupts_enabled(void) {
-    uint32_t eflags;
-    asm volatile("pushf; pop %0" : "=r"(eflags));
-    return ISSET_BIT(eflags, 9);
-}
-
 void panic_handler(const char *msg, registers *r) {
-    if (is_interrupts_enabled()) {
-        for (int i = 0; i <= 15; i++) {
-            if (i == IRQ_KEYBOARD) {
-                continue;
-            }
-
-            irq_uninstall_handler(i);
+    for (int i = 0; i <= 15; i++) {
+        if (i == IRQ_KEYBOARD || i == IRQ_ATA_PRIMARY || i == IRQ_ATA_SECONDARY || i == IRQ_FLOPPY) {
+            continue;
         }
 
-        asm volatile("sti");
+        irq_uninstall_handler(i);
     }
+
+    interrupts_reenable();
 
     char c = r ? 'R' : 'S';
     do {
@@ -129,16 +124,19 @@ void panic_handler(const char *msg, registers *r) {
 
         screen_gotoxy(0, -1);
         screen_setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
-        printf("%-80s", r ? "<R> - Registers | <S> - Call Stack. | <Q> Restart." : "<S> - Call Stack. | <Q> Restart.");
+        printf("%-80s", r ? "<R> - Registers | <S> - Call Stack. | <Q> Restart. | <P> - Power Off." : "<S> - Call Stack. | <Q> Restart. | <P> - Power Off.");
         screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
         c = getchar();
-    } while (c != 'q' && c != 'Q');
+    } while (c != 'q' && c != 'Q' && c != 'p' && c != 'P');
 
-    asm volatile ("cli");
+    interrupts_disable();
 
-    keyboard_clear_buffer();
-    outb(KB_DATA_REGISTER, KB_RESET);
+    if (c == 'p' || c == 'P') {
+        power_shutdown();
+    } else {
+        power_reboot();
+    }
 
     while (true) {
         asm volatile("hlt");

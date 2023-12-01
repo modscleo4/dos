@@ -99,7 +99,7 @@ void lba2chs(unsigned long int lba, chs *c, floppy_parameters fparams) {
 }
 
 void floppy_wait_irq(void) {
-    while (irq_c <= 0) {}
+    while (irq_c <= 0) { asm volatile("hlt"); }
     irq_c--;
 }
 

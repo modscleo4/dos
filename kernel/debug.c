@@ -37,7 +37,7 @@ void _dbgwait(void) {
 
 void hexdump(void *ptr, size_t n) {
     const uintptr_t ptr_i = (uintptr_t)ptr;
-    unsigned char *ptr_c = ptr - ptr_i % 16;
+    uint8_t *ptr_c = ptr - ptr_i % 16;
 
     for (size_t i = 0; i < n; i++) {
         if (i % 16 == 0) {
@@ -210,7 +210,7 @@ void callstack(uint32_t ebp) {
             }
 
             if (func) {
-                printf(" %s (@ %x)", (unsigned char *)((void *)kernel_header) + section_strtab->offset + func->name, eip - func->value);
+                printf(" %s (@ %x)", (char *)((void *)kernel_header) + section_strtab->offset + func->name, eip - func->value);
             }
         }
 

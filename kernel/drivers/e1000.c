@@ -11,6 +11,7 @@
 #include <string.h>
 #include "../bits.h"
 #include "../debug.h"
+#include "../cpu/interrupts.h"
 #include "../cpu/mmu.h"
 #include "../modules/timer.h"
 
@@ -319,7 +320,7 @@ unsigned int e1000_send_packet(ethernet_driver *driver, ethernet_packet *packet,
     e1000_transmit_descriptor *_d = e1000_write_transmit_descriptor(driver, driver->tx_tail, (void *)mmu_get_physical_address((uintptr_t)packet->data), data_size, 0, E1000_REGBIT_TXD_CMD_EOP | E1000_REGBIT_TXD_CMD_RS, 0, 0);
     driver->tx_tail = (driver->tx_tail + 1) % TX_LEN;
 
-    asm volatile("cli");
+    interrupts_disable();
 
     e1000_write(driver, E1000_REG_TDT, driver->tx_tail);
 
@@ -328,7 +329,7 @@ unsigned int e1000_send_packet(ethernet_driver *driver, ethernet_packet *packet,
 
     dbgprint("e1000: Packet sent, status: %x\n", _d->status);
 
-    asm volatile("sti");
+    interrupts_reenable();
 
     return 0;
 }

@@ -50,7 +50,7 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &fat_init;
             fs->get_file_size = &fat_get_file_size;
-            fs->search_file = &fat_search_file;
+            fs->search_file = (void *(*)(iodriver *, struct filesystem *, const char *)) &fat_search_file;
             fs->load_file = &fat_load_file;
             fs->load_file_at = &fat_load_file_at;
             fs->list_files = &fat_list_files;
@@ -62,7 +62,7 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &fat_init;
             fs->get_file_size = &fat_get_file_size;
-            fs->search_file = &fat_search_file;
+            fs->search_file = (void *(*)(iodriver *, struct filesystem *, const char *)) &fat_search_file;
             fs->load_file = &fat_load_file;
             fs->load_file_at = &fat_load_file_at;
             fs->list_files = &fat_list_files;
@@ -73,7 +73,7 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &ext2_init;
             fs->get_file_size = &ext2_get_file_size;
-            fs->search_file = &ext2_search_file;
+            fs->search_file = (void *(*)(iodriver *, struct filesystem *, const char *)) &ext2_search_file;
             fs->load_file = &ext2_load_file;
             fs->load_file_at = &ext2_load_file_at;
             fs->list_files = &ext2_list_files;

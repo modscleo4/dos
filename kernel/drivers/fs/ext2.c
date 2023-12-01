@@ -30,13 +30,12 @@ static void ext2_read_bgd(iodriver *driver, filesystem *fs, ext2_block_group_des
     ext2_read_block(driver, fs, bgd_block);
     memcpy(bgd, block_buffer + (index * sizeof(ext2_block_group_descriptor)), sizeof(ext2_block_group_descriptor));
 
-    // dbgprint("Block usage bitmap: %d\n", bgd->block_usage_bitmap);
-    // dbgprint("Inode usage bitmap: %d\n", bgd->inode_usage_bitmap);
-    // dbgprint("Inode table block: %d\n", bgd->inode_table_block);
-    // dbgprint("Free blocks: %d\n", bgd->free_blocks);
-    // dbgprint("Free inodes: %d\n", bgd->free_inodes);
-    // dbgprint("Directories: %d\n", bgd->directories);
-    // dbgwait();
+    dbgprint("Block usage bitmap: %d\n", bgd->block_usage_bitmap);
+    dbgprint("Inode usage bitmap: %d\n", bgd->inode_usage_bitmap);
+    dbgprint("Inode table block: %d\n", bgd->inode_table_block);
+    dbgprint("Free blocks: %d\n", bgd->free_blocks);
+    dbgprint("Free inodes: %d\n", bgd->free_inodes);
+    dbgprint("Directories: %d\n", bgd->directories);
 }
 
 static void ext2_read_inode(iodriver *driver, filesystem *fs, ext2_inode *inode, int index) {
@@ -50,36 +49,34 @@ static void ext2_read_inode(iodriver *driver, filesystem *fs, ext2_inode *inode,
     ext2_read_bgd(driver, fs, &bgd, block_group);
 
     int block = bgd.inode_table_block + (inode_index * sizeof(ext2_inode)) / block_size;
-    // dbgprint("inode: %d\n", index);
-    // dbgprint("block group: %d\n", block_group);
-    // dbgprint("inode index: %d\n", inode_index);
-    // dbgprint("block: %d\n", block);
+    dbgprint("inode: %d\n", index);
+    dbgprint("block group: %d\n", block_group);
+    dbgprint("inode index: %d\n", inode_index);
+    dbgprint("block: %d\n", block);
 
     ext2_read_block(driver, fs, block);
     memcpy(inode, block_buffer + (inode_index * sizeof(ext2_inode)), sizeof(ext2_inode));
 
-    // dbgprint("Inode type: %hd\n", inode->type);
-    // dbgprint("Inode permissions: %d\n", inode->permissions);
-    // dbgprint("Inode user ID: %d\n", inode->user_id);
-    // dbgprint("Inode size: %d\n", inode->size);
-    // dbgprint("Inode last access time: %d\n", inode->last_access_time);
-    // dbgprint("Inode creation time: %d\n", inode->creation_time);
-    // dbgprint("Inode last modification time: %d\n", inode->last_modification_time);
-    // dbgprint("Inode deletion time: %d\n", inode->deletion_time);
-    // dbgprint("Inode group ID: %d\n", inode->group_id);
-    // dbgprint("Inode hard links: %d\n", inode->hard_links);
-    // dbgprint("Inode disk sectors: %d\n", inode->disk_sectors);
-    // dbgprint("Inode flags: %d\n", inode->flags);
-    // dbgprint("Inode OS specific value: %d\n", inode->os_specific_value);
-    // dbgprint("Inode direct block pointers: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n", inode->direct_block_pointers[0], inode->direct_block_pointers[1], inode->direct_block_pointers[2], inode->direct_block_pointers[3], inode->direct_block_pointers[4], inode->direct_block_pointers[5], inode->direct_block_pointers[6], inode->direct_block_pointers[7], inode->direct_block_pointers[8], inode->direct_block_pointers[9], inode->direct_block_pointers[10], inode->direct_block_pointers[11]);
-    // dbgprint("Inode singly indirect block pointer: %d\n", inode->singly_indirect_block_pointer);
-    // dbgprint("Inode doubly indirect block pointer: %d\n", inode->doubly_indirect_block_pointer);
-    // dbgprint("Inode triply indirect block pointer: %d\n", inode->triply_indirect_block_pointer);
-    // dbgprint("Inode generation number: %d\n", inode->generation_number);
-    // dbgprint("Inode extended attribute block: %d\n", inode->extended_attribute_block);
-    // dbgprint("Inode size high: %d\n", inode->size_high);
-    // dbgprint("Inode fragment block address: %d\n", inode->fragment_block_address);
-    // dbgwait();
+    dbgprint("Inode type/permissions: %hx\n", inode->type_permission);
+    dbgprint("Inode user ID: %d\n", inode->user_id);
+    dbgprint("Inode size: %d\n", inode->size);
+    dbgprint("Inode last access time: %d\n", inode->last_access_time);
+    dbgprint("Inode creation time: %d\n", inode->creation_time);
+    dbgprint("Inode last modification time: %d\n", inode->last_modification_time);
+    dbgprint("Inode deletion time: %d\n", inode->deletion_time);
+    dbgprint("Inode group ID: %d\n", inode->group_id);
+    dbgprint("Inode hard links: %d\n", inode->hard_links);
+    dbgprint("Inode disk sectors: %d\n", inode->disk_sectors);
+    dbgprint("Inode flags: %d\n", inode->flags);
+    dbgprint("Inode OS specific value: %d\n", inode->os_specific_value);
+    dbgprint("Inode direct block pointers: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n", inode->direct_block_pointers[0], inode->direct_block_pointers[1], inode->direct_block_pointers[2], inode->direct_block_pointers[3], inode->direct_block_pointers[4], inode->direct_block_pointers[5], inode->direct_block_pointers[6], inode->direct_block_pointers[7], inode->direct_block_pointers[8], inode->direct_block_pointers[9], inode->direct_block_pointers[10], inode->direct_block_pointers[11]);
+    dbgprint("Inode singly indirect block pointer: %d\n", inode->singly_indirect_block_pointer);
+    dbgprint("Inode doubly indirect block pointer: %d\n", inode->doubly_indirect_block_pointer);
+    dbgprint("Inode triply indirect block pointer: %d\n", inode->triply_indirect_block_pointer);
+    dbgprint("Inode generation number: %d\n", inode->generation_number);
+    dbgprint("Inode extended attribute block: %d\n", inode->extended_attribute_block);
+    dbgprint("Inode size high: %d\n", inode->size_high);
+    dbgprint("Inode fragment block address: %d\n", inode->fragment_block_address);
 }
 
 void ext2_init(iodriver *driver, filesystem *fs) {
@@ -99,24 +96,28 @@ void ext2_init(iodriver *driver, filesystem *fs) {
         return;
     }
 
+    if (superblock->base.inodes_per_group == 0) {
+        return;
+    }
+
     fs->params = superblock;
 
     printf("Volume label is %s\n", superblock->volume_name);
     printf("File system is %s\n", "EXT2");
     printf("Serial number is %s\n", printuuid(superblock->filesystem_id));
 
-    //dbgprint("Inodes: %d\n", superblock->base.inodes);
-    //dbgprint("Blocks: %d\n", superblock->base.blocks);
-    //dbgprint("Reserved blocks: %d\n", superblock->base.reserved_blocks);
-    //dbgprint("Free blocks: %d\n", superblock->base.free_blocks);
-    //dbgprint("Free inodes: %d\n", superblock->base.free_inodes);
+    dbgprint("Inodes: %d\n", superblock->base.inodes);
+    dbgprint("Blocks: %d\n", superblock->base.blocks);
+    dbgprint("Reserved blocks: %d\n", superblock->base.reserved_blocks);
+    dbgprint("Free blocks: %d\n", superblock->base.free_blocks);
+    dbgprint("Free inodes: %d\n", superblock->base.free_inodes);
 
-    //dbgprint("Block size: %d\n", 1024 << superblock->base.log2_block_size);
-    //dbgprint("Fragment size: %d\n", 1024 << superblock->base.log2_fragment_size);
+    dbgprint("Block size: %d\n", 1024 << superblock->base.log2_block_size);
+    dbgprint("Fragment size: %d\n", 1024 << superblock->base.log2_fragment_size);
 
-    //dbgprint("Blocks per group: %d\n", superblock->base.blocks_per_group);
-    //dbgprint("Fragments per group: %d\n", superblock->base.fragments_per_group);
-    //dbgprint("Inodes per group: %d\n", superblock->base.inodes_per_group);
+    dbgprint("Blocks per group: %d\n", superblock->base.blocks_per_group);
+    dbgprint("Fragments per group: %d\n", superblock->base.fragments_per_group);
+    dbgprint("Inodes per group: %d\n", superblock->base.inodes_per_group);
 }
 
 size_t ext2_get_file_size(filesystem *fs, const void *_f) {

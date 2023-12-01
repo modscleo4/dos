@@ -65,11 +65,11 @@ void ata_400ns_delay(unsigned char channel) {
 }
 
 void ata_wait_irq_primary(void) {
-    while (irq_primary_c <= 0) {}
+    while (irq_primary_c <= 0) { asm volatile("hlt"); }
     irq_primary_c--;
 }
 
 void ata_wait_irq_secondary(void) {
-    while (irq_secondary_c <= 0) {}
+    while (irq_secondary_c <= 0) { asm volatile("hlt"); }
     irq_secondary_c--;
 }

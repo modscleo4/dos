@@ -15,6 +15,7 @@
 #include "cpu/fpu.h"
 #include "cpu/gdt.h"
 #include "cpu/idt.h"
+#include "cpu/interrupts.h"
 #include "cpu/irq.h"
 #include "cpu/isr.h"
 #include "cpu/mmu.h"
@@ -102,7 +103,7 @@ static int cmp(const void *a, const void *b) {
     return *(int *)b - *(int *)a;
 }
 
-void kernel_main(unsigned long int magic, unsigned long int addr) {
+void kernel_main(uint32_t magic, uint32_t addr) {
     framebuffer_config fb = {
         .addr = 0xB8000,
         .pitch = 160,
@@ -243,7 +244,7 @@ void kernel_main(unsigned long int magic, unsigned long int addr) {
     syscall_init();
     timer_init();
     keyboard_init();
-    asm("sti");
+    interrupts_enable();
     dbgprint("Interruptions enabled\n");
     dbgwait();
     if (acpi_rsdp_addr) {
