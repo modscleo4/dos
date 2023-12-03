@@ -157,7 +157,7 @@ ext2_inode *ext2_search_file(iodriver *driver, filesystem *fs, const char *filen
             memcpy(cmpname, filename, strlen(filename));
             cmpname[strlen(filename)] = 0;
 
-            if (!strcmp(strupr(name), strupr(cmpname))) {
+            if (!strcmp(name, cmpname)) {
                 ext2_read_inode(driver, fs, &f, entry.inode);
                 if (ISSET_BIT_INT(f.type_permission, EXT2_INODE_TYPE_DIRECTORY)) {
                     return NULL;
@@ -176,7 +176,7 @@ ext2_inode *ext2_search_file(iodriver *driver, filesystem *fs, const char *filen
 void *ext2_load_file(iodriver *driver, filesystem *fs, const void *_f) {
     ext2_inode *f = (ext2_inode *)_f;
     if (!f) {
-        return 0;
+        return NULL;
     }
 
     void *addr = malloc_align(f->size, BITMAP_PAGE_SIZE);

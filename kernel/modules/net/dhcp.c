@@ -1,6 +1,7 @@
 #include "dhcp.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stdlib.h>
 #include <string.h>

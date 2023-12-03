@@ -7,10 +7,12 @@ rootfs/kernel.elf
 floppy_disk.img
 ata_disk.img
 ata_disk_ext2.img
+cdrom.iso
 ata_disk.vdi
 ata_disk.vmdk
 serial.txt
 slirp-pktlog.txt
+qemu-pktlog.pcap
 vbox-pktlog.pcap
 
 .idea/

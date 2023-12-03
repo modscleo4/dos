@@ -1,8 +1,8 @@
 #ifndef NE2K_H
 #define NE2K_H
 
-#include "pci.h"
-#include "ethernet.h"
+#include "../pci.h"
+#include "../ethernet.h"
 
 enum NE2KRegisters {
     NE2K_REG_COMMAND = 0x00,

@@ -3,8 +3,8 @@
 
 #include "ata.h"
 
-#include "iodriver.h"
-#include "pci.h"
+#include "../iodriver.h"
+#include "../pci.h"
 
 #define IDE_ATA 0x00
 #define IDE_ATAPI 0x01
@@ -25,6 +25,7 @@ typedef struct ide_device {
     uint16_t capabilities;
     uint32_t command_sets;
     uint32_t size;
+    uint32_t sector_size;
     uint8_t model[41];
 } ide_device;
 
@@ -37,11 +38,15 @@ typedef struct prd_table {
 
 iodriver *ide_init(pci_device *device);
 
+int ide_reset(iodriver *driver);
+
 unsigned char ide_read(unsigned char channel, unsigned char reg);
 
 void ide_write(unsigned char channel, unsigned char reg, unsigned char data);
 
 void ide_read_buffer(unsigned char channel, unsigned char reg, unsigned int *buffer, unsigned int quads);
+
+int ide_send_atapi_command(unsigned char device, uint16_t length, uint8_t command[12]);
 
 unsigned char ide_polling(unsigned char channel, unsigned int advanced_check);
 
@@ -56,5 +61,7 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
 int ide_sector_read(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn);
 
 int ide_sector_write(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn);
+
+int ide_search_for_drive(int boot_drive);
 
 #endif // IDE_H

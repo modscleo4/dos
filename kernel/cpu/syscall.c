@@ -1,6 +1,7 @@
 #include "syscall.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -20,7 +21,7 @@
 long int __syscall_ret;
 
 static long int syscall_exit(registers *r, int exit_code) {
-    panic_handler(r, "Process exited with code %d\n", exit_code);
+    panic_handler(r, "Process exited with code %d", exit_code);
     // Stay on ring0
     asm volatile("mov %%cs, %0" : "=r"(r->cs));
     asm volatile("mov %%ds, %0" : "=r"(r->ds));
@@ -199,7 +200,7 @@ int run_syscall(registers *r) {
     uint32_t arg3 = r->esi;
     uint32_t arg4 = r->edi;
     uint32_t arg5 = r->ebp;
-    //dbgprint("syscall: %x(%x, %x, %x, %x, %x, %x)\n", no, arg0, arg1, arg2, arg3, arg4, arg5);
+    dbgprint("syscall: %x(%x, %x, %x, %x, %x, %x)\n", no, arg0, arg1, arg2, arg3, arg4, arg5);
 
     if (syscalls[no]) {
         uint32_t (*syscall_fn)(registers *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) = syscalls[no];

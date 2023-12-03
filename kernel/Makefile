@@ -6,8 +6,8 @@ CFLAGS=-ffreestanding -O0 -g -m32 -I libc/include -fno-pic -fno-omit-frame-point
 
 ASM_SRCS = $(wildcard *.asm cpu/*.asm modules/*.asm)
 ASM_OBJS = $(patsubst %.asm, $(BUILD_DIR)/%.obj, $(ASM_SRCS))
-SRCS := $(wildcard *.c libc/*.c drivers/*.c drivers/fs/*.c drivers/video/*.c cpu/*.c modules/*.c modules/net/*.c)
-HDRS := $(wildcard *.h libc/include/*.h drivers/*.h drivers/fs/*.h drivers/video/*.h cpu/*.h modules/*.h modules/kblayout/*.h modules/net/*.h)
+SRCS := $(wildcard *.c libc/*.c drivers/*.c drivers/eth/*.c drivers/fs/*.c drivers/io/*.c drivers/video/*.c cpu/*.c modules/*.c modules/net/*.c)
+HDRS := $(wildcard *.h libc/include/*.h drivers/*.h drivers/eth/*.c drivers/fs/*.h drivers/io/*.h drivers/video/*.h cpu/*.h modules/*.h modules/kblayout/*.h modules/net/*.h)
 OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRCS))
 
 all: dir $(BIN)
@@ -15,7 +15,9 @@ all: dir $(BIN)
 dir:
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(BUILD_DIR)/drivers
+	mkdir -p $(BUILD_DIR)/drivers/eth
 	mkdir -p $(BUILD_DIR)/drivers/fs
+	mkdir -p $(BUILD_DIR)/drivers/io
 	mkdir -p $(BUILD_DIR)/drivers/video
 	mkdir -p $(BUILD_DIR)/libc
 	mkdir -p $(BUILD_DIR)/cpu

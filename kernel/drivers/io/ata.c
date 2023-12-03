@@ -1,14 +1,17 @@
 #include "ata.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stddef.h>
 #include "ide.h"
-#include "../bits.h"
-#include "../debug.h"
-#include "../cpu/irq.h"
+#include "../../bits.h"
+#include "../../debug.h"
+#include "../../cpu/irq.h"
 
-static uint8_t atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+iodriver ata_io;
+
+static const uint8_t atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 volatile int irq_primary_c;
 volatile int irq_secondary_c;
@@ -72,4 +75,10 @@ void ata_wait_irq_primary(void) {
 void ata_wait_irq_secondary(void) {
     while (irq_secondary_c <= 0) { asm volatile("hlt"); }
     irq_secondary_c--;
+}
+
+int ata_search_for_drive(int boot_drive) {
+    // Assume IDE
+
+    return ide_search_for_drive(boot_drive);
 }

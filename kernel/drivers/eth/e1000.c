@@ -9,12 +9,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../bits.h"
-#include "../debug.h"
-#include "../cpu/interrupts.h"
-#include "../cpu/mmu.h"
-#include "../modules/bitmap.h"
-#include "../modules/timer.h"
+#include "../../bits.h"
+#include "../../debug.h"
+#include "../../cpu/interrupts.h"
+#include "../../cpu/mmu.h"
+#include "../../modules/bitmap.h"
+#include "../../modules/timer.h"
 
 /**
  * e1000 Ethernet driver
@@ -132,10 +132,8 @@ static void e1000_receive_init(ethernet_driver *driver) {
 
     e1000_receive_descriptor *buffer = (e1000_receive_descriptor *)calloc_align(RX_LEN, sizeof(e1000_receive_descriptor), 16);
     dbgprint("e1000: RX buffer: %x\n", buffer);
-    //static e1000_receive_descriptor buffer[RX_LEN] __attribute__((aligned(16)));
     for (int i = 0; i < RX_LEN; i++) {
         buffer[i].buffer_address = (uint64_t)mmu_get_physical_address((uintptr_t)malloc(8192 + 16));
-        //buffer[i].buffer_address = (uint64_t)bitmap_alloc_page();
         buffer[i].status = 0;
         dbgprint("e1000: RX buffer %d: %x\n", i, buffer[i].buffer_address);
     }

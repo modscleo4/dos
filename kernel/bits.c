@@ -57,14 +57,29 @@ inline void insl(uint16_t addr, uint32_t *buffer, size_t quads) {
     }
 }
 
-inline void outsm(uint16_t addr, uint8_t *buffer, uint32_t size) {
+inline void outsb(uint16_t addr, uint8_t *buffer, uint32_t size) {
+    asm volatile("rep outsb"
+                 : "+S"(buffer),  "+c"(size)
+                 : "d"(addr)
+    );
+}
+
+inline void insb(uint16_t addr, uint8_t *buffer, uint32_t size) {
+    asm volatile("rep insb"
+                 : "+D"(buffer), "+c"(size)
+                 : "d"(addr)
+                 : "memory"
+    );
+}
+
+inline void outsw(uint16_t addr, uint16_t *buffer, uint32_t size) {
     asm volatile("rep outsw"
                  : "+S"(buffer),  "+c"(size)
                  : "d"(addr)
     );
 }
 
-inline void insm(uint16_t addr, uint8_t *buffer, uint32_t size) {
+inline void insw(uint16_t addr, uint16_t *buffer, uint32_t size) {
     asm volatile("rep insw"
                  : "+D"(buffer), "+c"(size)
                  : "d"(addr)

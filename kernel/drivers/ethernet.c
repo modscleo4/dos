@@ -1,11 +1,12 @@
 #include "ethernet.h"
 
-#define DEBUG 0
+#define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <stdlib.h>
 #include <string.h>
-#include "e1000.h"
-#include "ne2k.h"
+#include "eth/e1000.h"
+#include "eth/ne2k.h"
 #include "../bits.h"
 #include "../debug.h"
 #include "../cpu/irq.h"

@@ -2,8 +2,8 @@
 #define E1000_H
 
 #include <stdint.h>
-#include "pci.h"
-#include "ethernet.h"
+#include "../pci.h"
+#include "../ethernet.h"
 
 typedef struct e1000_receive_descriptor {
     uint64_t buffer_address;

@@ -82,6 +82,10 @@ fat_entry *fat_search_file(iodriver *driver, filesystem *fs, const char *filenam
     bios_params *params = (bios_params *)fs->params;
     fat_entry *f = malloc(sizeof(fat_entry));
 
+    char *cmp_filename = malloc(strlen(filename) + 1);
+    strcpy(cmp_filename, filename);
+    strupr(cmp_filename);
+
     int rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
     int last_sector = params->rootdir_entries * sizeof(fat_entry);
 
@@ -100,7 +104,7 @@ fat_entry *fat_search_file(iodriver *driver, filesystem *fs, const char *filenam
             continue;
         }
 
-        if (strcmp(dos83toStr(f->name, f->ext), filename) == 0) {
+        if (strcmp(dos83toStr(f->name, f->ext), cmp_filename) == 0) {
             dbgprint("Found file %s at sector %d\n", filename, rootdir_sector - 1);
             return f;
         }

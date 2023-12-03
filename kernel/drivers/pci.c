@@ -1,11 +1,12 @@
 #include "pci.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <string.h>
-#include "ata.h"
+#include "io/ata.h"
+#include "io/floppy.h"
 #include "ethernet.h"
-#include "floppy.h"
 #include "../bits.h"
 #include "../debug.h"
 #include "../cpu/mmu.h"

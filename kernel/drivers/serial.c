@@ -118,7 +118,7 @@ bool serial_write_str_varargs(enum SerialPorts port, const char *str, va_list ar
         return false;
     }
 
-    char buffer[1024] = "";
+    char buffer[2048] = "";
     vsprintf(buffer, str, args);
 
     dbgprint("serial_write_str: %s\n", buffer);

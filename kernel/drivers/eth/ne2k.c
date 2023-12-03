@@ -4,8 +4,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "../bits.h"
-#include "../debug.h"
+#include "../../bits.h"
+#include "../../debug.h"
 
 ethernet_driver *ne2k_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func) {
     dbgprint("Initializing ne2k Ethernet controller\n");

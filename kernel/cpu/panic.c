@@ -1,7 +1,9 @@
 #include "panic.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include "acpi.h"
@@ -26,6 +28,10 @@ static void read_gdt_segment(uint16_t segment) {
 }
 
 static void panic_handler_varargs(registers *r, const char *msg, va_list args) {
+    serial_write_str(SERIAL_COM1, "==================== PANIC ====================\n");
+    serial_write_str(SERIAL_COM1, "%s\n", msg);
+    serial_write_str(SERIAL_COM1, "================================================\n");
+
     for (int i = 0; i <= 15; i++) {
         if (i == IRQ_KEYBOARD || i == IRQ_ATA_PRIMARY || i == IRQ_ATA_SECONDARY || i == IRQ_FLOPPY) {
             continue;
@@ -36,6 +42,7 @@ static void panic_handler_varargs(registers *r, const char *msg, va_list args) {
 
     interrupts_reenable();
 
+
     char c = r ? 'R' : 'S';
     do {
         screen_clear();
@@ -44,11 +51,11 @@ static void panic_handler_varargs(registers *r, const char *msg, va_list args) {
         screen_setcolor(COLOR_BLACK << 4 | COLOR_WHITE);
         printf("PANIC!\n");
         vprintf(msg, args);
+        printf("\n");
         screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
 
         switch (c) {
             default:
-            case 'r':
             case 'R':
                 if (r) {
                     printf("\n");
@@ -111,7 +118,6 @@ static void panic_handler_varargs(registers *r, const char *msg, va_list args) {
                     break;
                 }
 
-            case 's':
             case 'S': {
                 if (rootfs.type && rootfs_io.device >= 0) {
                     uint32_t ebp = 0;
@@ -126,19 +132,23 @@ static void panic_handler_varargs(registers *r, const char *msg, va_list args) {
             }
         }
 
-        screen_gotoxy(0, -1);
-        screen_setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
-        printf("%-80s", r ? "<R> - Registers | <S> - Call Stack | <Q> Restart | <P> - Power Off." : "<S> - Call Stack | <Q> Restart | <P> - Power Off.");
-        screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+        if (interrupts_was_enabled()) {
+            screen_gotoxy(0, -1);
+            screen_setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
+            printf("%-80s", r ? "<R> - Registers | <S> - Call Stack | <Q> Restart | <P> - Power Off." : "<S> - Call Stack | <Q> Restart | <P> - Power Off.");
+            screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+        }
 
-        c = getchar();
-    } while (c != 'q' && c != 'Q' && c != 'p' && c != 'P');
+        do {
+            c = toupper(getchar());
+        } while (c != 'Q' && c != 'P' && c != 'R' && c != 'S'); // Ignore other keys
+    } while (c != 'Q' && c != 'P');
 
     interrupts_disable();
 
-    if (c == 'p' || c == 'P') {
+    if (c == 'P') {
         power_shutdown();
-    } else {
+    } else if (c == 'Q') {
         power_reboot();
     }
 
@@ -148,14 +158,9 @@ static void panic_handler_varargs(registers *r, const char *msg, va_list args) {
 }
 
 void panic(const char *msg, ...) {
-    char buf[1024] = "";
-    serial_write_str(SERIAL_COM1, "==================== PANIC ====================\n");
-    serial_write_str(SERIAL_COM1, "%s", msg);
-    serial_write_str(SERIAL_COM1, "\n================================================\n");
-
     va_list args;
     va_start(args, msg);
-    panic_handler_varargs(NULL, buf, args);
+    panic_handler_varargs(NULL, msg, args);
     va_end(args);
 }
 

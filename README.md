@@ -47,6 +47,7 @@ The Kernel is built on top of a primitive libc. It is located in `kernel/libc`. 
 - [x] MBR Parsing
 - [x] FAT12/16
 - [x] Ext2
+- [x] ISO9660
 - [ ] x86_64
 - [x] Syscalls
 - [ ] Multitasking
@@ -56,6 +57,8 @@ The Kernel is built on top of a primitive libc. It is located in `kernel/libc`. 
 - [x] ACPI
 - [ ] ACPICA
 - [x] PCI
+- [x] ATA
+- [x] ATAPI
 - [x] Networking
 - [ ] Virtual File System
 - [ ] Init System

@@ -1,6 +1,7 @@
 #include "kernel.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 0
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -23,8 +24,8 @@
 #include "cpu/pic.h"
 #include "cpu/syscall.h"
 #include "debug.h"
-#include "drivers/ata.h"
-#include "drivers/floppy.h"
+#include "drivers/io/ata.h"
+#include "drivers/io/floppy.h"
 #include "drivers/mbr.h"
 #include "drivers/keyboard.h"
 #include "drivers/pci.h"
@@ -48,19 +49,22 @@ uint32_t _esp;
 
 static void iodriver_init(unsigned int boot_drive) {
     iodriver *_tmpio;
-    if (ISSET_BIT_INT(boot_drive, 0x80)) {
-        dbgprint("Booting from hard disk\n");
-        //dbgwait();
+    if (boot_drive >= 0xE0 && boot_drive < 0xF0) {
+        dbgprint("Booting from CD-ROM\n");
 
         _tmpio = &ata_io;
-        boot_drive = DISABLE_BIT_INT(boot_drive, 0x80);
+        boot_drive = ata_search_for_drive(boot_drive);
+    } else if (boot_drive >= 0x80) {
+        dbgprint("Booting from hard disk\n");
+
+        _tmpio = &ata_io;
+        boot_drive = ata_search_for_drive(boot_drive);
     } else {
         dbgprint("Booting from floppy disk\n");
-        //dbgwait();
 
         if (floppy_io.device == -2) {
             if (!floppy_init(NULL, 0, 0, 0)) {
-                dbgwait();
+                panic("Failed to initialize floppy driver");
             }
         }
         _tmpio = &floppy_io;
@@ -78,7 +82,11 @@ static void iodriver_init(unsigned int boot_drive) {
     }
 }
 
-static void fs_init(unsigned int partition) {
+static void fs_init(int drive, int partition) {
+    if (drive >= 0xE0 && drive < 0xF0) {
+        partition = 0;
+    }
+
     filesystem *_tmpfs = mbr_init(&rootfs_io, partition);
     if (!_tmpfs) {
         panic("No filesystem available");
@@ -89,7 +97,7 @@ static void fs_init(unsigned int partition) {
     rootfs.init(&rootfs_io, &rootfs);
 }
 
-static void check_multiboot2(unsigned long int magic, unsigned long int addr) {
+static void check_multiboot2(uint32_t magic, uint32_t addr) {
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC) {
         panic("Invalid magic number: %x", magic);
     }
@@ -115,8 +123,8 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     size_t max_ram = 0;
     char *boot_cmdline = "";
     void *acpi_rsdp_addr = NULL;
-    unsigned int boot_drive = -1;
-    unsigned int boot_partition = -1;
+    int boot_drive = -1;
+    int boot_partition = -1;
 
     serial_init(SERIAL_COM1, 1);
     serial_write_str(SERIAL_COM1, "Kernel started\n");
@@ -191,7 +199,7 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     dbgprint("Boot command line: %s\n", boot_cmdline);
     dbgprint("Kernel bounds at &%x &%x (&%x &%x)\n", kernel_start_addr, kernel_end_addr, kernel_start_real_addr, kernel_end_real_addr);
 
-    if (boot_drive == -1 || boot_partition == -1) {
+    if (boot_drive == -1) {
         panic("No boot device found from MBI.");
     }
 
@@ -246,7 +254,6 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     keyboard_init();
     interrupts_enable();
     dbgprint("Interruptions enabled\n");
-    dbgwait();
     if (acpi_rsdp_addr) {
         acpi_init((acpi_rsdp *)acpi_rsdp_addr);
     } else {
@@ -258,14 +265,11 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     tcp_init();
     dns_init();
     pci_init();
-    //dbgwait();
-    dbgprint("Reading Master Boot Record...\n");
     iodriver_init(boot_drive);
-    fs_init(boot_partition);
-    //dbgwait();
+    dbgprint("Reading Master Boot Record...\n");
+    fs_init(boot_drive, boot_partition);
     dbgprint("Reading Root Directory...\n");
     rootfs.list_files(&rootfs_io, &rootfs);
-    //dbgwait();
 
     if (eth[0] && (eth[0]->ipv4.dns[0] || eth[0]->ipv4.dns[1] || eth[0]->ipv4.dns[2] || eth[0]->ipv4.dns[3])) {
         uint8_t ip[4];
@@ -275,9 +279,8 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     }
 
     dbgprint("Starting INIT\n");
-    if (system("INIT.ELF")) {
-        dbgwait();
-        panic("INIT.ELF failed to load");
+    if (system("init.elf")) {
+        panic("init.elf failed to load");
     }
 
     panic("INIT returned");

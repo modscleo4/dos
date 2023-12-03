@@ -6,13 +6,20 @@ SYSTEM_INIT=$(BUILD_DIR)/system/init/init.elf
 FLOPPY_DISK_IMG=floppy_disk.img
 ATA_DISK_IMG=ata_disk.img
 ATA_DISK_EXT2_IMG=ata_disk_ext2.img
-VBOX_DISK_IMG=ata_disk.vdi
-VMWARE_DISK_IMG=ata_disk.vmdk
+CDROM_ISO=cdrom.iso
+VBOX_VDI=ata_disk.vdi
+VMWARE_VMDK=ata_disk.vmdk
 GRUB2_BOOT_IMG=/usr/lib/grub/i386-pc/boot.img
+GRUB2_BOOT_ELTORITO=/usr/lib/grub/i386-pc/stage2_eltorito
 GRUB2_CORE_IMG=grub2.img
 FLOPPY_GRUB2_CORE_SECTOR=floppy_grub2_sector
 ATA_GRUB2_CORE_SECTOR=ata_grub2_sector
 ATA_EXT2_GRUB2_CORE_SECTOR=ata_ext2_grub2_sector
+
+# Executables
+BOCHS="/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe"
+QEMU="/mnt/c/Program Files/QEMU/qemu-system-x86_64.exe"
+VBOXMANAGE="/mnt/c/Program Files/Oracle/VirtualBox/VBoxManage.exe"
 
 all: dir disk
 
@@ -80,7 +87,7 @@ ata: bootloader_ata rootfs grub2_ata
 	MTOOLSRC=./mtoolsrc mattrib +s c:/kernel.elf
 	MTOOLSRC=./mtoolsrc mattrib +s c:/init.elf
 
-ata_ext2: bootloader_ata_ext2 rootfs grub2_ata
+ataext2: bootloader_ata_ext2 rootfs grub2_ata
 	dd if=/dev/zero of=$(ATA_DISK_IMG) bs=512 count=32768
 	dd conv=notrunc if=$(BOOTLOADER) of=$(ATA_DISK_IMG) bs=512 count=1 seek=0
 	dd conv=notrunc if=$(GRUB2_BOOT_IMG) of=$(ATA_DISK_IMG) bs=512 count=1 seek=1
@@ -92,29 +99,46 @@ ata_ext2: bootloader_ata_ext2 rootfs grub2_ata
 	genext2fs -x $(ATA_DISK_EXT2_IMG) -b 4032 -B 4096 -d rootfs -v $(ATA_DISK_EXT2_IMG)
 	dd conv=notrunc if=$(ATA_DISK_EXT2_IMG) of=$(ATA_DISK_IMG) bs=512 count=32256 seek=513
 
-vboxvdi: ata_ext2
-	rm -f $(VBOX_DISK_IMG)
-	"/mnt/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" convertfromraw --format VDI $(ATA_DISK_IMG) $(VBOX_DISK_IMG) --uuid 15a33566-0d13-4091-81ca-4ba330333b2b
+iso9660: rootfs
+	grub-mkrescue -o $(CDROM_ISO) rootfs
 
-vmwarevmdk: ata_ext2
-	rm -f $(VBOX_DISK_IMG)
-	"/mnt/c/Program Files/Oracle/VirtualBox/VBoxManage.exe" convertfromraw --format VMDK $(ATA_DISK_IMG) $(VMWARE_DISK_IMG)
+vboxvdi: ataext2
+	rm -f $(VBOX_VDI)
+	$(VBOXMANAGE) convertfromraw --format VDI $(ATA_DISK_IMG) $(VBOX_VDI) --uuid 15a33566-0d13-4091-81ca-4ba330333b2b
 
-qemu: ata_ext2
-	rm -f $(VBOX_DISK_IMG)
-	"/mnt/c/Program Files/QEMU/qemu-system-x86_64.exe" -hda $(ATA_DISK_IMG) -m 32M -serial file:serial.txt -boot c
+vmwarevmdk: ataext2
+	rm -f $(VMWARE_VMDK)
+	$(VBOXMANAGE) convertfromraw --format VMDK $(ATA_DISK_IMG) $(VMWARE_VMDK)
+
+qemu: ataext2
+	$(QEMU) \
+	-drive file=$(ATA_DISK_IMG),format=raw,if=ide,index=0,media=disk \
+	-m 32M \
+	-serial file:serial.txt \
+	-netdev user,id=eth -device e1000,netdev=eth \
+	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
+	-boot c
+
+qemuiso: iso9660
+	$(QEMU) \
+	-cdrom $(CDROM_ISO) \
+	-m 32M \
+	-serial file:serial.txt \
+	-netdev user,id=eth -device e1000,netdev=eth \
+	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
+	-boot d
 
 startfloppy: floppy
-	"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f ./bochsrc_floppy.bxrc -rc bochsdbg.rc -q
-	#"/mnt/c/Program Files/Oracle/VirtualBox/VirtualBoxVM.exe" --comment "SO" --startvm "{b1e3976b-9a74-4224-b868-fc050192db27}"
+	$(BOCHS) -f ./bochsrc_floppy.bxrc -rc bochsdbg.rc -q
 
 startata: ata
-	"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f ./bochsrc_ata.bxrc -rc bochsdbg.rc -q
-	#"/mnt/c/Program Files/Oracle/VirtualBox/VirtualBoxVM.exe" --comment "SO" --startvm "{b1e3976b-9a74-4224-b868-fc050192db27}"
+	$(BOCHS) -f ./bochsrc_ata.bxrc -rc bochsdbg.rc -q
 
-startataext2: ata_ext2
-	"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f ./bochsrc_ata.bxrc -rc bochsdbg.rc -q
-	#"/mnt/c/Program Files/Oracle/VirtualBox/VirtualBoxVM.exe" --comment "SO" --startvm "{b1e3976b-9a74-4224-b868-fc050192db27}"
+startataext2: ataext2
+	$(BOCHS) -f ./bochsrc_ata.bxrc -rc bochsdbg.rc -q
+
+startiso: iso9660
+	$(BOCHS) -f ./bochsrc_iso.bxrc -rc bochsdbg.rc -q
 
 clean:
 	make -C bootloader clean || true

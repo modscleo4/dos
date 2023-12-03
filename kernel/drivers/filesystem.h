@@ -9,6 +9,7 @@ enum FileSystemType {
     FS_FAT12,
     FS_FAT16,
     FS_EXT2,
+    FS_ISO9660,
 };
 
 typedef struct filesystem {

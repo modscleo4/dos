@@ -112,8 +112,6 @@ switch_ring3:
 
     cli
 
-    mov ebx, [esp]
-
     push esp
     call set_kernel_stack
     add esp, 4
@@ -121,8 +119,6 @@ switch_ring3:
     mov eax, [esp + 8]
     mov [__ring3_addr], eax
     mov esp, [esp + 12]
-
-    push ebx ; Return address when ring3 _start returns
 
     mov ax, (4 * 8) | 3 ; ring 3 data with bottom 2 bits set for ring 3
 	mov ds, ax

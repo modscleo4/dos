@@ -1,7 +1,7 @@
 #include "mbr.h"
 
 #define DEBUG 1
-#define DEBUG_SERIAL 1
+#define DEBUG_SERIAL 0
 
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +9,7 @@
 #include "../bits.h"
 #include "fs/fat.h"
 #include "fs/ext2.h"
+#include "fs/iso9660.h"
 
 filesystem *mbr_init(iodriver *driver, unsigned int partition) {
     driver->read_sector(driver, 0, driver->io_buffer, true);
@@ -44,6 +45,7 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
     filesystem *fs = malloc(sizeof(filesystem));
     switch (partitions[partition].type) {
         case 0x00:
+            free(fs);
             return NULL;
         case 0x01: {
             fs->type = FS_FAT12;
@@ -79,7 +81,19 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
             fs->list_files = &ext2_list_files;
             return fs;
         }
+        case 0x96:
+        case 0xCD:
+            fs->type = FS_ISO9660;
+            fs->start_lba = partitions[partition].start_lba;
+            fs->init = &iso9660_init;
+            fs->get_file_size = &iso9660_get_file_size;
+            fs->search_file = (void *(*)(iodriver *, struct filesystem *, const char *)) &iso9660_search_file;
+            fs->load_file = &iso9660_load_file;
+            fs->load_file_at = &iso9660_load_file_at;
+            fs->list_files = &iso9660_list_files;
+            return fs;
         default:
+            free(fs);
             return NULL;
     }
 }

@@ -198,6 +198,10 @@ int vsprintf(char *str, const char *format, va_list args) {
                     precision_toggle = true;
                     continue;
 
+                case '*':
+                    curr_mod = *format;
+                    continue;
+
                 case 'l':
                     modifier++;
                     continue;
@@ -220,6 +224,11 @@ int vsprintf(char *str, const char *format, va_list args) {
                         }
 
                         strncpy(buf, va_arg(args, char *), buf_len);
+                        for (int i = 0; i < buf_len; i++) {
+                            if (buf[i] == 0) {
+                                buf[i] = ' ';
+                            }
+                        }
                     } else {
                         strcpy(buf, va_arg(args, char *));
                         buf_len = strlen(buf);

@@ -5,16 +5,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "../bits.h"
-#include "../debug.h"
-#include "../cpu/mmu.h"
-#include "../modules/bitmap.h"
-#include "../modules/timer.h"
+#include "scsi.h"
+#include "../../bits.h"
+#include "../../debug.h"
+#include "../../cpu/mmu.h"
+#include "../../modules/bitmap.h"
+#include "../../modules/timer.h"
 
-ide_channel_registers ide_channels[2];
-ide_device ide_devices[4];
+static ide_channel_registers ide_channels[2];
+static ide_device ide_devices[4];
 
-bool support_dma;
+static bool support_dma;
 
 iodriver *ide_init(pci_device *device) {
     dbgprint("IDE: Initializing IDE controller...\n");
@@ -94,10 +95,34 @@ iodriver *ide_init(pci_device *device) {
             ide_devices[count].capabilities = *((uint16_t *) (ide_buf + ATA_ID_CAPABILITIES));
             ide_devices[count].command_sets = *((uint32_t *) (ide_buf + ATA_ID_COMMANDSETS));
 
-            if (ISSET_BIT_INT(ide_devices[count].command_sets, (1UL << 26UL))) {
-                ide_devices[count].size = *((uint32_t *) (ide_buf + ATA_ID_MAX_LBA_EXT));
-            } else {
-                ide_devices[count].size = *((uint32_t *) (ide_buf + ATA_ID_MAX_LBA));
+            if (type == IDE_ATA) {
+                ide_devices[count].sector_size = 512;
+                if (ISSET_BIT_INT(ide_devices[count].command_sets, (1UL << 26UL))) {
+                    ide_devices[count].size = *((uint32_t *) (ide_buf + ATA_ID_MAX_LBA_EXT));
+                } else {
+                    ide_devices[count].size = *((uint32_t *) (ide_buf + ATA_ID_MAX_LBA));
+                }
+            } else if (type == IDE_ATAPI) {
+                // size = (last_lba + 1) * 2048
+                dbgprint("IDE: detecting ATAPI capacity...\n");
+                uint8_t atapi_read_capacity[] = { SCSI_READ_CAPACITY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+                int len = ide_send_atapi_command(count, 8 << 8 | 8, atapi_read_capacity);
+                if (len == -1) {
+                    dbgprint("IDE: ATAPI SCSI READ CAPACITY failed\n");
+                    continue;
+                }
+
+                uint8_t *buf = (uint8_t *)malloc(8);
+                insw(ide_channels[i].base + ATA_REG_DATA, (uint16_t *) buf, 4);
+
+                uint32_t last_lba = switch_endian_32(*((uint32_t *) (buf + 0)));
+                uint32_t block_size = switch_endian_32(*((uint32_t *) (buf + 4)));
+                dbgprint("IDE: ATAPI last LBA: %ld\n", last_lba);
+                dbgprint("IDE: ATAPI block size: %ld\n", block_size);
+                ide_devices[count].size = (last_lba + 1) * block_size;
+                ide_devices[count].sector_size = block_size;
+
+                free(buf);
             }
 
             for (int k = 0; k < 40; k += 2) {
@@ -116,10 +141,11 @@ iodriver *ide_init(pci_device *device) {
             continue;
         }
 
-        dbgprint("%s drive %d: %d kB: %s\n",
+        dbgprint("%s drive %d: %d kB (DMA %s): %s\n",
             (const char *[]){"ATA", "ATAPI"}[ide_devices[i].type],
             i,
             ide_devices[i].size / 2,
+            (const char *[]){"disabled", "enabled"}[support_dma],
             ide_devices[i].model
         );
     }
@@ -128,12 +154,20 @@ iodriver *ide_init(pci_device *device) {
     driver->device = -1;
     driver->io_buffer = ide_buf;
     driver->sector_size = 512;
-    driver->reset = NULL;
+    driver->reset = &ide_reset;
     driver->start = &ide_motor_on;
     driver->stop = &ide_motor_off;
     driver->read_sector = &ide_sector_read;
     driver->write_sector = &ide_sector_write;
     return driver;
+}
+
+int ide_reset(iodriver *driver) {
+    // This will only set the sector size according to the device
+
+    driver->sector_size = ide_devices[driver->device].sector_size;
+
+    return 0;
 }
 
 unsigned char ide_read(unsigned char channel, unsigned char reg) {
@@ -200,6 +234,58 @@ void ide_read_buffer(unsigned char channel, unsigned char reg, unsigned int *buf
     if (reg > 0x07 && reg < 0x0C) {
         ide_write(channel, ATA_REG_CONTROL, ide_channels[channel].n_ien);
     }
+}
+
+int ide_send_atapi_command(unsigned char device, uint16_t length, uint8_t command[12]) {
+    unsigned int ide_channel = ide_devices[device].channel;
+    unsigned int ide_drive = ide_devices[device].drive;
+
+    ide_write(ide_channel, ATA_REG_HDDEVSEL, 0xA0 | (ide_drive << 4));
+    ata_400ns_delay(ide_channel);
+
+    ide_write(ide_channel, ATA_REG_ERROR, 0x00);
+    ide_write(ide_channel, ATA_REG_FEATURES, 0x00);
+    ide_write(ide_channel, ATA_REG_LBA1, length & 0xFF);
+    ide_write(ide_channel, ATA_REG_LBA2, length >> 8);
+    ide_write(ide_channel, ATA_REG_COMMAND, ATA_CMD_PACKET);
+    ata_400ns_delay(ide_channel);
+
+    while (true) {
+        unsigned char status = ide_read(ide_channel, ATA_REG_STATUS);
+        if (ISSET_BIT_INT(status, ATA_SR_ERR) || ISSET_BIT_INT(status, ATA_SR_DF)) {
+            return -1;
+        }
+
+        if (!ISSET_BIT_INT(status, ATA_SR_BSY) && ISSET_BIT_INT(status, ATA_SR_DRDY)) {
+            break;
+        }
+
+        ata_400ns_delay(ide_channel);
+    }
+
+    dbgprint("IDE: Sending ATAPI command\n");
+    outsw(ide_channels[ide_channel].base + ATA_REG_DATA, (uint16_t *) command, 6);
+
+    while (true) {
+        unsigned char status = ide_read(ide_channel, ATA_REG_STATUS);
+        if (ISSET_BIT_INT(status, ATA_SR_ERR) || ISSET_BIT_INT(status, ATA_SR_DF)) {
+            return -1;
+        }
+
+        if (!ISSET_BIT_INT(status, ATA_SR_BSY) && !ISSET_BIT_INT(status, ATA_SR_DRDY)) {
+            break;
+        }
+
+        if (ISSET_BIT_INT(status, ATA_SR_DRQ)) {
+            break;
+        }
+
+        ata_400ns_delay(ide_channel);
+    }
+
+    int size = (ide_read(ide_channel, ATA_REG_LBA2) << 8) | ide_read(ide_channel, ATA_REG_LBA1);
+
+    return size;
 }
 
 unsigned char ide_polling(unsigned char channel, unsigned int advanced_check) {
@@ -300,7 +386,50 @@ void ide_motor_off(iodriver *driver) {
     }
 }
 
+static int ide_atapi_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, uint8_t *buffer, bool keepOn) {
+    unsigned int ide_channel = ide_devices[driver->device].channel;
+    unsigned int ide_drive = ide_devices[driver->device].drive;
+
+    uint8_t atapi_command[] = {
+        direction == IO_READ ? SCSI_READ_12 : SCSI_WRITE_12,
+        0,
+        (lba >> 0x18) & 0xFF,
+        (lba >> 0x10) & 0xFF,
+        (lba >> 0x08) & 0xFF,
+        (lba >> 0x00) & 0xFF,
+        (number_of_sectors >> 0x18) & 0xFF,
+        (number_of_sectors >> 0x10) & 0xFF,
+        (number_of_sectors >> 0x08) & 0xFF,
+        (number_of_sectors >> 0x00) & 0xFF,
+        0,
+        0
+    };
+
+    int len = ide_send_atapi_command(driver->device, number_of_sectors * driver->sector_size, atapi_command);
+
+    if (len == -1) {
+        printf("IDE: ATAPI SCSI READ failed\n");
+        return 1;
+    }
+
+    if (direction == IO_READ) {
+        insw(ide_channels[ide_channel].base + ATA_REG_DATA, (uint16_t *) buffer, len / 2);
+    } else {
+        outsw(ide_channels[ide_channel].base + ATA_REG_DATA, (uint16_t *) buffer, len / 2);
+    }
+
+    if (!keepOn) {
+        ide_motor_off(driver);
+    }
+
+    return 0;
+}
+
 int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, uint8_t *buffer, bool keepOn) {
+    if (ide_devices[driver->device].type == IDE_ATAPI) {
+        return ide_atapi_do_sector(direction, driver, lba, number_of_sectors, buffer, keepOn);
+    }
+
     unsigned int ide_channel = ide_devices[driver->device].channel;
     unsigned int ide_drive = ide_devices[driver->device].drive;
 
@@ -396,7 +525,11 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
         ide_write(ide_channel, ATA_REG_HDDEVSEL, 0xE0 | (ide_drive << 4) | head);
     }
 
-    ide_write(ide_channel, ATA_REG_FEATURES, 0);
+    if (ide_devices[driver->device].type == IDE_ATA) {
+        ide_write(ide_channel, ATA_REG_FEATURES, 0);
+    } else if (ide_devices[driver->device].type == IDE_ATAPI) {
+        ide_write(ide_channel, ATA_REG_FEATURES, support_dma ? 0x01 : 0);
+    }
 
     if (lba_mode == 2) {
         ide_write(ide_channel, ATA_REG_SECCOUNT1, 0);
@@ -441,7 +574,7 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
             return 1;
         }
 
-        insm(ide_channels[ide_channel].base, (uint8_t *)buffer, 256);
+        insw(ide_channels[ide_channel].base, (uint16_t *)buffer, driver->sector_size * number_of_sectors / 2);
         ide_polling(ide_channel, 0);
 
         if (!keepOn) {
@@ -458,4 +591,45 @@ int ide_sector_read(iodriver *driver, unsigned long int lba, uint8_t *buffer, bo
 
 int ide_sector_write(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn) {
     return ide_do_sector(IO_WRITE, driver, lba, 1, buffer, keepOn);
+}
+
+int ide_search_for_drive(int boot_drive) {
+    if (boot_drive >= 0xE0 && boot_drive < 0xF0) {
+        boot_drive -= 0xE0;
+        // Find nth ATAPI drive
+        int count = 0;
+        for (int i = 0; i < 4; i++) {
+            if (ide_devices[i].reserved != 1) {
+                continue;
+            }
+
+            if (ide_devices[i].type == IDE_ATAPI) {
+                if (count == boot_drive) {
+                    return i;
+                }
+
+                count++;
+            }
+        }
+    } else if (boot_drive >= 0x80) {
+        boot_drive -= 0x80;
+
+        // Find nth ATA drive
+        int count = 0;
+        for (int i = 0; i < 4; i++) {
+            if (ide_devices[i].reserved != 1) {
+                continue;
+            }
+
+            if (ide_devices[i].type == IDE_ATA) {
+                if (count == boot_drive) {
+                    return i;
+                }
+
+                count++;
+            }
+        }
+    }
+
+    return -1;
 }

@@ -18,9 +18,13 @@ uint32_t inl(uint16_t addr);
 
 void insl(uint16_t addr, uint32_t *buffer, size_t quads);
 
-void outsm(uint16_t addr, uint8_t *buffer, uint32_t size);
+void outsb(uint16_t addr, uint8_t *buffer, uint32_t size);
 
-void insm(uint16_t addr, uint8_t *buffer, uint32_t size);
+void insb(uint16_t addr, uint8_t *buffer, uint32_t size);
+
+void outsw(uint16_t addr, uint16_t *buffer, uint32_t size);
+
+void insw(uint16_t addr, uint16_t *buffer, uint32_t size);
 
 void io_wait(void);
 
