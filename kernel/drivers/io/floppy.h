@@ -85,7 +85,7 @@ static const char *drive_types[6] = {
     "2.88MB 3.5in floppy"
 };
 
-iodriver floppy_io;
+extern iodriver floppy_io;
 
 iodriver *floppy_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func);
 
@@ -120,8 +120,6 @@ int floppy_seek(iodriver *driver, unsigned char cylinder, unsigned char head);
 void floppy_motor_on(iodriver *driver);
 
 void floppy_motor_off(iodriver *driver);
-
-static void floppy_dma_init(IOOperation direction, uint8_t *buffer);
 
 int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, IOOperation direction, bool keepOn);
 

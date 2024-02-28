@@ -11,9 +11,9 @@
 #include "../cpu/pic.h"
 #include "../modules/kblayout/kb.h"
 
-unsigned char scancode;
-int irq_c = 0;
-bool pressed[256];
+static unsigned char scancode;
+static int irq_c = 0;
+static bool pressed[256];
 
 static void _keyboard_reset(void) {
     char tmp = inb(KB_RESET_REGISTER);

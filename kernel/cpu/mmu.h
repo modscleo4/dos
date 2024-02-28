@@ -39,7 +39,7 @@ typedef struct page_table {
     page entries[1024];
 } __attribute__((packed)) page_table;
 
-page_directory_table *current_pdt;
+extern page_directory_table *current_pdt;
 
 extern void mmu_enable_paging(page_directory_table *pdt);
 

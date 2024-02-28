@@ -102,7 +102,7 @@ enum EtherType {
     ETHERTYPE_REDUNDANCY_TAG = 0xF1C1,
 };
 
-ethernet_driver *eth[2];
+extern ethernet_driver *eth[2];
 
 void ethernet_init(pci_device *device, pci_header *header, uint8_t bus, uint8_t slot, uint8_t func);
 

@@ -19,9 +19,13 @@ typedef struct iobuf {
     int bufsiz;
 } FILE;
 
-FILE *stdin;
-FILE *stdout;
-FILE *stderr;
+#define _IOREAD 1
+#define _IOWRT  2
+#define _IORW   0x0080
+
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
 
 int fclose(FILE *);
 

@@ -14,7 +14,7 @@ typedef struct cpu_info {
     uint32_t edx;
 } cpu_info;
 
-cpu_info cpuinfo;
+extern cpu_info cpuinfo;
 
 enum CPUIDFeatureECX {
     CPUID_FEAT_ECX_SSE3 = 1UL << 0UL,

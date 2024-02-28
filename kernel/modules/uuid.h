@@ -1,11 +1,13 @@
 #ifndef UUID_H
 #define UUID_H
 
+#include <stdint.h>
+
 typedef struct uuid {
-    unsigned int superlow;
-    unsigned int low;
-    unsigned int high;
-    unsigned int superhigh;
+    uint32_t superlow;
+    uint32_t low;
+    uint32_t high;
+    uint32_t superhigh;
 } __attribute__((packed)) uuid;
 
 const char *printuuid(uuid id);

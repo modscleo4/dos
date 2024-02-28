@@ -13,8 +13,8 @@ iodriver ata_io;
 
 static const uint8_t atapi_packet[12] = {0xA8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-volatile int irq_primary_c;
-volatile int irq_secondary_c;
+volatile static int irq_primary_c;
+volatile static int irq_secondary_c;
 
 static void ata_primary_handler(registers *r, uint32_t int_no) {
     //dbgprint("irq14");

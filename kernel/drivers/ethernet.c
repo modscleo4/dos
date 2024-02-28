@@ -14,6 +14,8 @@
 #include "../modules/net/dhcp.h"
 #include "../modules/net/ip.h"
 
+ethernet_driver *eth[2];
+
 static void ethernet_handler(registers *r, uint32_t int_no) {
     for (int i = 0; i < 2; i++) {
         if (!eth[i]) {

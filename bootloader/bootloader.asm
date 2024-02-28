@@ -58,9 +58,13 @@ low_start:
 
     mov si, no_bootable_partition
     call puts
+    cli
     hlt
 
 reset_fail:
+    mov si, reset_failed
+    call puts
+    cli
     hlt
 
 putchar:
@@ -101,27 +105,29 @@ disk_load:
     mov dh, al
     pop ax
     cmp dh, al
-    jne disk_error
+    jne disk_error_sectors
 
     ret
 
 disk_error:
     mov si, disk_error_msg
     call puts
-    jmp $
+    cli
+    hlt
 
 disk_error_sectors:
     mov si, disk_error_sectors_msg
     call puts
-    jmp $
+    cli
+    hlt
 
 find_bootable_partition:
-    mov bx, 0x01BE
+    mov bx, 0x01AE ; 0x01AE + 0x10 on first interaction = 0x01BE
     add bx, 0x0600
     .read_mbr:
         .no_bootable:
             add bx, 0x0010
-            cmp bx, 0x01FE
+            cmp bx, 0x07FE
             je .no_bootable_partition_found
 
         cmp byte [bx], 0x80
@@ -137,7 +143,7 @@ find_bootable_partition:
         mov SECTOR_NUM, [bx + 0x2]
         mov CYLINDER_NUM, [bx + 0x3]
         mov NUM_OF_SECTORS, 1
-        mov bx, 0
+        xor bx, bx
         mov es, bx
         mov bx, 0x7C00
         call disk_load
@@ -162,6 +168,7 @@ disk_error_msg db "Disk read error", 0xD, 0xA, 0x0
 disk_error_sectors_msg db "Disk read error: Sectors read not equal to sectors requested", 0xD, 0xA, 0x0
 no_bootable_partition db "No bootable partition found", 0xD, 0xA, 0x0
 invalid_mbr_msg db "Invalid MBR", 0xD, 0xA, 0x0
+reset_failed db "Reset failed", 0xD, 0xA, 0x0
 user_data dw 0
 boot_drive db 0
 curr_y db 0

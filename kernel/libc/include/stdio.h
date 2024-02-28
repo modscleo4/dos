@@ -19,9 +19,9 @@ typedef struct iobuf {
     int bufsiz;
 } FILE;
 
-FILE *stdin;
-FILE *stdout;
-FILE *stderr;
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
 
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1

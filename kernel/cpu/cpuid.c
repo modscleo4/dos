@@ -5,6 +5,8 @@
 #include <string.h>
 #include "../debug.h"
 
+cpu_info cpuinfo;
+
 bool get_cpuid_info(void) {
     memset(&cpuinfo, 0, sizeof(cpu_info));
     if (cpuid_available()) {

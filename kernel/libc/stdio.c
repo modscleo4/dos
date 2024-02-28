@@ -8,6 +8,10 @@
 #include "../drivers/screen.h"
 #include "../modules/kblayout/kb.h"
 
+FILE *stdin;
+FILE *stdout;
+FILE *stderr;
+
 int fclose(FILE *stream) {
     return 0;
 }

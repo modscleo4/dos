@@ -3,6 +3,6 @@
 
 #include "us.h"
 
-unsigned char *kblayout;
+extern unsigned char *kblayout;
 
 #endif // KB_H

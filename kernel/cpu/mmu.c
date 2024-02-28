@@ -15,6 +15,7 @@
 
 static uintptr_t kernel_end;
 static spinlock *mmu_lock = NULL;
+page_directory_table *current_pdt = NULL;
 
 static void page_fault_handler(registers *r, uint32_t int_no) {
     uint32_t cr2;

@@ -11,6 +11,10 @@ char in_buf[1024] = {0};
 int out_buf_pos = 0;
 char out_buf[1024] = {0};
 
+FILE *stdin = NULL;
+FILE *stdout = NULL;
+FILE *stderr = NULL;
+
 void _init_stdio(void) {
     in_buf_pos = 0;
     out_buf_pos = 0;

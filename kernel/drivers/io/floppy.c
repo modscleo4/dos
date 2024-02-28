@@ -19,10 +19,12 @@ unsigned int drives[2] = {0, 0};
 floppy_parameters floppy;
 int floppy_motor_state[2] = {0, 0}; /* 0: OFF, 1: ON; 2: WAIT */
 
-int irq_c;
+static int irq_c;
 
 unsigned int FLOPPY_PRIMARY_BASE = 0x3F0;
 unsigned int FLOPPY_SECONDARY_BASE = 0x370;
+
+iodriver floppy_io;
 
 static void floppy_handler(registers *r, uint32_t int_no) {
     irq_c++;
