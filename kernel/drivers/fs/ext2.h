@@ -171,13 +171,15 @@ enum Ext2DirectoryEntryType {
 
 void ext2_init(iodriver *driver, filesystem *fs);
 
-size_t ext2_get_file_size(filesystem *fs, const void *_f);
+int ext2_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st);
 
-ext2_inode *ext2_search_file(iodriver *driver, filesystem *fs, const char *filename);
+void *ext2_load_file(iodriver *driver, filesystem *fs, const struct stat *st);
 
-void *ext2_load_file(iodriver *driver, filesystem *fs, const void *_f);
+int ext2_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
 
-void *ext2_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *addr);
+int ext2_write(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
+
+int ext2_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t index, char *name, struct stat *out_st);
 
 void ext2_list_files(iodriver *driver, filesystem *fs);
 

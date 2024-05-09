@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "../../drivers/ethernet.h"
 
+#pragma pack(push, 1)
 typedef struct arp_packet {
     uint16_t hardware_type;
     uint16_t protocol_type;
@@ -15,7 +16,16 @@ typedef struct arp_packet {
     uint8_t sender_ip[4];
     uint8_t target_mac[6];
     uint8_t target_ip[4];
-} __attribute__((packed)) arp_packet;
+} arp_packet;
+#pragma pack(pop)
+
+enum ARPHardwareType {
+    ARP_HW_ETHERNET = 0x0001,
+};
+
+enum ARPProtocolType {
+    ARP_PROTO_IPV4 = 0x0800,
+};
 
 enum ARPOperation {
     ARP_OP_REQUEST = 0x01,

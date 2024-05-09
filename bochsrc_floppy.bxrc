@@ -54,9 +54,9 @@ e1000: card=0, enabled=true, mac=08:00:27:70:fd:03, ethmod=slirp, ethdev="xl0", 
 e1000: card=1, enabled=false
 e1000: card=2, enabled=false
 e1000: card=3, enabled=false
-ne2k: card=0, enabled=true, mac=08:00:27:70:fd:03, ethmod=slirp, ethdev="xl0", script="./slirp.conf", bootrom=none
+ne2k: card=0, enabled=true, mac=08:00:27:70:fd:03, ethmod=slirp, ethdev="xl0", script="./slirp.conf", irq=10, bootrom=none
 ne2k: card=1, enabled=false
 ne2k: card=2, enabled=false
 ne2k: card=3, enabled=false
-sb16: enabled=true, midimode=0, wavemode=0, loglevel=0, dmatimer=0
+sb16: enabled=true, midimode=0, wavemode=0, loglevel=0, dmatimer=1000000
 usb_uhci: enabled=1, port1=none, options1=none, port2=none, options2=none

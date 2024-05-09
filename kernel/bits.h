@@ -32,7 +32,16 @@ uint16_t switch_endian_16(uint16_t val);
 
 uint32_t switch_endian_32(uint32_t val);
 
+uint64_t switch_endian_64(uint64_t val);
+
+uint16_t popcnt16(uint16_t val);
+
+uint32_t popcnt32(uint32_t val);
+
+uint64_t popcnt64(uint64_t val);
+
 #define GET_BIT(reg, bit) (((reg) >> (bit)) & 1)
+#define SET_BIT(reg, bit) ((reg) | (1 << bit))
 
 #define DISABLE_BIT(reg, bit) ((reg) & ~(1 << bit))
 #define ENABLE_BIT(reg, bit) ((reg) | (1 << bit))

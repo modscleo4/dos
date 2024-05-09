@@ -5,17 +5,35 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "pci.h"
+#include "../modules/spinlock.h"
 
+#pragma pack(push, 1)
 typedef struct ethernet_header {
     uint8_t destination_mac[6];
     uint8_t source_mac[6];
     uint16_t ethertype;
-} __attribute__((packed)) ethernet_header;
+} ethernet_header;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct ethernet_vlan_header {
+    uint8_t destination_mac[6];
+    uint8_t source_mac[6];
+    uint16_t tpid;
+    uint16_t tci;
+    uint16_t ethertype;
+} ethernet_vlan_header;
+#pragma pack(pop)
 
 typedef struct ethernet_packet {
     ethernet_header header;
     void *data;
 } ethernet_packet;
+
+typedef struct ethernet_vlan_packet {
+    ethernet_vlan_header header;
+    void *data;
+} ethernet_vlan_packet;
 
 typedef struct ipv4_config {
     uint8_t ip[4];
@@ -43,6 +61,8 @@ typedef struct ethernet_driver {
     int int_no;
     void (*int_handler)(struct ethernet_driver *driver);
     void (*int_enable)(struct ethernet_driver *driver);
+    void (*int_disable)(struct ethernet_driver *driver);
+    spinlock *lock;
 } ethernet_driver;
 
 enum EtherType {
@@ -106,7 +126,7 @@ extern ethernet_driver *eth[2];
 
 void ethernet_init(pci_device *device, pci_header *header, uint8_t bus, uint8_t slot, uint8_t func);
 
-void ethernet_send_packet(ethernet_driver *driver, uint8_t destination_mac[6], uint16_t ethertype, void *data, size_t data_size);
+void ethernet_send_packet(ethernet_driver *driver, uint8_t destination_mac[6], enum EtherType ethertype, void *data, size_t data_size);
 
 void ethernet_process_packet(ethernet_driver *driver, ethernet_packet *packet, size_t data_size);
 

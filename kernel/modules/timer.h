@@ -15,8 +15,12 @@ typedef struct date {
 
 void rtc_init(void);
 
+void timer_init(void);
+
 void timer_wait(int ms);
 
-void timer_init(void);
+void timer_enable_display(void);
+
+void timer_disable_display(void);
 
 #endif //TIMER_H

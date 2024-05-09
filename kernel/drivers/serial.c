@@ -54,6 +54,8 @@ bool serial_init(enum SerialPorts port, uint16_t baud_divisor) {
     outb(port + SERIAL_REG_MODEM_CONTROL, 0x1E);
     outb(port + SERIAL_REG_DATA, 0xAE);
 
+    while ((inb(port + SERIAL_REG_LINE_STATUS) & 0x20) == 0) {}
+
     // Check if serial is faulty (i.e: not same byte as sent)
     if (inb(port + SERIAL_REG_DATA) != 0xAE) {
         return false;

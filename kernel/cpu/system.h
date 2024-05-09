@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#pragma pack(push, 1)
 typedef struct eflags {
     bool carry: 1;
     uint8_t reserved0: 1;
@@ -27,12 +28,18 @@ typedef struct eflags {
     bool virtual_interrupt_pending: 1;
     bool id: 1;
     uint16_t reserved4: 10;
-} __attribute__((packed)) eflags;
+} eflags;
+#pragma pack(pop)
 
 /**
  * All registers should be 32 bit, since asm "push" moves the stack 32 bit for any value
  */
 typedef struct registers {
+    uint32_t cr4;
+    uint32_t cr3;
+    uint32_t cr2;
+    uint32_t cr0;
+
     uint32_t gs;
     uint32_t fs;
     uint32_t es;

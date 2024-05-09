@@ -1,13 +1,14 @@
-BUILD_DIR=../../build/system/init
+BUILD_DIR=../../../build/system/bin/init
 BIN=$(BUILD_DIR)/init.elf
 
 CC=gcc
-CFLAGS=-ffreestanding -m32 -I ../libc/include -nostdlib -Wl,--stack,0x4000 -Wno-packed-bitfield-compat -fno-common
+CFLAGS=-ffreestanding -m32 -I ../../libc/include -nostdlib -nolibc -nodefaultlibs -Wl,--stack,0x4000 -Wno-packed-bitfield-compat -fno-common
+LDFLAGS=-m elf_i386 -Bstatic -L $(shell pwd)/../../../build/system/lib -lc
 
 ASM_SRCS = $(wildcard *.asm)
 ASM_OBJS = $(patsubst %.asm, $(BUILD_DIR)/%.obj, $(ASM_SRCS))
-SRCS := $(wildcard *.c ../libc/*.c)
-HDRS := $(wildcard *.h ../libc/include/*.h)
+SRCS := $(wildcard *.c)
+HDRS := $(wildcard *.h ../../libc/include/*.h ../../libc/include/sys/*.h)
 OBJS := $(patsubst %.c, $(BUILD_DIR)/%.o, $(SRCS))
 
 all: dir $(BIN)
@@ -22,7 +23,7 @@ $(BUILD_DIR)/%.o: %.c $(HDRS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BIN): $(ASM_OBJS) $(OBJS)
-	ld -m elf_i386 $^ -o $@
+	ld $^ $(LDFLAGS) -o $@
 
 clean:
 	rm -f $(OBJS)

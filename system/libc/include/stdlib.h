@@ -1,9 +1,7 @@
 #ifndef STDLIB_H
 #define STDLIB_H
 
-typedef unsigned int size_t;
-
-typedef int wchar_t;
+#include <stddef.h>
 
 #define EXIT_FAILURE 1
 #define EXIT_SUCCESS 0

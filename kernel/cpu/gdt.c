@@ -25,13 +25,13 @@ void gdt_init(void) {
     // NS
     gdt_set_gate(0, 0, 0, 0, 0);
     // CS
-    gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
+    gdt_set_gate(1, 0, 0xFFFFFFFF, GDT_ACCESS_PRESENT | GDT_ACCESS_RING0 | GDT_ACCESS_SEGMENT | GDT_ACCESS_EXECUTABLE | GDT_ACCESS_READ_WRITE, 0xCF);
     // DS
-    gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
+    gdt_set_gate(2, 0, 0xFFFFFFFF, GDT_ACCESS_PRESENT | GDT_ACCESS_RING0 | GDT_ACCESS_SEGMENT | GDT_ACCESS_DATA | GDT_ACCESS_READ_WRITE, 0xCF);
     // Ring3 CS
-    gdt_set_gate(3, 0, 0xFFFFFFFF, 0xFA, 0xCF);
+    gdt_set_gate(3, 0, 0xFFFFFFFF, GDT_ACCESS_PRESENT | GDT_ACCESS_RING3 | GDT_ACCESS_SEGMENT | GDT_ACCESS_EXECUTABLE | GDT_ACCESS_READ_WRITE, 0xCF);
     // Ring3 DS
-    gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);
+    gdt_set_gate(4, 0, 0xFFFFFFFF, GDT_ACCESS_PRESENT | GDT_ACCESS_RING3 | GDT_ACCESS_SEGMENT | GDT_ACCESS_DATA | GDT_ACCESS_READ_WRITE, 0xCF);
 
     install_tss(5, 0x10, 0x0);
 

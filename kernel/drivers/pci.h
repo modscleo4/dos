@@ -8,18 +8,23 @@
 #define PCI_CONFIG_ADDRESS 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
 
+#pragma pack(push, 1)
 typedef struct pci_header_type {
     uint8_t type: 7;
     bool multi_func: 1;
-} __attribute__((packed)) pci_header_type;
+} pci_header_type;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct pci_bist_reg {
     uint8_t completion_code: 4;
     uint8_t reserved: 2;
     bool start_bist: 1;
     bool bist_capable: 1;
-} __attribute__((packed)) pci_bist_reg;
+} pci_bist_reg;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct pci_command_reg {
     bool io_space: 1;
     bool memory_space: 1;
@@ -33,8 +38,10 @@ typedef struct pci_command_reg {
     bool fast_back_to_back_enable: 1;
     bool interrupt_disable: 1;
     uint8_t reserved2: 5;
-} __attribute__((packed)) pci_command_reg;
+} pci_command_reg;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct pci_status_reg {
     uint8_t reserved: 3;
     bool interrupt_status: 1;
@@ -49,8 +56,10 @@ typedef struct pci_status_reg {
     bool received_master_abort: 1;
     bool signaled_system_error: 1;
     bool detected_parity_error: 1;
-} __attribute__((packed)) pci_status_reg;
+} pci_status_reg;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct pci_header {
     uint16_t vendor;
     uint16_t device;
@@ -64,8 +73,10 @@ typedef struct pci_header {
     uint8_t latency_timer;
     pci_header_type header_type;
     pci_bist_reg bist;
-} __attribute__((packed)) pci_header;
+} pci_header;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct pci_device {
     pci_header header;
     uint32_t base_address[6];
@@ -80,8 +91,10 @@ typedef struct pci_device {
     uint8_t interrupt_pin;
     uint8_t min_grant;
     uint8_t max_latency;
-} __attribute__((packed)) pci_device;
+} pci_device;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct pci_pci_bridge {
     pci_header header;
     uint32_t base_address[2];
@@ -106,8 +119,10 @@ typedef struct pci_pci_bridge {
     uint8_t interrupt_line;
     uint8_t interrupt_pin;
     uint16_t bridge_control;
-} __attribute__((packed)) pci_pci_bridge;
+} pci_pci_bridge;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct pci_cardbus_bridge {
     pci_header header;
     uint32_t cardbus_socket_exca_base_address;
@@ -132,7 +147,8 @@ typedef struct pci_cardbus_bridge {
     uint16_t subsystem_device_id;
     uint16_t subsystem_vendor_id;
     uint32_t legacy_base_address;
-} __attribute__((packed)) pci_cardbus_bridge;
+} pci_cardbus_bridge;
+#pragma pack(pop)
 
 void pci_init(void);
 

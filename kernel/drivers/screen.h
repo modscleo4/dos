@@ -26,6 +26,8 @@ enum ScreenMode {
 
 void screen_init(enum ScreenMode mode);
 
+void screen_caret(void);
+
 unsigned char screen_getcolor(void);
 
 void screen_setcolor(unsigned char c);

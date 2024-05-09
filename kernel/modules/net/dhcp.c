@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include "arp.h"
 #include "udp.h"
 #include "../timer.h"
@@ -87,10 +88,10 @@ static void dhcp_process_ack(ethernet_driver *driver, dhcp_packet *packet) {
     dbgprint("DNS: %d.%d.%d.%d\n", driver->ipv4.dns[0], driver->ipv4.dns[1], driver->ipv4.dns[2], driver->ipv4.dns[3]);
     dbgprint("Lease time: %ds\n", driver->ipv4.lease_time);
 
-    uint8_t gateway_mac[6];
+    /*uint8_t gateway_mac[6];
     if (arp_get_mac(driver, driver->ipv4.gateway, gateway_mac, 100)) {
         dbgprint("Gateway MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", gateway_mac[0], gateway_mac[1], gateway_mac[2], gateway_mac[3], gateway_mac[4], gateway_mac[5]);
-    }
+    }*/
 }
 
 static void dhcp_udp_listener(ethernet_driver *driver, void *data, size_t data_size) {
@@ -157,9 +158,9 @@ void dhcp_send_discover(ethernet_driver *driver) {
     packet->htype = DHCP_HTYPE_ETHERNET;
     packet->hlen = 6;
     packet->hops = 0;
-    packet->xid = switch_endian_32(0x12345678);
-    packet->secs = switch_endian_16(0);
-    packet->flags = switch_endian_16(0);
+    packet->xid = htonl(0x12345678);
+    packet->secs = htons(0);
+    packet->flags = htons(0);
     memset(&packet->ciaddr, 0, 4);
     memset(&packet->yiaddr, 0, 4);
     memset(&packet->siaddr, 0, 4);
@@ -168,7 +169,7 @@ void dhcp_send_discover(ethernet_driver *driver) {
     memset(&packet->chaddr[6], 0, 10);
     memset(&packet->sname, 0, 64);
     memset(&packet->file, 0, 128);
-    packet->magic_cookie = switch_endian_32(0x63825363);
+    packet->magic_cookie = htonl(0x63825363);
     int opt = 0;
     packet->options[opt++] = DHCP_OPTION_MESSAGE_TYPE;
     packet->options[opt++] = 1;
@@ -187,9 +188,9 @@ void dhcp_send_request(ethernet_driver *driver, uint8_t server_ip[4], uint8_t re
     packet->htype = DHCP_HTYPE_ETHERNET;
     packet->hlen = 6;
     packet->hops = 0;
-    packet->xid = switch_endian_32(0x12345678);
-    packet->secs = switch_endian_16(0);
-    packet->flags = switch_endian_16(0);
+    packet->xid = htonl(0x12345678);
+    packet->secs = htons(0);
+    packet->flags = htons(0);
     memset(&packet->ciaddr, 0, 4);
     memset(&packet->yiaddr, 0, 4);
     memcpy(&packet->siaddr, server_ip, 4);
@@ -198,7 +199,7 @@ void dhcp_send_request(ethernet_driver *driver, uint8_t server_ip[4], uint8_t re
     memset(&packet->chaddr[6], 0, 10);
     memset(&packet->sname, 0, 64);
     memset(&packet->file, 0, 128);
-    packet->magic_cookie = switch_endian_32(0x63825363);
+    packet->magic_cookie = htonl(0x63825363);
     int opt = 0;
     packet->options[opt++] = DHCP_OPTION_MESSAGE_TYPE;
     packet->options[opt++] = 1;

@@ -2,6 +2,7 @@
 #define FILESYSTEM_H
 
 #include <stddef.h>
+#include <sys/stat.h>
 #include "iodriver.h"
 
 enum FileSystemType {
@@ -10,18 +11,24 @@ enum FileSystemType {
     FS_FAT16,
     FS_EXT2,
     FS_ISO9660,
+
+    FS_TMPFS,
+    FS_DEVFS,
+    FS_PROCFS,
+    FS_SYSFS,
+    FS_PTYFS,
 };
 
 typedef struct filesystem {
     enum FileSystemType type;
-    unsigned int start_lba;
+    uint32_t start_lba;
     void *params;
     void (*init)(iodriver *driver, struct filesystem *fs);
-    size_t (*get_file_size)(struct filesystem *fs, const void *_f);
-    void *(*search_file)(iodriver *driver, struct filesystem *fs, const char *filename);
-    void *(*load_file)(iodriver *driver, struct filesystem *fs, const void *_f);
-    void *(*load_file_at)(iodriver *driver, struct filesystem *fs, const void *_f, void *addr);
-    void (*list_files)(iodriver *driver, struct filesystem *fs);
+    int (*stat)(iodriver *driver, struct filesystem *fs, const char *path, struct stat *st);
+    void *(*load_file)(iodriver *driver, struct filesystem *fs, const struct stat *st);
+    int (*read)(iodriver *driver, struct filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
+    int (*write)(iodriver *driver, struct filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
+    int (*readdir)(iodriver *driver, struct filesystem *fs, const struct stat *st, size_t index, char *name, struct stat *out_st);
 } filesystem;
 
 #endif // FILESYSTEM_H

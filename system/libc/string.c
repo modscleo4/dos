@@ -1,27 +1,60 @@
 #include <string.h>
 
 #include <ctype.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-void memcpy(void *destination, const void *source, size_t n) {
-    unsigned char *c_src = (unsigned char *)source;
-    unsigned char *c_dest = (unsigned char *)destination;
+void *memcpy(void *restrict destination, const void *restrict source, size_t n) {
+    size_t i = 0;
+    void *ret = destination;
 
-    for (int i = 0; i < n; i++) {
-        c_dest[i] = c_src[i];
+    for (i = 0; i < n / 4; i++) {
+        *(uint32_t *)destination = *(uint32_t *)source;
+
+        source += 4;
+        destination += 4;
     }
+
+    n -= i * 4;
+
+    for (i = 0; i < n / 2; i++) {
+        *(uint16_t *)destination = *(uint16_t *)source;
+
+        source += 2;
+        destination += 2;
+    }
+
+    n -= i * 2;
+
+    uint8_t *c_src = (uint8_t *)source;
+    uint8_t *c_dest = (uint8_t *)destination;
+
+    while (n--) {
+        *c_dest++ = *c_src++;
+    }
+
+    return ret;
 }
 
 char *strcpy(char *destination, const char *source) {
     size_t len = strlen(source);
-    strncpy(destination, source, len);
+    memcpy(destination, source, len);
+    destination[len] = 0;
 
-    return destination + len;
+    return destination;
 }
 
-void strncpy(char *destination, const char *source, size_t n) {
-    memcpy(destination, source, n);
+char *strncpy(char *destination, const char *source, size_t n) {
+    size_t len = strlen(source);
+    memcpy(destination, source, len < n ? len : n);
+
+    for (size_t i = len; i < n; i++) {
+        destination[i] = 0;
+    }
 
     destination[n] = 0;
+
+    return destination;
 }
 
 void *memmove(void *dest, const void *source, size_t n) {
@@ -45,9 +78,8 @@ char *strcat(char *destination, const char *source) {
 
 char *strncat(char *destination, const char *source, size_t n) {
     size_t dest_len = strlen(destination);
-    memcpy(destination + dest_len, source, n);
+    strncpy(destination + dest_len, source, n);
 
-    destination[dest_len + n] = 0;
     return destination;
 }
 
@@ -72,8 +104,8 @@ char *strlwr(char *str) {
 }
 
 int memcmp(const void *ptr1, const void *ptr2, size_t num) {
-    unsigned char *c_ptr1 = (unsigned char *)ptr1;
-    unsigned char *c_ptr2 = (unsigned char *)ptr2;
+    uint8_t *c_ptr1 = (uint8_t *)ptr1;
+    uint8_t *c_ptr2 = (uint8_t *)ptr2;
 
     while (num-- > 0) {
         if (*c_ptr1 != *c_ptr2) {
@@ -114,7 +146,7 @@ int strncmp(const char *str1, const char *str2, size_t num) {
     return memcmp(str1, str2, num);
 }
 
-void *memchr(void *ptr, int value, size_t num) {
+const void *memchr(const void *ptr, int value, size_t num) {
     unsigned char *ptr_c = (unsigned char *)ptr;
 
     for (int i = 0; i < num; i++) {
@@ -126,8 +158,127 @@ void *memchr(void *ptr, int value, size_t num) {
     return NULL;
 }
 
-char *strchr(char *str, int character) {
+const char *strchr(const char *str, int character) {
     return memchr(str, character, strlen(str) + 1);
+}
+
+size_t strcspn(const char *str1, const char *str2) {
+    size_t i = 0;
+    for (i = 0; str1[i]; i++) {
+        int j = 0;
+        for (j = 0; str2[j]; j++) {
+            if (str1[i] == str2[j]) {
+                break;
+            }
+        }
+
+        if (str2[j]) {
+            break;
+        }
+    }
+
+    return i;
+}
+
+char *strpbrk(const char *str1, const char *str2) {
+    size_t i = 0;
+    for (i = 0; str1[i]; i++) {
+        int j = 0;
+        for (j = 0; str2[j]; j++) {
+            if (str1[i] == str2[j]) {
+                return (char *)&str1[i];
+            }
+        }
+    }
+
+    return NULL;
+}
+
+char *strrchr(const char *str, int character) {
+    size_t i = 0;
+    for (i = strlen(str) - 1; i >= 0; i--) {
+        if (str[i] == character) {
+            return (char *)&str[i];
+        }
+    }
+
+    return NULL;
+}
+
+size_t strspn(const char *str1, const char *str2) {
+    size_t i = 0;
+    for (i = 0; str1[i]; i++) {
+        int j = 0;
+        for (j = 0; str2[j]; j++) {
+            if (str1[i] == str2[j]) {
+                break;
+            }
+        }
+
+        if (!str2[j]) {
+            break;
+        }
+    }
+
+    return i;
+}
+
+char *strstr(const char *str1, const char *str2) {
+    size_t i = 0;
+    for (i = 0; str1[i]; i++) {
+        if (str1[i] == str2[0]) {
+            size_t j = 0;
+            bool found = true;
+            for (j = 0; str2[j]; j++) {
+                if (str1[i + j] != str2[j]) {
+                    found = false;
+                    break;
+                }
+            }
+
+            if (found) {
+                return (char *)&str1[i];
+            }
+        }
+    }
+
+    return NULL;
+}
+
+char *strtok(char *str, const char *delimiters) {
+    static char *last = NULL;
+
+    if (!str) {
+        str = last;
+    }
+
+    if (!str) {
+        return NULL;
+    }
+
+    size_t i = 0;
+    for (i = 0; str[i]; i++) {
+        int j = 0;
+        for (j = 0; delimiters[j]; j++) {
+            if (str[i] == delimiters[j]) {
+                break;
+            }
+        }
+
+        if (delimiters[j]) {
+            break;
+        }
+    }
+
+    if (!str[i]) {
+        last = NULL;
+        return str;
+    }
+
+    str[i] = 0;
+    last = &str[i + 1];
+
+    return str;
 }
 
 size_t strlen(const char *str) {
@@ -140,13 +291,15 @@ size_t strlen(const char *str) {
 }
 
 void *memset(void *ptr, int value, size_t num) {
-    unsigned char *c_ptr = ptr;
+    int d0;
+    int d1;
 
-    while (num > 0) {
-        *c_ptr = (unsigned char)value;
-        c_ptr++;
-        num--;
-    }
+    asm volatile(
+        "rep stosb"
+        : "=&c"(d0), "=&D"(d1)
+        : "a"((uint8_t)value), "1"(ptr), "0"(num)
+        : "memory"
+    );
 
     return ptr;
 }

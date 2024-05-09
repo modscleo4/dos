@@ -17,6 +17,7 @@ typedef uint32_t Elf64_Word;
 typedef uint64_t Elf64_Xword;
 typedef int64_t Elf64_Sxword;
 
+#pragma pack(push, 1)
 typedef struct elf_header_ident {
     uint8_t magic[4];
     uint8_t class;
@@ -24,8 +25,10 @@ typedef struct elf_header_ident {
     uint8_t version;
     uint8_t osabi;
     uint8_t unused[8];
-} __attribute__((packed)) elf_header_ident;
+} elf_header_ident;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct elf32_header {
     elf_header_ident ident;
     Elf32_Half type;
@@ -41,8 +44,10 @@ typedef struct elf32_header {
     Elf32_Half section_header_size;
     Elf32_Half section_header_count;
     Elf32_Half section_name_index;
-} __attribute__((packed)) elf32_header;
+} elf32_header;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct elf64_header {
     elf_header_ident ident;
     Elf64_Half type;
@@ -58,8 +63,10 @@ typedef struct elf64_header {
     Elf64_Half section_header_size;
     Elf64_Half section_header_count;
     Elf64_Half section_name_index;
-} __attribute__((packed)) elf64_header;
+} elf64_header;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct elf32_program_header {
     Elf32_Word type;
     Elf32_Off offset;
@@ -69,8 +76,10 @@ typedef struct elf32_program_header {
     Elf32_Word memory_size;
     Elf32_Word flags;
     Elf32_Word alignment;
-} __attribute__((packed)) elf32_program_header;
+} elf32_program_header;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct elf64_program_header {
     Elf64_Word type;
     Elf64_Word flags;
@@ -80,8 +89,10 @@ typedef struct elf64_program_header {
     Elf64_Xword file_size;
     Elf64_Xword memory_size;
     Elf64_Xword alignment;
-} __attribute__((packed)) elf64_program_header;
+} elf64_program_header;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct elf32_section_header {
     Elf32_Word name;
     Elf32_Word type;
@@ -93,8 +104,10 @@ typedef struct elf32_section_header {
     Elf32_Word info;
     Elf32_Word address_align;
     Elf32_Word entry_size;
-} __attribute__((packed)) elf32_section_header;
+} elf32_section_header;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct elf64_section_header {
     Elf64_Word name;
     Elf64_Word type;
@@ -106,8 +119,10 @@ typedef struct elf64_section_header {
     Elf64_Word info;
     Elf64_Xword address_align;
     Elf64_Xword entry_size;
-} __attribute__((packed)) elf64_section_header;
+} elf64_section_header;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct elf32_symbol_table_entry {
     Elf32_Word name;
     Elf32_Addr value;
@@ -115,8 +130,10 @@ typedef struct elf32_symbol_table_entry {
     uint8_t info;
     uint8_t other;
     Elf32_Half section_index;
-} __attribute__((packed)) elf32_symbol_table_entry;
+} elf32_symbol_table_entry;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct elf64_symbol_table_entry {
     Elf64_Word name;
     uint8_t info;
@@ -124,7 +141,8 @@ typedef struct elf64_symbol_table_entry {
     Elf32_Half section_index;
     Elf32_Addr value;
     Elf64_Xword size;
-} __attribute__((packed)) elf64_symbol_table_entry;
+} elf64_symbol_table_entry;
+#pragma pack(pop)
 
 #define ELF32_ST_BIND(i) ((i) >> 4)
 #define ELF32_ST_TYPE(i) ((i) & 0xf)
@@ -147,6 +165,21 @@ enum ELFType {
     ELF_TYPE_EXECUTABLE = 2,
     ELF_TYPE_SHARED = 3,
     ELF_TYPE_CORE = 4
+};
+
+enum ELFProgramHeaderType {
+    ELF_PT_NULL = 0,
+    ELF_PT_LOAD = 1,
+    ELF_PT_DYNAMIC = 2,
+    ELF_PT_INTERP = 3,
+    ELF_PT_NOTE = 4,
+    ELF_PT_SHLIB = 5,
+    ELF_PT_PHDR = 6,
+    ELF_PT_TLS = 7,
+    ELF_PT_LOOS = 0x60000000,
+    ELF_PT_HIOS = 0x6FFFFFFF,
+    ELF_PT_LOPROC = 0x70000000,
+    ELF_PT_HIPROC = 0x7FFFFFFF
 };
 
 enum ELFInstructionSet {

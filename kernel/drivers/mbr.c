@@ -1,7 +1,7 @@
 #include "mbr.h"
 
 #define DEBUG 1
-#define DEBUG_SERIAL 0
+#define DEBUG_SERIAL 1
 
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +12,7 @@
 #include "fs/iso9660.h"
 
 filesystem *mbr_init(iodriver *driver, unsigned int partition) {
+    dbgprint("Reading MBR %p\n", driver->read_sector);
     driver->read_sector(driver, 0, driver->io_buffer, true);
 
     if (driver->io_buffer[510] != 0x55 || driver->io_buffer[511] != 0xAA) {
@@ -51,11 +52,11 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
             fs->type = FS_FAT12;
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &fat_init;
-            fs->get_file_size = &fat_get_file_size;
-            fs->search_file = (void *(*)(iodriver *, struct filesystem *, const char *)) &fat_search_file;
+            fs->stat = &fat_stat;
             fs->load_file = &fat_load_file;
-            fs->load_file_at = &fat_load_file_at;
-            fs->list_files = &fat_list_files;
+            fs->read = &fat_read;
+            fs->write = &fat_write;
+            fs->readdir = &fat_readdir;
             return fs;
         }
         case 0x04:
@@ -63,22 +64,22 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
             fs->type = FS_FAT16;
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &fat_init;
-            fs->get_file_size = &fat_get_file_size;
-            fs->search_file = (void *(*)(iodriver *, struct filesystem *, const char *)) &fat_search_file;
+            fs->stat = &fat_stat;
             fs->load_file = &fat_load_file;
-            fs->load_file_at = &fat_load_file_at;
-            fs->list_files = &fat_list_files;
+            fs->read = &fat_read;
+            fs->write = &fat_write;
+            fs->readdir = &fat_readdir;
             return fs;
         }
         case 0x83: {
             fs->type = FS_EXT2;
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &ext2_init;
-            fs->get_file_size = &ext2_get_file_size;
-            fs->search_file = (void *(*)(iodriver *, struct filesystem *, const char *)) &ext2_search_file;
+            fs->stat = &ext2_stat;
             fs->load_file = &ext2_load_file;
-            fs->load_file_at = &ext2_load_file_at;
-            fs->list_files = &ext2_list_files;
+            fs->read = &ext2_read;
+            fs->write = &ext2_write;
+            fs->readdir = &ext2_readdir;
             return fs;
         }
         case 0x96:
@@ -86,11 +87,11 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
             fs->type = FS_ISO9660;
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &iso9660_init;
-            fs->get_file_size = &iso9660_get_file_size;
-            fs->search_file = (void *(*)(iodriver *, struct filesystem *, const char *)) &iso9660_search_file;
+            fs->stat = &iso9660_stat;
             fs->load_file = &iso9660_load_file;
-            fs->load_file_at = &iso9660_load_file_at;
-            fs->list_files = &iso9660_list_files;
+            fs->read = &iso9660_read;
+            fs->write = &iso9660_write;
+            fs->readdir = &iso9660_readdir;
             return fs;
         default:
             free(fs);

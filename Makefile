@@ -2,7 +2,10 @@ BUILD_DIR=build
 BOOTLOADER=$(BUILD_DIR)/bootloader/bootloader
 BIOSPARAMS=$(BUILD_DIR)/bootloader/biosparams
 KERNEL=$(BUILD_DIR)/kernel/kernel.elf
-SYSTEM_INIT=$(BUILD_DIR)/system/init/init.elf
+SYSTEM_LIBC=$(BUILD_DIR)/system/lib/libc.a
+SYSTEM_LIBC_DYN=$(BUILD_DIR)/system/lib/libc.so
+SYSTEM_BIN_INIT=$(BUILD_DIR)/system/bin/init/init.elf
+SYSTEM_BIN_SH=$(BUILD_DIR)/system/bin/sh/sh.elf
 FLOPPY_DISK_IMG=floppy_disk.img
 ATA_DISK_IMG=ata_disk.img
 ATA_DISK_EXT2_IMG=ata_disk_ext2.img
@@ -17,16 +20,18 @@ ATA_GRUB2_CORE_SECTOR=ata_grub2_sector
 ATA_EXT2_GRUB2_CORE_SECTOR=ata_ext2_grub2_sector
 
 # Executables
-BOCHS="/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe"
+GRUB2_MKIMAGE="grub-mkimage"
+GRUB2_MKRESCUE="grub-mkrescue"
+BOCHS="/mnt/c/Program Files/Bochs-2.8/bochsdbg.exe"
 QEMU="/mnt/c/Program Files/QEMU/qemu-system-x86_64.exe"
 VBOXMANAGE="/mnt/c/Program Files/Oracle/VirtualBox/VBoxManage.exe"
 
-all: dir disk
+all: dir rootfs
 
 dir:
 	mkdir -p $(BUILD_DIR)
 
-.PHONY: disk bootloader kernel system
+.PHONY: bootloader kernel system
 
 bootloader_floppy:
 	make -C bootloader clean
@@ -47,15 +52,28 @@ system:
 	make -C system
 
 grub2_ata:
-	grub-mkimage -o $(GRUB2_CORE_IMG) -O i386-pc -p /boot/grub -c grub_ata.cfg configfile fat ext2 multiboot2 part_msdos ls nativedisk biosdisk normal help
+	$(GRUB2_MKIMAGE) -o $(GRUB2_CORE_IMG) -O i386-pc -p /boot/grub -c grub_ata.cfg configfile fat ext2 multiboot2 part_msdos ls nativedisk biosdisk normal help
 
 grub2_floppy:
-	grub-mkimage -o $(GRUB2_CORE_IMG) -O i386-pc -p /boot/grub -c grub_floppy.cfg configfile fat multiboot2 part_msdos ls nativedisk biosdisk normal help
+	$(GRUB2_MKIMAGE) -o $(GRUB2_CORE_IMG) -O i386-pc -p /boot/grub -c grub_floppy.cfg configfile fat multiboot2 part_msdos ls nativedisk biosdisk normal help
 
 rootfs: kernel system
+	mkdir -p rootfs/
 	mkdir -p rootfs/boot
+	mkdir -p rootfs/bin
+	mkdir -p rootfs/dev
+	mkdir -p rootfs/etc
+	mkdir -p rootfs/lib
+	mkdir -p rootfs/proc
+	mkdir -p rootfs/run
+	mkdir -p rootfs/usr
 	cp $(KERNEL) rootfs
-	cp $(SYSTEM_INIT) rootfs
+	cp $(SYSTEM_BIN_INIT) rootfs/bin
+	cp $(SYSTEM_BIN_SH) rootfs/bin
+	cp $(SYSTEM_LIBC) rootfs/lib
+	cp $(SYSTEM_LIBC_DYN) rootfs/lib
+	cp -f grub.cfg.example rootfs/boot/grub/grub.cfg
+	cp -f fstab.example rootfs/etc/fstab
 
 floppy: bootloader_floppy rootfs grub2_floppy
 	dd if=/dev/zero of=$(FLOPPY_DISK_IMG) bs=512 count=2880
@@ -65,12 +83,14 @@ floppy: bootloader_floppy rootfs grub2_floppy
 	dd conv=notrunc if=$(BIOSPARAMS) of=$(FLOPPY_DISK_IMG) bs=1 count=94 seek=515
 	dd conv=notrunc if=$(FLOPPY_GRUB2_CORE_SECTOR) of=$(GRUB2_CORE_IMG) bs=1 seek=500 count=1
 	dd conv=notrunc if=$(GRUB2_CORE_IMG) of=$(FLOPPY_DISK_IMG) bs=512 seek=2
+	sed -i 's/<rootdevice>/fd0p1/g' rootfs/boot/grub/grub.cfg
+	sed -i 's/<rootdevice>/fd0p1/g' rootfs/etc/fstab
 	MTOOLSRC=./mtoolsrc mlabel -n a:MARCOSLIRA
-	MTOOLSRC=./mtoolsrc mcopy -m -s rootfs/boot a:
-	MTOOLSRC=./mtoolsrc mcopy -m rootfs/kernel.elf a:
-	MTOOLSRC=./mtoolsrc mcopy -m rootfs/init.elf a:
+	MTOOLSRC=./mtoolsrc mcopy -m -s rootfs/* a:
 	MTOOLSRC=./mtoolsrc mattrib +s a:/kernel.elf
-	MTOOLSRC=./mtoolsrc mattrib +s a:/init.elf
+	MTOOLSRC=./mtoolsrc mattrib +s a:/bin/init.elf
+	MTOOLSRC=./mtoolsrc mattrib +s a:/lib/libc.a
+	MTOOLSRC=./mtoolsrc mattrib +s a:/lib/libc.so
 
 ata: bootloader_ata rootfs grub2_ata
 	dd if=/dev/zero of=$(ATA_DISK_IMG) bs=512 count=32768
@@ -80,12 +100,14 @@ ata: bootloader_ata rootfs grub2_ata
 	dd conv=notrunc if=$(BIOSPARAMS) of=$(ATA_DISK_IMG) bs=1 count=94 seek=515
 	dd conv=notrunc if=$(ATA_GRUB2_CORE_SECTOR) of=$(GRUB2_CORE_IMG) bs=1 seek=500 count=1
 	dd conv=notrunc if=$(GRUB2_CORE_IMG) of=$(ATA_DISK_IMG) bs=512 seek=2
+	sed -i 's/<rootdevice>/hd0p1/g' rootfs/boot/grub/grub.cfg
+	sed -i 's/<rootdevice>/hd0p1/g' rootfs/etc/fstab
 	MTOOLSRC=./mtoolsrc mlabel -n c:MARCOSLIRA
-	MTOOLSRC=./mtoolsrc mcopy -m -s rootfs/boot c:
-	MTOOLSRC=./mtoolsrc mcopy -m rootfs/kernel.elf c:
-	MTOOLSRC=./mtoolsrc mcopy -m rootfs/init.elf c:
+	MTOOLSRC=./mtoolsrc mcopy -m -s rootfs/* c:
 	MTOOLSRC=./mtoolsrc mattrib +s c:/kernel.elf
-	MTOOLSRC=./mtoolsrc mattrib +s c:/init.elf
+	MTOOLSRC=./mtoolsrc mattrib +s c:/bin/init.elf
+	MTOOLSRC=./mtoolsrc mattrib +s c:/lib/libc.a
+	MTOOLSRC=./mtoolsrc mattrib +s c:/lib/libc.so
 
 ataext2: bootloader_ata_ext2 rootfs grub2_ata
 	dd if=/dev/zero of=$(ATA_DISK_IMG) bs=512 count=32768
@@ -95,12 +117,16 @@ ataext2: bootloader_ata_ext2 rootfs grub2_ata
 	dd conv=notrunc if=$(ATA_EXT2_GRUB2_CORE_SECTOR) of=$(GRUB2_CORE_IMG) bs=1 seek=500 count=1
 	dd conv=notrunc if=$(GRUB2_CORE_IMG) of=$(ATA_DISK_IMG) bs=512 seek=2
 	dd if=/dev/zero of=$(ATA_DISK_EXT2_IMG) bs=512 count=32256
-	mkfs.ext2 -L MARCOSLIRA05 -r 0 $(ATA_DISK_EXT2_IMG)
+	sed -i 's/<rootdevice>/hd0p1/g' rootfs/boot/grub/grub.cfg
+	sed -i 's/<rootdevice>/hd0p1/g' rootfs/etc/fstab
+	mkfs.ext2 -L MARCOSLIRA05 -r 0 -b 4096 $(ATA_DISK_EXT2_IMG)
 	genext2fs -x $(ATA_DISK_EXT2_IMG) -b 4032 -B 4096 -d rootfs -v $(ATA_DISK_EXT2_IMG)
 	dd conv=notrunc if=$(ATA_DISK_EXT2_IMG) of=$(ATA_DISK_IMG) bs=512 count=32256 seek=513
 
 iso9660: rootfs
-	grub-mkrescue -o $(CDROM_ISO) rootfs
+	sed -i 's/<rootdevice>/cd0p0/g' rootfs/boot/grub/grub.cfg
+	sed -i 's/<rootdevice>/cd0p0/g' rootfs/etc/fstab
+	$(GRUB2_MKRESCUE) -o $(CDROM_ISO) rootfs
 
 vboxvdi: ataext2
 	rm -f $(VBOX_VDI)
@@ -110,7 +136,25 @@ vmwarevmdk: ataext2
 	rm -f $(VMWARE_VMDK)
 	$(VBOXMANAGE) convertfromraw --format VMDK $(ATA_DISK_IMG) $(VMWARE_VMDK)
 
-qemu: ataext2
+qemufloppy: floppy
+	$(QEMU) \
+	-drive file=$(FLOPPY_DISK_IMG),format=raw,if=floppy,index=0,media=disk \
+	-m 32M \
+	-serial file:serial.txt \
+	-netdev user,id=eth -device e1000,netdev=eth \
+	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
+	-boot a
+
+qemuata: ata
+	$(QEMU) \
+	-drive file=$(ATA_DISK_IMG),format=raw,if=ide,index=0,media=disk \
+	-m 32M \
+	-serial file:serial.txt \
+	-netdev user,id=eth -device e1000,netdev=eth \
+	-object filter-dump,id=f1,netdev=eth,file=qemu-pktlog.pcap \
+	-boot c
+
+qemuataext2: ataext2
 	$(QEMU) \
 	-drive file=$(ATA_DISK_IMG),format=raw,if=ide,index=0,media=disk \
 	-m 32M \

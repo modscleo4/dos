@@ -3,17 +3,17 @@
 #define DEBUG 1
 #define DEBUG_SERIAL 1
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "../../bits.h"
 #include "../../cpu/irq.h"
-#include "../../cpu/pic.h"
 #include "../../cpu/mmu.h"
+#include "../../cpu/pic.h"
 #include "../../debug.h"
 #include "../../modules/bitmap.h"
 #include "../../modules/cmos.h"
 #include "../../modules/timer.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 unsigned int drives[2] = {0, 0};
 floppy_parameters floppy;
@@ -31,15 +31,19 @@ static void floppy_handler(registers *r, uint32_t int_no) {
 }
 
 iodriver *floppy_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func) {
+    dbgprint("Initializing floppy driver\n");
+
     irq_c = 0;
     uint8_t *io_buffer = (uint8_t *)malloc_align(512, BITMAP_PAGE_SIZE);
 
     memcpy(&floppy, (uint8_t *)DISK_PARAMETER_ADDRESS, sizeof(floppy_parameters));
+
+    dbgprint("Installing IRQ handler %d for floppy drive\n", device ? device->interrupt_line : IRQ_FLOPPY);
     irq_install_handler(device ? device->interrupt_line : IRQ_FLOPPY, floppy_handler);
 
     floppy_detect_types();
 
-    unsigned char version = floppy_version(0);
+    uint8_t version = floppy_version(0);
     if (version != 0x90 && version != 0xFF) { // 0xFF is Bochs' version
         dbgprint("Floppy drive #%d is not supported: version %x.\n", 0, version);
         return NULL;
@@ -50,19 +54,19 @@ iodriver *floppy_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t fun
         FLOPPY_SECONDARY_BASE = device->base_address[1] & 0xFFFFFFFC;
     }
 
-    floppy_io.device = -1;
-    floppy_io.io_buffer = io_buffer;
-    floppy_io.sector_size = floppy.bytes_per_sector;
-    floppy_io.reset = &floppy_reset;
-    floppy_io.start = &floppy_motor_on;
-    floppy_io.stop = &floppy_motor_off;
-    floppy_io.read_sector = &floppy_sector_read;
+    floppy_io.device       = -1;
+    floppy_io.io_buffer    = io_buffer;
+    floppy_io.sector_size  = floppy.bytes_per_sector;
+    floppy_io.reset        = &floppy_reset;
+    floppy_io.start        = &floppy_motor_on;
+    floppy_io.stop         = &floppy_motor_off;
+    floppy_io.read_sector  = &floppy_sector_read;
     floppy_io.write_sector = &floppy_sector_write;
     return &floppy_io;
 }
 
 void floppy_detect_types(void) {
-    unsigned char c = read_cmos_register(0x10, 1);
+    uint8_t c = read_cmos_register(0x10, 1);
 
     drives[0] = c >> 4U;
     drives[1] = c & 0xFU;
@@ -75,8 +79,8 @@ void floppy_configure(iodriver *driver) {
     bool implied_seek_enable = false;
     bool fifo_disable = false;
     bool drive_polling_mode_disable = true;
-    unsigned char thresh_val = 8;
-    unsigned char precomp_val = 0;
+    uint8_t thresh_val = 8;
+    uint8_t precomp_val = 0;
 
     floppy_send_byte(driver, FLOPPY_CONFIGURE);
     floppy_send_byte(driver, 0x00);
@@ -84,7 +88,7 @@ void floppy_configure(iodriver *driver) {
     floppy_send_byte(driver, precomp_val);
 }
 
-unsigned char floppy_version(iodriver *driver) {
+uint8_t floppy_version(iodriver *driver) {
     floppy_send_byte(driver, FLOPPY_VERSION);
     return floppy_recv_byte(driver);
 }
@@ -94,23 +98,25 @@ bool floppy_lock(iodriver *driver, bool lock) {
     return ISSET_BIT(floppy_recv_byte(driver), 4);
 }
 
-void lba2chs(unsigned long int lba, chs *c, floppy_parameters fparams) {
+void lba2chs(uint32_t lba, chs *c, floppy_parameters fparams) {
     c->cylinder = lba / (2 * fparams.sectors_per_track);
     c->head = ((lba % (2 * fparams.sectors_per_track)) / fparams.sectors_per_track);
     c->sector = ((lba % (2 * fparams.sectors_per_track)) % fparams.sectors_per_track + 1);
 }
 
 void floppy_wait_irq(void) {
-    while (irq_c <= 0) { asm volatile("hlt"); }
+    while (irq_c <= 0) {
+        asm volatile("hlt");
+    }
     irq_c--;
 }
 
 int floppy_wait_until_ready(iodriver *driver) {
     int base = (driver->device <= 1) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
 
-    for(int counter = 0; counter < 10000; counter++) {
+    for (int counter = 0; counter < 10000; counter++) {
         int status;
-        if((status = inb(base + FLOPPY_MAIN_STATUS_REGISTER)) & FLOPPY_MSR_MRQ) {
+        if ((status = inb(base + FLOPPY_MAIN_STATUS_REGISTER)) & FLOPPY_MSR_MRQ) {
             return status;
         }
     }
@@ -118,7 +124,7 @@ int floppy_wait_until_ready(iodriver *driver) {
     return -1;
 }
 
-unsigned char floppy_recv_byte(iodriver *driver) {
+uint8_t floppy_recv_byte(iodriver *driver) {
     int base = (driver->device <= 1) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
 
     for (int i = 0; i < 600; i++) {
@@ -131,7 +137,7 @@ unsigned char floppy_recv_byte(iodriver *driver) {
     return -1;
 }
 
-int floppy_send_byte(iodriver *driver, unsigned char b) {
+int floppy_send_byte(iodriver *driver, uint8_t b) {
     int base = (driver->device <= 1) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
 
     for (int i = 0; i < 600; i++) {
@@ -164,11 +170,11 @@ int floppy_calibrate(iodriver *driver) {
 
         floppy_wait_irq();
         floppy_check_interrupt(driver, &st0, &cylinder);
-        dbgprint("%s: st0: %d, cylinder: %d\n", __func__, st0, cylinder);
+        dbgprint("st0: %d, cylinder: %d\n", st0, cylinder);
 
         if (0xC0 & st0) {
             static const char *status[] = {0, "error", "invalid", "drive"};
-            dbgprint("%s: status = %s\n", __func__, status[st0 >> 6]);
+            dbgprint("status = %s\n", status[st0 >> 6]);
             continue;
         }
 
@@ -178,7 +184,7 @@ int floppy_calibrate(iodriver *driver) {
         }
     }
 
-    dbgprint("%s: 10 retries exhausted\n", __func__);
+    dbgprint("10 retries exhausted\n");
     floppy_motor_off(driver);
 
     return -1;
@@ -186,7 +192,7 @@ int floppy_calibrate(iodriver *driver) {
 
 int floppy_reset(iodriver *driver) {
     int base = (driver->device <= 1) ? FLOPPY_PRIMARY_BASE : FLOPPY_SECONDARY_BASE;
-    unsigned char dor = inb(base + FLOPPY_DIGITAL_INPUT_REGISTER);
+    uint8_t dor = inb(base + FLOPPY_DIGITAL_INPUT_REGISTER);
     outb(base + FLOPPY_DIGITAL_OUTPUT_REGISTER, 0x00);
     outb(base + FLOPPY_DIGITAL_OUTPUT_REGISTER, ENABLE_BIT(dor, 2));
 
@@ -207,6 +213,28 @@ int floppy_reset(iodriver *driver) {
         return -1;
     }
 
+    switch (drives[driver->device]) {
+        case 1:
+            driver->size = 360 * 1024;
+            break;
+
+        case 2:
+            driver->size = 1200 * 1024;
+            break;
+
+        case 3:
+            driver->size = 720 * 1024;
+            break;
+
+        case 4:
+            driver->size = 1440 * 1024;
+            break;
+
+        case 5:
+            driver->size = 2880 * 1024;
+            break;
+    }
+
     return 0;
 }
 
@@ -221,7 +249,7 @@ void floppy_specify(iodriver *driver) {
     floppy_send_byte(driver, (HLT << 1 | NDMA));
 }
 
-int floppy_seek(iodriver *driver, unsigned char cylinder, unsigned char head) {
+int floppy_seek(iodriver *driver, uint8_t cylinder, uint8_t head) {
     int st0 = 0;
     int cyl = -1;
 
@@ -237,7 +265,7 @@ int floppy_seek(iodriver *driver, unsigned char cylinder, unsigned char head) {
 
         if (0xC0 & st0) {
             static const char *status[] = {"normal", "error", "invalid", "drive"};
-            dbgprint("%s: status = %s\n", __func__, status[st0 >> 6]);
+            dbgprint("status = %s\n", status[st0 >> 6]);
             continue;
         }
 
@@ -247,7 +275,7 @@ int floppy_seek(iodriver *driver, unsigned char cylinder, unsigned char head) {
         }
     }
 
-    dbgprint("%s: 10 retries exhausted\n", __func__);
+    dbgprint("10 retries exhausted\n");
     floppy_motor_off(driver);
 
     return -1;
@@ -272,7 +300,7 @@ void floppy_motor_off(iodriver *driver) {
     floppy_motor_state[driver->device] = 0;
 }
 
-static void floppy_dma_init(IOOperation direction, uint8_t *buffer) {
+static int floppy_dma_init(IOOperation direction, uint8_t *buffer) {
     union {
         uint8_t b[4];
         uint32_t l;
@@ -282,11 +310,11 @@ static void floppy_dma_init(IOOperation direction, uint8_t *buffer) {
     count.l = (uint32_t)511;
 
     if ((addr.l >> 24) || (count.l >> 16) || (((addr.l & 0xffff) + count.l) >> 16)) {
-        dbgprint("%s: buffer problem\n", __func__);
-        asm("hlt");
+        dbgprint("buffer problem\n");
+        return -1;
     }
 
-    unsigned char mode;
+    uint8_t mode;
 
     switch (direction) {
         case IO_READ:
@@ -298,9 +326,8 @@ static void floppy_dma_init(IOOperation direction, uint8_t *buffer) {
             break;
 
         default:
-            dbgprint("%s: invalid direction", __func__);
-            asm("hlt");
-            return;
+            dbgprint("invalid direction");
+            return -1;
     }
 
     outb(0x0a, 0x06);
@@ -313,10 +340,13 @@ static void floppy_dma_init(IOOperation direction, uint8_t *buffer) {
     outb(0x05, count.b[1]);
     outb(0x0b, mode);
     outb(0x0a, 0x02);
+
+    return 0;
 }
 
-int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, IOOperation direction, bool keepOn) {
-    unsigned char command;
+int floppy_do_sector(iodriver *driver, uint32_t lba, uint8_t *buffer, IOOperation direction, bool keepOn) {
+    dbgprint("%s sector %d\n", direction == IO_READ ? "Reading" : "Writing", lba);
+    uint8_t command;
     static const int flags = 0xC0;
 
     chs c;
@@ -338,7 +368,9 @@ int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, I
 
     for (int i = 0; i < 20; i++) {
         floppy_motor_on(driver);
-        floppy_dma_init(direction, buffer);
+        if (floppy_dma_init(direction, buffer)) {
+            return -3;
+        }
         timer_wait(floppy.head_settle_time);
 
         floppy_send_byte(driver, command);
@@ -353,7 +385,7 @@ int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, I
 
         floppy_wait_irq();
 
-        unsigned char st0, st1, st2, rcy, rhe, rse, bps;
+        uint8_t st0, st1, st2, rcy, rhe, rse, bps;
         st0 = floppy_recv_byte(driver);
         st1 = floppy_recv_byte(driver);
         st2 = floppy_recv_byte(driver);
@@ -366,72 +398,72 @@ int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, I
 
         if (st0 & 0xC0) {
             static const char *status[] = {0, "error", "invalid command", "drive not ready"};
-            dbgprint("%s: status = %s\n", __func__, status[st0 >> 6]);
+            dbgprint("status = %s\n", status[st0 >> 6]);
             error = 1;
         }
 
         if (st1 & 0x80) {
-            dbgprint("%s: end of cylinder\n", __func__);
+            dbgprint("end of cylinder\n");
             error = 1;
         }
 
         if (st0 & 0x08) {
-            dbgprint("%s: drive not ready\n", __func__);
+            dbgprint("drive not ready\n");
             error = 1;
         }
 
         if (st1 & 0x20) {
-            dbgprint("%s: CRC error\n", __func__);
+            dbgprint("CRC error\n");
             error = 1;
         }
 
         if (st1 & 0x10) {
-            dbgprint("%s: controller timeout\n", __func__);
+            dbgprint("controller timeout\n");
             error = 1;
         }
 
         if (st1 & 0x04) {
-            dbgprint("%s: no data found\n", __func__);
+            dbgprint("no data found\n");
             error = 1;
         }
 
         if ((st1 | st2) & 0x01) {
-            dbgprint("%s: no address mark found\n", __func__);
+            dbgprint("no address mark found\n");
             error = 1;
         }
 
         if (st2 & 0x40) {
-            dbgprint("%s: deleted address mark\n", __func__);
+            dbgprint("deleted address mark\n");
             error = 1;
         }
 
         if (st2 & 0x20) {
-            dbgprint("%s: CRC error in data\n", __func__);
+            dbgprint("CRC error in data\n");
             error = 1;
         }
 
         if (st2 & 0x10) {
-            dbgprint("%s: wrong cylinder\n", __func__);
+            dbgprint("wrong cylinder\n");
             error = 1;
         }
 
         if (st2 & 0x04) {
-            dbgprint("%s: uPD765 sector not found\n", __func__);
+            dbgprint("uPD765 sector not found\n");
             error = 1;
         }
 
         if (st2 & 0x02) {
-            dbgprint("%s: bad cylinder\n", __func__);
+            dbgprint("bad cylinder\n");
             error = 1;
         }
 
         if (bps != 0x2) {
-            dbgprint("%s: wanted 512B/sector, got %d", __func__, (1 << (bps + 7)));
+            dbgprint("wanted 512B/sector, got %d", (1 << (bps + 7)));
             error = 1;
         }
 
         if (st1 & 0x02) {
-            dbgprint("%s: not writable\n", __func__);
+            dbgprint("not writable\n");
             error = 2;
         }
 
@@ -444,23 +476,23 @@ int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, I
         }
 
         if (error > 1) {
-            dbgprint("%s: not retrying..\n", __func__);
+            dbgprint("not retrying..\n");
             floppy_motor_off(driver);
 
             return -2;
         }
     }
 
-    dbgprint("%s: 20 retries exhausted\n", __func__);
+    dbgprint("20 retries exhausted\n");
     floppy_motor_off(driver);
 
     return -1;
 }
 
-int floppy_sector_read(iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn) {
+int floppy_sector_read(iodriver *driver, uint32_t lba, uint8_t *data, bool keepOn) {
     return floppy_do_sector(driver, lba, data, IO_READ, keepOn);
 }
 
-int floppy_sector_write(iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn) {
+int floppy_sector_write(iodriver *driver, uint32_t lba, uint8_t *data, bool keepOn) {
     return floppy_do_sector(driver, lba, data, IO_WRITE, keepOn);
 }

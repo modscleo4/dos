@@ -1,3 +1,5 @@
+#define FORCE_DEBUG_OFF 0
+
 #ifndef DEBUG
 #define DEBUG 0
 #endif
@@ -6,7 +8,7 @@
 #define DEBUG_SERIAL 0
 #endif
 
-#if DEBUG
+#if DEBUG && !FORCE_DEBUG_OFF
 
 #if DEBUG_SERIAL
 #define _dbgprint _serial_dbgprint
@@ -27,14 +29,15 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "modules/process.h"
 
 void _screen_dbgprint(const char *filename, int line, const char *msg, ...);
 void _serial_dbgprint(const char *filename, int line, const char *msg, ...);
 
 void _dbgwait(void);
 
-void hexdump(void *ptr, size_t n);
+void hexdump(int(*write)(const char *format, ...), void *ptr, size_t n);
 
-void callstack(uint32_t ebp);
+void callstack(uint32_t ebp, process *p);
 
 #endif // DEBUG_H

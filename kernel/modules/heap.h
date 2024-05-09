@@ -27,6 +27,8 @@ int heap_add_block(heap *this, void *addr, size_t size, size_t block_size);
 
 void *heap_alloc(heap *this, size_t size);
 
+size_t heap_allocated_size(heap *this, void *addr);
+
 bool heap_free(heap *this, void *addr);
 
 #endif // HEAP_H

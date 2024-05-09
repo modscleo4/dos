@@ -204,9 +204,11 @@ void acpi_init(acpi_rsdp *rsdp) {
 }
 
 void acpi_shutdown(void) {
-    outw(fadt->pm1a_control_block, ACPI_PM1A_CONTROL_SLP_EN | (acpi_typ_a << 10));
-    if (fadt->pm1b_control_block) {
-        outw(fadt->pm1b_control_block, ACPI_PM1A_CONTROL_SLP_EN | (acpi_typ_b << 10));
+    if (fadt) {
+        outw(fadt->pm1a_control_block, ACPI_PM1A_CONTROL_SLP_EN | (acpi_typ_a << 10));
+        if (fadt->pm1b_control_block) {
+            outw(fadt->pm1b_control_block, ACPI_PM1A_CONTROL_SLP_EN | (acpi_typ_b << 10));
+        }
     }
 }
 

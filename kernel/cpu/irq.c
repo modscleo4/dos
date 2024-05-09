@@ -5,19 +5,6 @@
 #include "pic.h"
 #include "../bits.h"
 
-void irq_remap(void) {
-    outb(0x20, 0x11);
-    outb(0xA0, 0x11);
-    outb(0x21, 0x20);
-    outb(0xA1, 0x28);
-    outb(0x21, 0x04);
-    outb(0xA1, 0x02);
-    outb(0x21, 0x01);
-    outb(0xA1, 0x01);
-    outb(0x21, 0x0);
-    outb(0xA1, 0x0);
-}
-
 void (*irq_routines[16])(registers *, uint32_t) = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void irq_install_handler(int irq, void (*handler)(registers *, uint32_t)) {
@@ -29,7 +16,6 @@ void irq_uninstall_handler(int irq) {
 }
 
 void irq_init(void) {
-    irq_remap();
     idt_set_gate(32, (uint32_t)irq0, 0x08, 0x8E);
     idt_set_gate(33, (uint32_t)irq1, 0x08, 0x8E);
     idt_set_gate(34, (uint32_t)irq2, 0x08, 0x8E);
@@ -53,5 +39,35 @@ void irq_handler(registers *r) {
         irq_routines[r->int_no - 32](r, r->int_no - 32);
     }
 
-    pic_send_eoi(r->int_no);
+    pic_send_eoi(r->int_no - 32);
+}
+
+void irq_mask(uint8_t irq) {
+    uint16_t port;
+    uint8_t value;
+
+    if (irq < 8) {
+        port = PIC1;
+    } else {
+        port = PIC2;
+        irq -= 8;
+    }
+
+    value = inb(port) | (1 << irq);
+    outb(port, value);
+}
+
+void irq_unmask(uint8_t irq) {
+    uint16_t port;
+    uint8_t value;
+
+    if (irq < 8) {
+        port = PIC1;
+    } else {
+        port = PIC2;
+        irq -= 8;
+    }
+
+    value = inb(port) & ~(1 << irq);
+    outb(port, value);
 }

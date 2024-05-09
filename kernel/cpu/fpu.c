@@ -1,5 +1,6 @@
 #include "fpu.h"
 
+#define DEBUG_SERIAL 0
 #define DEBUG 1
 
 #include <stdbool.h>
@@ -27,7 +28,7 @@ void fpu_init(void) {
                      :
                      : "r"(cr0));
 
-        //fpu_load_control_word(0x37F);
+        fpu_load_control_word(FPU_CTRL_NO_EXCEPTIONS);
 
         sse_init();
     } else {

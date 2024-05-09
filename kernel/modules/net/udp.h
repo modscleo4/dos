@@ -6,12 +6,14 @@
 #include "ip.h"
 #include "../../drivers/ethernet.h"
 
+#pragma pack(push, 1)
 typedef struct udp_packet {
     uint16_t source_port;
     uint16_t destination_port;
     uint16_t length;
     uint16_t checksum;
-} __attribute__((packed)) udp_packet;
+} udp_packet;
+#pragma pack(pop)
 
 typedef void (*udp_listener)(ethernet_driver *, void *, size_t);
 

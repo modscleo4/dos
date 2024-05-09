@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "ip.h"
 
+#pragma pack(push, 1)
 typedef struct icmp_packet {
     uint8_t type;
     uint8_t code;
@@ -13,14 +14,16 @@ typedef struct icmp_packet {
         struct {
             uint16_t identifier;
             uint16_t sequence_number;
-        } __attribute__((packed)) echo;
+        } echo;
+
         struct {
             uint16_t unused;
             uint16_t mtu;
-        } __attribute__((packed)) fragmentation;
+        } fragmentation;
     };
     uint8_t data[];
-} __attribute__((packed)) icmp_packet;
+} icmp_packet;
+#pragma pack(pop)
 
 void icmp_receive_packet(ethernet_driver *driver, ipv4_packet *ipv4_packet, icmp_packet *packet, void *data);
 

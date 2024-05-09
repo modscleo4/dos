@@ -3,18 +3,22 @@
 
 #include <stdint.h>
 
+#pragma pack(push, 1)
 typedef struct idt_entry {
     uint16_t base_low;
     uint16_t selector;
     uint8_t zero;
     uint8_t flags;
     uint16_t base_high;
-} __attribute__ ((packed)) idt_entry;
+} idt_entry;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct idt_ptr {
     uint16_t limit;
     uint32_t base;
-} __attribute__((packed)) idt_ptr;
+} idt_ptr;
+#pragma pack(pop)
 
 extern void load_idt(idt_ptr *ptr);
 

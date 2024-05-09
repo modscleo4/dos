@@ -1,8 +1,10 @@
 #include "arp.h"
 
-#define DEBUG 0
+#define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include <string.h>
+#include <arpa/inet.h>
 #include "../timer.h"
 #include "../../bits.h"
 #include "../../debug.h"
@@ -44,11 +46,11 @@ bool arp_get_mac(ethernet_driver *driver, uint8_t ip[4], uint8_t mac[6], int tim
 
 void arp_send_request(ethernet_driver *driver, uint8_t ip[4]) {
     arp_packet packet;
-    packet.hardware_type = switch_endian_16(0x0001);
-    packet.protocol_type = switch_endian_16(0x0800);
+    packet.hardware_type = htons(ARP_HW_ETHERNET);
+    packet.protocol_type = htons(ARP_PROTO_IPV4);
     packet.hardware_size = 0x06;
     packet.protocol_size = 0x04;
-    packet.opcode = switch_endian_16(ARP_OP_REQUEST);
+    packet.opcode = htons(ARP_OP_REQUEST);
     for (int i = 0; i < 6; i++) {
         packet.sender_mac[i] = driver->mac[i];
         packet.target_mac[i] = 0x00;
@@ -73,11 +75,11 @@ void arp_send_request(ethernet_driver *driver, uint8_t ip[4]) {
 
 void arp_send_reply(ethernet_driver *driver, uint8_t ip[4], uint8_t mac[6]) {
     arp_packet packet;
-    packet.hardware_type = switch_endian_16(0x0001);
-    packet.protocol_type = switch_endian_16(0x0800);
+    packet.hardware_type = htons(ARP_HW_ETHERNET);
+    packet.protocol_type = htons(ARP_PROTO_IPV4);
     packet.hardware_size = 0x06;
     packet.protocol_size = 0x04;
-    packet.opcode = switch_endian_16(ARP_OP_REPLY);
+    packet.opcode = htons(ARP_OP_REPLY);
     for (int i = 0; i < 6; i++) {
         packet.sender_mac[i] = driver->mac[i];
         packet.target_mac[i] = mac[i];
@@ -125,7 +127,7 @@ static void arp_process_reply(ethernet_driver *driver, arp_packet *packet) {
 
 void arp_receive_packet(ethernet_driver *driver, arp_packet *packet) {
     dbgprint("ARP packet received\n");
-    switch (switch_endian_16(packet->opcode)) {
+    switch (ntohs(packet->opcode)) {
         case ARP_OP_REQUEST:
             arp_process_request(driver, packet);
             break;

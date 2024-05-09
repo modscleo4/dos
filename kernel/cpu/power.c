@@ -1,6 +1,7 @@
 #include "power.h"
 
 #define DEBUG 1
+#define DEBUG_SERIAL 1
 
 #include "acpi.h"
 #include "interrupts.h"
@@ -28,6 +29,15 @@ void power_shutdown(void) {
     dbgprint("ACPI shutdown failed!\n");
 
     interrupts_disable();
+
+    outw(0x604, 0x2000); // QEMU
+    outw(0xB004, 0x0 | 0x2000); // Bochs
+    outw(0x4004, 0x3400); // VirtualBox
+    outw(0x600, 0x34); // VMware
+
+    while (true) {
+        asm volatile("hlt");
+    }
 }
 
 void power_reboot(void) {

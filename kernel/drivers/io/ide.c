@@ -21,7 +21,7 @@ iodriver *ide_init(pci_device *device) {
     dbgprint("IDE: Initializing IDE controller...\n");
     support_dma = false;
 
-    uint8_t *ide_buf = (uint8_t *)malloc_align(2048, BITMAP_PAGE_SIZE);
+    uint8_t *ide_buf = (uint8_t *)malloc(2048);
 
     int count = 0;
 
@@ -42,9 +42,9 @@ iodriver *ide_init(pci_device *device) {
 
     for (int i = 0; i < 2; i++) {
         for (int j = 0; j < 2; j++) {
-            unsigned char err = 0;
-            unsigned char type = IDE_ATA;
-            unsigned char status;
+            uint8_t err = 0;
+            uint8_t type = IDE_ATA;
+            uint8_t status;
             ide_devices[count].reserved = 0;
 
             ide_write(i, ATA_REG_HDDEVSEL, 0xA0 | (j << 4));
@@ -70,8 +70,8 @@ iodriver *ide_init(pci_device *device) {
             }
 
             if (err) {
-                unsigned char cl = ide_read(i, ATA_REG_LBA1);
-                unsigned char ch = ide_read(i, ATA_REG_LBA2);
+                uint8_t cl = ide_read(i, ATA_REG_LBA1);
+                uint8_t ch = ide_read(i, ATA_REG_LBA2);
 
                 if (cl == 0x14 && ch == 0xEB) {
                     type = IDE_ATAPI;
@@ -85,7 +85,7 @@ iodriver *ide_init(pci_device *device) {
                 timer_wait(1);
             }
 
-            ide_read_buffer(i, ATA_REG_DATA, (unsigned int *)ide_buf, 128);
+            ide_read_buffer(i, ATA_REG_DATA, (uint16_t *)ide_buf, 128);
 
             ide_devices[count].reserved = 1;
             ide_devices[count].type = type;
@@ -166,12 +166,13 @@ int ide_reset(iodriver *driver) {
     // This will only set the sector size according to the device
 
     driver->sector_size = ide_devices[driver->device].sector_size;
+    driver->size = ide_devices[driver->device].size * driver->sector_size;
 
     return 0;
 }
 
-unsigned char ide_read(unsigned char channel, unsigned char reg) {
-    unsigned char result;
+uint8_t ide_read(uint8_t channel, uint8_t reg) {
+    uint8_t result;
 
     if (reg > 0x07 && reg < 0x0C) {
         ide_write(channel, ATA_REG_CONTROL, 0x80 | ide_channels[channel].n_ien);
@@ -194,7 +195,7 @@ unsigned char ide_read(unsigned char channel, unsigned char reg) {
     return result;
 }
 
-void ide_write(unsigned char channel, unsigned char reg, unsigned char data) {
+void ide_write(uint8_t channel, uint8_t reg, uint8_t data) {
     if (reg > 0x07 && reg < 0x0C) {
         ide_write(channel, ATA_REG_CONTROL, 0x80 | ide_channels[channel].n_ien);
     }
@@ -214,8 +215,8 @@ void ide_write(unsigned char channel, unsigned char reg, unsigned char data) {
     }
 }
 
-void ide_read_buffer(unsigned char channel, unsigned char reg, unsigned int *buffer, unsigned int quads) {
-    unsigned int i;
+void ide_read_buffer(uint8_t channel, uint8_t reg, uint16_t *buffer, uint16_t quads) {
+    uint16_t i;
 
     if (reg > 0x07 && reg < 0x0C) {
         ide_write(channel, ATA_REG_CONTROL, 0x80 | ide_channels[channel].n_ien);
@@ -236,9 +237,9 @@ void ide_read_buffer(unsigned char channel, unsigned char reg, unsigned int *buf
     }
 }
 
-int ide_send_atapi_command(unsigned char device, uint16_t length, uint8_t command[12]) {
-    unsigned int ide_channel = ide_devices[device].channel;
-    unsigned int ide_drive = ide_devices[device].drive;
+int ide_send_atapi_command(uint8_t device, uint16_t length, uint8_t command[12]) {
+    uint16_t ide_channel = ide_devices[device].channel;
+    uint16_t ide_drive = ide_devices[device].drive;
 
     ide_write(ide_channel, ATA_REG_HDDEVSEL, 0xA0 | (ide_drive << 4));
     ata_400ns_delay(ide_channel);
@@ -251,7 +252,7 @@ int ide_send_atapi_command(unsigned char device, uint16_t length, uint8_t comman
     ata_400ns_delay(ide_channel);
 
     while (true) {
-        unsigned char status = ide_read(ide_channel, ATA_REG_STATUS);
+        uint8_t status = ide_read(ide_channel, ATA_REG_STATUS);
         if (ISSET_BIT_INT(status, ATA_SR_ERR) || ISSET_BIT_INT(status, ATA_SR_DF)) {
             return -1;
         }
@@ -267,7 +268,7 @@ int ide_send_atapi_command(unsigned char device, uint16_t length, uint8_t comman
     outsw(ide_channels[ide_channel].base + ATA_REG_DATA, (uint16_t *) command, 6);
 
     while (true) {
-        unsigned char status = ide_read(ide_channel, ATA_REG_STATUS);
+        uint8_t status = ide_read(ide_channel, ATA_REG_STATUS);
         if (ISSET_BIT_INT(status, ATA_SR_ERR) || ISSET_BIT_INT(status, ATA_SR_DF)) {
             return -1;
         }
@@ -288,13 +289,13 @@ int ide_send_atapi_command(unsigned char device, uint16_t length, uint8_t comman
     return size;
 }
 
-unsigned char ide_polling(unsigned char channel, unsigned int advanced_check) {
+uint8_t ide_polling(uint8_t channel, uint16_t advanced_check) {
     ata_400ns_delay(channel);
 
     while (ISSET_BIT_INT(ide_read(channel, ATA_REG_STATUS), ATA_SR_BSY)) {}
 
     if (advanced_check) {
-        unsigned char state = ide_read(channel, ATA_REG_STATUS);
+        uint8_t state = ide_read(channel, ATA_REG_STATUS);
 
         if (ISSET_BIT_INT(state, ATA_SR_ERR)) {
             return 2;
@@ -312,7 +313,7 @@ unsigned char ide_polling(unsigned char channel, unsigned int advanced_check) {
     return 0;
 }
 
-unsigned char ide_print_error(iodriver *driver, unsigned char err) {
+uint8_t ide_print_error(iodriver *driver, uint8_t err) {
     if (!err) {
         return 0;
     }
@@ -321,7 +322,7 @@ unsigned char ide_print_error(iodriver *driver, unsigned char err) {
         printf("%s: Device Fault\n", __func__);
         err = 19;
     } else if (err == 2) {
-        unsigned char st = ide_read(ide_devices[driver->device].channel, ATA_REG_ERROR);
+        uint8_t st = ide_read(ide_devices[driver->device].channel, ATA_REG_ERROR);
 
         if (ISSET_BIT_INT(st, ATA_ERR_AMNT)) {
             printf("%s: No Address Mark Found\n", __func__);
@@ -367,7 +368,7 @@ unsigned char ide_print_error(iodriver *driver, unsigned char err) {
 }
 
 void ide_motor_on(iodriver *driver) {
-    unsigned int ide_channel = ide_devices[driver->device].channel;
+    uint16_t ide_channel = ide_devices[driver->device].channel;
 
     if (support_dma) {
         char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND);
@@ -377,7 +378,7 @@ void ide_motor_on(iodriver *driver) {
 }
 
 void ide_motor_off(iodriver *driver) {
-    unsigned int ide_channel = ide_devices[driver->device].channel;
+    uint16_t ide_channel = ide_devices[driver->device].channel;
 
     if (support_dma) {
         char command_register = inb(ide_channels[ide_channel].bmide + ATA_BMR_COMMAND);
@@ -386,9 +387,9 @@ void ide_motor_off(iodriver *driver) {
     }
 }
 
-static int ide_atapi_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, uint8_t *buffer, bool keepOn) {
-    unsigned int ide_channel = ide_devices[driver->device].channel;
-    unsigned int ide_drive = ide_devices[driver->device].drive;
+static int ide_atapi_do_sector(IOOperation direction, iodriver *driver, uint32_t lba, uint16_t number_of_sectors, uint8_t *buffer, bool keepOn) {
+    uint16_t ide_channel = ide_devices[driver->device].channel;
+    uint16_t ide_drive = ide_devices[driver->device].drive;
 
     uint8_t atapi_command[] = {
         direction == IO_READ ? SCSI_READ_12 : SCSI_WRITE_12,
@@ -425,20 +426,20 @@ static int ide_atapi_do_sector(IOOperation direction, iodriver *driver, unsigned
     return 0;
 }
 
-int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, uint8_t *buffer, bool keepOn) {
+int ide_do_sector(IOOperation direction, iodriver *driver, uint32_t lba, uint16_t number_of_sectors, uint8_t *buffer, bool keepOn) {
     if (ide_devices[driver->device].type == IDE_ATAPI) {
         return ide_atapi_do_sector(direction, driver, lba, number_of_sectors, buffer, keepOn);
     }
 
-    unsigned int ide_channel = ide_devices[driver->device].channel;
-    unsigned int ide_drive = ide_devices[driver->device].drive;
+    uint16_t ide_channel = ide_devices[driver->device].channel;
+    uint16_t ide_drive = ide_devices[driver->device].drive;
 
-    unsigned int lba_mode = 0;
+    uint16_t lba_mode = 0;
     uint8_t _lba[6];
 
-    unsigned int head;
-    unsigned int cylinder;
-    unsigned int sector;
+    uint16_t head;
+    uint16_t cylinder;
+    uint16_t sector;
 
     uint8_t bmr_command_reg = 0;
 
@@ -585,11 +586,11 @@ int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba
     return 0;
 }
 
-int ide_sector_read(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn) {
+int ide_sector_read(iodriver *driver, uint32_t lba, uint8_t *buffer, bool keepOn) {
     return ide_do_sector(IO_READ, driver, lba, 1, buffer, keepOn);
 }
 
-int ide_sector_write(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn) {
+int ide_sector_write(iodriver *driver, uint32_t lba, uint8_t *buffer, bool keepOn) {
     return ide_do_sector(IO_WRITE, driver, lba, 1, buffer, keepOn);
 }
 

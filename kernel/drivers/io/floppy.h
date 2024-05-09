@@ -9,24 +9,26 @@
 #define DISK_PARAMETER_ADDRESS 0x000FEFC7
 
 typedef struct chs {
-    unsigned char cylinder;
-    unsigned char head;
-    unsigned char sector;
+    uint8_t cylinder;
+    uint8_t head;
+    uint8_t sector;
 } chs;
 
+#pragma pack(push, 1)
 typedef struct {
-    unsigned char steprate_headunload;
-    unsigned char headload_ndma;
-    unsigned char motor_delay_off; /*specified in clock ticks*/
-    unsigned char bytes_per_sector;
-    unsigned char sectors_per_track;
-    unsigned char gap_length;
-    unsigned char data_length; /*used only when bytes per sector == 0*/
-    unsigned char format_gap_length;
-    unsigned char filler;
-    unsigned char head_settle_time; /*specified in milliseconds*/
-    unsigned char motor_start_time; /*specified in 1/8 second*/
-} __attribute__((packed)) floppy_parameters;
+    uint8_t steprate_headunload;
+    uint8_t headload_ndma;
+    uint8_t motor_delay_off; /*specified in clock ticks*/
+    uint8_t bytes_per_sector;
+    uint8_t sectors_per_track;
+    uint8_t gap_length;
+    uint8_t data_length; /*used only when bytes per sector == 0*/
+    uint8_t format_gap_length;
+    uint8_t filler;
+    uint8_t head_settle_time; /*specified in milliseconds*/
+    uint8_t motor_start_time; /*specified in 1/8 second*/
+} floppy_parameters;
+#pragma pack(pop)
 
 enum FloppyRegisters {
     FLOPPY_STATUS_REGISTER_A = 0x000, // read-only
@@ -58,7 +60,7 @@ enum FloppyCommands {
     FLOPPY_SCAN_EQUAL = 17,
     FLOPPY_PERPENDICULAR_MODE = 18, // * used during initialization, once, maybe
     FLOPPY_CONFIGURE = 19,          // * set controller parameters
-    FLOPPY_UNLOCK = 20,               // * protect controller params from a reset
+    FLOPPY_UNLOCK = 20,             // * protect controller params from a reset
     FLOPPY_VERIFY = 22,
     FLOPPY_SCAN_LOW_OR_EQUAL = 25,
     FLOPPY_SCAN_HIGH_OR_EQUAL = 29,
@@ -82,7 +84,7 @@ static const char *drive_types[6] = {
     "1.2MB 5.25in floppy",
     "720KB 3.5in floppy",
     "1.44MB 3.5in floppy",
-    "2.88MB 3.5in floppy"
+    "2.88MB 3.5in floppy",
 };
 
 extern iodriver floppy_io;
@@ -93,19 +95,19 @@ void floppy_detect_types(void);
 
 void floppy_configure(iodriver *driver);
 
-unsigned char floppy_version(iodriver *driver);
+uint8_t floppy_version(iodriver *driver);
 
 bool floppy_lock(iodriver *driver, bool lock);
 
-void lba2chs(unsigned long int lba, chs *c, floppy_parameters fparams);
+void lba2chs(uint32_t lba, chs *c, floppy_parameters fparams);
 
 void floppy_wait_irq(void);
 
 int floppy_wait_until_ready(iodriver *driver);
 
-unsigned char floppy_recv_byte(iodriver *driver);
+uint8_t floppy_recv_byte(iodriver *driver);
 
-int floppy_send_byte(iodriver *driver, unsigned char b);
+int floppy_send_byte(iodriver *driver, uint8_t b);
 
 void floppy_check_interrupt(iodriver *driver, int *st0, int *cylinder);
 
@@ -115,16 +117,16 @@ int floppy_reset(iodriver *driver);
 
 void floppy_specify(iodriver *driver);
 
-int floppy_seek(iodriver *driver, unsigned char cylinder, unsigned char head);
+int floppy_seek(iodriver *driver, uint8_t cylinder, uint8_t head);
 
 void floppy_motor_on(iodriver *driver);
 
 void floppy_motor_off(iodriver *driver);
 
-int floppy_do_sector(iodriver *driver, unsigned long int lba, uint8_t *buffer, IOOperation direction, bool keepOn);
+int floppy_do_sector(iodriver *driver, uint32_t lba, uint8_t *buffer, IOOperation direction, bool keepOn);
 
-int floppy_sector_read(iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn);
+int floppy_sector_read(iodriver *driver, uint32_t lba, uint8_t *data, bool keepOn);
 
-int floppy_sector_write(iodriver *driver, unsigned long int lba, uint8_t *data, bool keepOn);
+int floppy_sector_write(iodriver *driver, uint32_t lba, uint8_t *data, bool keepOn);
 
-#endif //FLOPPY_H
+#endif // FLOPPY_H

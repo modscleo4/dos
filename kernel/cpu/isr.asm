@@ -32,6 +32,8 @@ global isr30
 global isr31
 global isr127
 
+section .text
+
 isr0:
     cli
     push byte 0
@@ -259,11 +261,25 @@ isr127:
 
 isr_common_stub:
     extern isr_fault_handler
+    extern mmu_load_kernel_pdt
+    extern process_unload
+    extern process_reload
+    extern process_switch
+
     pushad
     push ds
     push es
     push fs
     push gs
+
+    mov eax, cr0
+    push eax
+    mov eax, cr2
+    push eax
+    mov eax, cr3
+    push eax
+    mov eax, cr4
+    push eax
 
     mov ax, 0x10
     mov ds, ax
@@ -273,8 +289,19 @@ isr_common_stub:
     cld
 
     push esp
+    ;call mmu_load_kernel_pdt
+    call process_unload; save current process state
     call isr_fault_handler
+
+    call process_reload; reload new process state
+
+    ;push 0; PID
+    ;call process_switch
+    ;add esp, 4
+
     add esp, 4
+
+    add esp, 16
 
     pop gs
     pop fs
@@ -282,4 +309,5 @@ isr_common_stub:
     pop ds
     popad
     add esp, 8
+
     iret

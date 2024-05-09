@@ -16,6 +16,7 @@
  * (physical sector number) = 33 + (FAT entry number) - 2
  */
 
+#pragma pack(push, 1)
 typedef struct bios_params {
     uint16_t bytes_per_sector;
     uint8_t sectors_per_cluster;
@@ -36,8 +37,10 @@ typedef struct bios_params {
     uint32_t serial_number;
     char volume_label[11];
     char filesystem[8];
-} __attribute__((packed)) bios_params;
+} bios_params;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct fat_entry_attributes {
     bool read_only : 1;
     bool hidden : 1;
@@ -47,20 +50,26 @@ typedef struct fat_entry_attributes {
     bool archive : 1;
     bool device : 1;
     bool lfn : 1;
-} __attribute__((packed)) fat_entry_attributes;
+} fat_entry_attributes;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct fat_entry_date {
     uint8_t day: 5;
     uint8_t month: 4;
     uint8_t year: 7;
-} __attribute__((packed)) fat_entry_date;
+} fat_entry_date;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct fat_entry_time {
     uint8_t second: 5;
     uint8_t minute: 6;
     uint8_t hour: 5;
-} __attribute__((packed)) fat_entry_time;
+} fat_entry_time;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct fat_entry {
     char name[8];
     char ext[3];
@@ -75,7 +84,8 @@ typedef struct fat_entry {
     fat_entry_date last_write_date;
     uint16_t cluster;
     uint32_t size;
-} __attribute__((packed)) fat_entry;
+} fat_entry;
+#pragma pack(pop)
 
 /*
  * 0x00      Entry never used
@@ -86,16 +96,16 @@ typedef struct fat_entry {
 
 void fat_init(iodriver *driver, filesystem *fs);
 
-size_t fat_get_file_size(filesystem *fs, const void *_f);
+int fat_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st);
 
-fat_entry *fat_search_file(iodriver *driver, filesystem *fs, const char *filename);
+void *fat_load_file(iodriver *driver, filesystem *fs, const struct stat *st);
 
-void *fat_load_file(iodriver *driver, filesystem *fs, const void *_f);
+int fat_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
 
-void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *addr);
+int fat_write(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
+
+int fat_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t index, char *name, struct stat *out_st);
 
 void fat_list_files(iodriver *driver, filesystem *fs);
-
-void fat_list_files_in_dir(iodriver *driver, filesystem *fs, fat_entry *d, int level);
 
 #endif //FAT_H

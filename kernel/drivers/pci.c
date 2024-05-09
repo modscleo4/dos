@@ -7,6 +7,7 @@
 #include "io/ata.h"
 #include "io/floppy.h"
 #include "ethernet.h"
+#include "usb.h"
 #include "../bits.h"
 #include "../debug.h"
 #include "../cpu/mmu.h"
@@ -116,7 +117,7 @@ static void pci_device_found(uint8_t bus, uint8_t slot, uint8_t func, pci_header
         dbgprint("\tProgIF: %x\n", header->prog_if);
         pci_device device;
         pci_read_device(bus, slot, func, header, &device);
-        dbgprint("\tBAR: %x %x %x %x %x %x \n", device.base_address[0], device.base_address[1], device.base_address[2], device.base_address[3], device.base_address[4], device.base_address[5]);
+        dbgprint("\tBAR: %x %x %x %x %x %x\n", device.base_address[0], device.base_address[1], device.base_address[2], device.base_address[3], device.base_address[4], device.base_address[5]);
         switch (header->class) {
             case 0x01:
                 dbgprint("\tMass Storage Controller: %x\n", header->subclass);
@@ -137,6 +138,16 @@ static void pci_device_found(uint8_t bus, uint8_t slot, uint8_t func, pci_header
                 switch (header->subclass) {
                     case 0x00:
                         ethernet_init(&device, header, bus, slot, func);
+                        break;
+                }
+
+                break;
+
+            case 0x0c:
+                dbgprint("\tSerial Controller: %x\n", header->subclass);
+                switch (header->subclass) {
+                    case 0x03:
+                        usb_init(&device, header, bus, slot, func);
                         break;
                 }
 

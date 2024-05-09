@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 
-#define PIC1 0x20
-#define PIC2 0xA0
+enum PIC {
+    PIC1 = 0x20,
+    PIC2 = 0xA0,
+};
 
 enum PICRegister {
     PIC_COMMAND = 0x00,

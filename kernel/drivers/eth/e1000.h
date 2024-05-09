@@ -5,6 +5,7 @@
 #include "../pci.h"
 #include "../ethernet.h"
 
+#pragma pack(push, 1)
 typedef struct e1000_receive_descriptor {
     uint64_t buffer_address;
     uint16_t length;
@@ -12,8 +13,10 @@ typedef struct e1000_receive_descriptor {
     uint8_t status;
     uint8_t errors;
     uint16_t special;
-} __attribute__((packed)) e1000_receive_descriptor;
+} e1000_receive_descriptor;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct e1000_transmit_descriptor {
     uint64_t buffer_address;
     uint16_t length;
@@ -22,7 +25,8 @@ typedef struct e1000_transmit_descriptor {
     uint8_t status;
     uint8_t css;
     uint16_t special;
-} __attribute__((packed)) e1000_transmit_descriptor;
+} e1000_transmit_descriptor;
+#pragma pack(pop)
 
 enum E1000GeneralRegisters {
     /** Device Control */
@@ -231,24 +235,33 @@ enum E1000RegisterBitIMS {
 };
 
 enum E1000RegisterBitRCTL {
-
+    // Receiver Enable
     E1000_REGBIT_RCTL_EN = 1UL << 1UL,
+    // Store Bad Packets
     E1000_REGBIT_RCTL_SBP = 1UL << 2UL,
+    // Unicast Promiscuous Mode
     E1000_REGBIT_RCTL_UPE = 1UL << 3UL,
+    // Multicast Promiscuous Mode
     E1000_REGBIT_RCTL_MPE = 1UL << 4UL,
+    // Long Packet Reception Enable
     E1000_REGBIT_RCTL_LPE = 1UL << 5UL,
+    // Loopback Mode
     E1000_REGBIT_RCTL_LBM_NO = 0UL << 6UL,
     E1000_REGBIT_RCTL_LBM_PHY = 3UL << 6UL,
+    // Receive Descriptor Minimum Threshold Size
     E1000_REGBIT_RCTL_RDMTS_1_2 = 0UL << 8UL,
     E1000_REGBIT_RCTL_RDMTS_1_4 = 1UL << 8UL,
     E1000_REGBIT_RCTL_RDMTS_1_8 = 1UL << 9UL,
 
+    // Multicast Offset
     E1000_REGBIT_RCTL_MO_36 = 0UL << 12UL,
     E1000_REGBIT_RCTL_MO_35 = 1UL << 12UL,
     E1000_REGBIT_RCTL_MO_34 = 1UL << 13UL,
     E1000_REGBIT_RCTL_MO_32 = 3UL << 12UL,
 
+    // Broadcast Accept Mode
     E1000_REGBIT_RCTL_BAM = 1UL << 15UL,
+    // Receive Buffer Size
     E1000_REGBIT_RCTL_BSIZE_2048 = 0UL << 16UL,
     E1000_REGBIT_RCTL_BSIZE_1024 = 1UL << 16UL,
     E1000_REGBIT_RCTL_BSIZE_512 = 2UL << 16UL,
@@ -256,14 +269,21 @@ enum E1000RegisterBitRCTL {
     E1000_REGBIT_RCTL_BSIZE_16384 = 1UL << 16UL,
     E1000_REGBIT_RCTL_BSIZE_8192 = 2UL << 16UL,
     E1000_REGBIT_RCTL_BSIZE_4096 = 3UL << 16UL,
+    // VLAN Filter Enable
     E1000_REGBIT_RCTL_VFE = 1UL << 18UL,
+    // Canonical Form Indicator Enable
     E1000_REGBIT_RCTL_CFIEN = 1UL << 19UL,
+    // Canonical Form Indicator bit value
     E1000_REGBIT_RCTL_CFI = 1UL << 20UL,
 
+    // Discard Pause Frames
     E1000_REGBIT_RCTL_DPF = 1UL << 22UL,
+    // Pass MAC Control Frames
     E1000_REGBIT_RCTL_PMCF = 1UL << 23UL,
 
+    // Buffer Size Extension
     E1000_REGBIT_RCTL_BSEX = 1UL << 25UL,
+    // Strip Ethernet CRC from incoming packet
     E1000_REGBIT_RCTL_SECRC = 1UL << 26UL,
 
 };
@@ -317,6 +337,10 @@ enum E1000RegisterBitReceiveDescriptorStatus {
     E1000_REGBIT_RXD_STAT_TCPCS = 1UL << 5UL,
     E1000_REGBIT_RXD_STAT_IPCS = 1UL << 6UL,
     E1000_REGBIT_RXD_STAT_PIF = 1UL << 7UL,
+};
+
+enum E1000RegisterBitReceiveDelayTime {
+    E1000_REGBIT_RDT_RDTR_FPD = 1UL << 31UL,
 };
 
 ethernet_driver *e1000_init(pci_device *device, uint8_t bus, uint8_t slot, uint8_t func);

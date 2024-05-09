@@ -7,6 +7,7 @@
 #include "panic.h"
 #include "pic.h"
 #include "../debug.h"
+#include "../modules/process.h"
 
 void (*isr_routines[32])(registers *, uint32_t) = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -94,6 +95,23 @@ void isr_fault_handler(registers *r) {
         if (r->int_no < 32 && isr_routines[r->int_no]) {
             isr_routines[r->int_no](r, r->int_no);
             return;
+        }
+
+        if (r->cs & 0x3) {
+            // user mode
+            process *p = process_current();
+            if (p) {
+                process_destroy(p);
+                process_switch(process_kernel(), r);
+
+                // only print err_code if the exception set it
+                if (r->int_no == 8 || r->int_no == 10 || r->int_no == 11 || r->int_no == 12 || r->int_no == 13 || r->int_no == 14 || r->int_no == 17 || r->int_no == 21 || r->int_no == 29 || r->int_no == 30) {
+                    dbgprint("Process %ld terminated due to %d(%s): %d\n", p->pid, r->int_no, exception_messages[r->int_no], r->err_code);
+                } else {
+                    dbgprint("Process %ld terminated due to %d(%s)\n", p->pid, r->int_no, exception_messages[r->int_no]);
+                }
+                return;
+            }
         }
 
         // only print err_code if the exception set it

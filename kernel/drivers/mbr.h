@@ -5,6 +5,7 @@
 #include "iodriver.h"
 #include "filesystem.h"
 
+#pragma pack(push, 1)
 typedef struct mbr_partition {
     uint8_t bootable;
     uint8_t start_head;
@@ -16,7 +17,8 @@ typedef struct mbr_partition {
     uint8_t end_cylinder;
     uint32_t start_lba;
     uint32_t size;
-} __attribute__((packed)) mbr_partition;
+} mbr_partition;
+#pragma pack(pop)
 
 filesystem *mbr_init(iodriver *driver, unsigned int partition);
 

@@ -7,22 +7,33 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "../bits.h"
 #include "../debug.h"
 #include "../kernel.h"
 #include "../ring3.h"
 #include "../rootfs.h"
+#include "../cpu/cpuid.h"
 #include "../cpu/gdt.h"
 #include "../cpu/panic.h"
 #include "../cpu/mmu.h"
 #include "../modules/bitmap.h"
 #include "../modules/elf.h"
 #include "../modules/heap.h"
+#include "../modules/process.h"
 #include "../modules/spinlock.h"
+
+static int min(int a, int b) {
+    return a < b ? a : b;
+}
+
+static int max(int a, int b) {
+    return a > b ? a : b;
+}
 
 static const char numbase[] = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz";
 
 float atof(const char *str) {
-    return 0.0F;
+    return (float)strtod(str, NULL);
 }
 
 int atoi(const char *str) {
@@ -342,7 +353,19 @@ void *malloc_align(size_t size, size_t align) {
 }
 
 void *realloc(void *ptr, size_t size) {
-    return NULL;
+    if (size == 0) {
+        return NULL;
+    }
+
+    void *new_addr = malloc(size);
+    if (!new_addr) {
+        return NULL;
+    }
+
+    memcpy(new_addr, ptr, min(size, heap_allocated_size(&kernel_heap, ptr)));
+    free(ptr);
+
+    return new_addr;
 }
 
 void abort(void) {
@@ -362,19 +385,19 @@ char *getenv(const char *name) {
 }
 
 int system(const char *command) {
-    void *f = rootfs.search_file(&rootfs_io, &rootfs, command);
-    if (!f) {
-        dbgprint("Not found.\n");
-        return -1;
+    struct stat st;
+    int stat_ret = 0;
+    if ((stat_ret = rootfs.stat(&rootfs_io, &rootfs, command, &st))) {
+        return stat_ret;
     }
 
-    size_t elf_file_size = rootfs.get_file_size(&rootfs, f);
+    size_t elf_file_size = st.st_size;
     dbgprint("File size: %d bytes\n", elf_file_size);
 
     void *addr;
-    if (!(addr = rootfs.load_file(&rootfs_io, &rootfs, f))) {
+    if (!(addr = rootfs.load_file(&rootfs_io, &rootfs, &st))) {
         dbgprint("Could not allocate or load file.\n");
-        return -1;
+        return -2;
     }
 
     dbgprint("%s loaded at address 0x%x\n", command, addr);
@@ -382,7 +405,7 @@ int system(const char *command) {
     elf_header_ident *header = (elf_header_ident *) addr;
     if (memcmp(header->magic, elf_magic, 4)) {
         dbgprint("Not an ELF file\n");
-        return -1;
+        return -3;
     }
 
     if (header->version == ELF_ARCH_X86) {
@@ -391,48 +414,80 @@ int system(const char *command) {
         dbgprint("x86 ELF file (%d bytes)\n", elf_file_size);
         dbgprint("Entry point: %x\n", exec_header->entry);
 
-        elf32_section_header *section_text = elf32_find_section(exec_header, ".text");
-        if (!section_text) {
-            dbgprint("No .text section found\n");
-            return -1;
+        page_directory_table *process_page_directory = mmu_new_page_directory();
+        void *process_stack = bitmap_alloc_page();
+
+        elf32_program_header *program_header = (elf32_program_header *)(((void *)exec_header) + exec_header->program_header_offset);
+        for (int i = 1; i <= exec_header->program_header_count; i++) {
+            dbgprint("Program header %d: type=%d, offset=%x, virtual_address=%x, physical_address=%x, file_size=%d, memory_size=%d\n", i, program_header->type, program_header->offset, program_header->virtual_address, program_header->physical_address, program_header->file_size, program_header->memory_size);
+            if (program_header->type == ELF_PT_LOAD) { // map to virtual address
+                mmu_map_pages(process_page_directory, mmu_get_physical_address((uintptr_t)addr + program_header->offset), program_header->virtual_address, program_header->memory_size / BITMAP_PAGE_SIZE + 1, true, true, true);
+            }
+
+            program_header++;
         }
 
-        page_directory_table *process_page_directory = mmu_new_page_directory();
+        // Map the ELF stack to 8 kiB below the kernel
+        mmu_map_pages(process_page_directory, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
+        mmu_map_pages(current_pdt, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
 
-        mmu_map_pages(current_pdt, mmu_get_physical_address((uintptr_t)addr), (uintptr_t)addr, (elf_file_size + 0x4000) / BITMAP_PAGE_SIZE + 1, true, true, true);
+        void *a = bitmap_alloc_page();
+        mmu_map_pages(process_page_directory, (uintptr_t)a, (uintptr_t)0xb00000, 1, true, true, true);
+
+        // Map the kernel to 0xc0000000 (higher half)
+        mmu_copy_kernel_pages(process_page_directory);
+
+        process_create((uintptr_t)exec_header->entry, (uintptr_t)(0xc0000000 - 0x4), process_page_directory, false);
 
         dbgprint("Switching to ring 3...\n");
 
-        switch_ring3(process_page_directory, (addr + section_text->offset + exec_header->entry), (uintptr_t)(addr + elf_file_size + 0x4000));
+        switch_ring3((page_directory_table *)mmu_get_physical_address((uintptr_t)process_page_directory), (void *)(exec_header->entry), (uintptr_t)(0xc0000000 - 0x4));
     } else if (header->version == ELF_ARCH_X86_64) {
         elf64_header *exec_header = (elf64_header *) addr;
 
         dbgprint("x86_64 ELF file\n");
         dbgprint("Entry point: %x\n", exec_header->entry);
 
-        elf64_section_header *section_text = elf64_find_section(exec_header, ".text");
-        if (!section_text) {
-            dbgprint("No .text section found\n");
-            return -1;
+        page_directory_table *process_page_directory = mmu_new_page_directory();
+        void *process_stack = bitmap_alloc_page();
+
+        elf64_program_header *program_header = (elf64_program_header *)(((void *)exec_header) + exec_header->program_header_offset);
+        for (int i = 1; i <= exec_header->program_header_count; i++) {
+            if (program_header->type == ELF_PT_LOAD) { // map to virtual address
+                mmu_map_pages(process_page_directory, mmu_get_physical_address((uintptr_t)addr + program_header->offset), program_header->virtual_address, program_header->memory_size / BITMAP_PAGE_SIZE + 1, true, true, true);
+            }
+
+            program_header++;
         }
+
+        // Map the ELF stack to 8 kiB below the kernel
+        mmu_map_pages(process_page_directory, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
+        mmu_map_pages(current_pdt, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
+
+        // Map the kernel to 0xc0000000 (higher half)
+        mmu_copy_kernel_pages(process_page_directory);
+
+        process_create((uintptr_t)exec_header->entry, (uintptr_t)(0xc0000000 - 0x8), process_page_directory, false);
 
         dbgprint("Switching to ring 3...\n");
 
-        switch_ring3(NULL, (addr + section_text->offset + exec_header->entry), (uint32_t)(addr + 0x10000));
+        switch_ring3((page_directory_table *)mmu_get_physical_address((uintptr_t)process_page_directory), (void *)(exec_header->entry), (uintptr_t)(0xc0000000 - 0x8));
     } else {
         dbgprint("Unsupported architecture: %x\n", header->version);
-        return -1;
+        return -4;
     }
 
     return 0;
 }
 
 void swap(void *a, void *b, size_t size) {
-    char tmp[size];
+    char *tmp = malloc(size);
     memcpy(tmp, a, size);
 
     memcpy(a, b, size);
     memcpy(b, tmp, size);
+
+    free(tmp);
 }
 
 /**
@@ -513,17 +568,29 @@ void qsort(void *base, size_t num, size_t size, int (*compar)(const void *, cons
 }
 
 div_t div(int numer, int denom) {
-    return (div_t){
-        0,
-        0
-    };
+    div_t result;
+    result.quot = numer / denom;
+    result.rem = numer % denom;
+
+    if (numer >= 0 && result.rem < 0) {
+        result.quot++;
+        result.rem -= denom;
+    }
+
+    return result;
 }
 
 ldiv_t ldiv(long int numer, long int denom) {
-    return (ldiv_t){
-        0,
-        0
-    };
+    ldiv_t result;
+    result.quot = numer / denom;
+    result.rem = numer % denom;
+
+    if (numer >= 0 && result.rem < 0) {
+        result.quot++;
+        result.rem -= denom;
+    }
+
+    return result;
 }
 
 int abs(int x) {
@@ -534,12 +601,28 @@ long int labs(long int x) {
     return x < 0 ? -x : x;
 }
 
+static uint32_t rand_next = 1;
+
 int rand(void) {
-    return 0;
+    if (ISSET_BIT_INT(cpuinfo.ecx, CPUID_FEAT_ECX_RDRAND)) {
+        bool success = false;
+        asm volatile(
+            "rdrand %0;"
+            "setc %1;"
+            : "=r"(rand_next), "=r"(success)
+        );
+
+        if (success) {
+            return rand_next;
+        }
+    }
+
+    rand_next = rand_next * 1103515245 + 12345;
+    return (rand_next / 65536) % 32768;
 }
 
 void srand(unsigned int seed) {
-    //
+    rand_next = seed;
 }
 
 int mblen(const char *pmb, size_t max) {

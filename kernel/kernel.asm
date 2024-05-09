@@ -109,6 +109,8 @@ stublet:
 switch_ring3:
     extern __ring3_addr
     extern set_kernel_stack
+    extern process_set_by_pid
+    extern process_enable_round_robin
 
     cli
 
@@ -116,9 +118,16 @@ switch_ring3:
     call set_kernel_stack
     add esp, 4
 
-    mov eax, [esp + 8]
+    mov esi, [esp + 4] ; pdt
+    mov eax, [esp + 8] ; addr
+    mov esp, [esp + 12]; stack
     mov [__ring3_addr], eax
-    mov esp, [esp + 12]
+
+    mov cr3, esi
+    xor esi, esi
+
+    push 0
+    push 0
 
     mov ax, (4 * 8) | 3 ; ring 3 data with bottom 2 bits set for ring 3
 	mov ds, ax
@@ -130,14 +139,18 @@ switch_ring3:
 	mov eax, esp
 	push (4 * 8) | 3 ; data selector
 	push eax ; current esp
+    sti
 	pushf ; eflags
+    cli
 	push (3 * 8) | 3 ; code selector (ring 3 code with bottom 2 bits set for ring 3)
 
     mov eax, [__ring3_addr]
     push eax
 
-    ;mov eax, [esp + 4]
-    ;mov cr3, eax
+    push 1
+    call process_set_by_pid
+    add esp, 4
+    call process_enable_round_robin
 
     iret
     ret

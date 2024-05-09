@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include "arp.h"
 #include "icmp.h"
 #include "tcp.h"
@@ -36,7 +37,7 @@ static uint16_t ipv4_calculate_checksum(ipv4_packet *packet) {
     return ~checksum;
 }
 
-bool ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], uint8_t protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size) {
+bool ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], enum IPProtocol protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size) {
     dbgprint("ip_send_packet\n");
 
     uint8_t destination_mac[6];
@@ -60,13 +61,13 @@ bool ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t des
     packet->ihl = 5;
     packet->dscp = 0;
     packet->ecn = 0;
-    packet->total_length = switch_endian_16(sizeof(ipv4_packet) + protocol_size + data_size);
-    packet->identification = switch_endian_16(0);
+    packet->total_length = htons(sizeof(ipv4_packet) + protocol_size + data_size);
+    packet->identification = htons(0);
     packet->flags = 0;
-    packet->fragment_offset = switch_endian_16(0);
+    packet->fragment_offset = htons(0);
     packet->ttl = 64;
     packet->protocol = protocol;
-    packet->header_checksum = switch_endian_16(0);
+    packet->header_checksum = htons(0);
     memcpy(&packet->source_ip, source_ip, 4);
     memcpy(&packet->destination_ip, destination_ip, 4);
 

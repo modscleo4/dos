@@ -5,7 +5,7 @@ import sys
 def virt2phys(addr: int) -> tuple[int, int, int]:
     pd_index = (addr >> 22) & 0x3ff
     pt_index = (addr >> 12) & 0x3ff
-    offset = addr & 0xfff
+    offset   = addr & 0xfff
     return (pd_index, pt_index, offset)
 
 
@@ -18,6 +18,7 @@ def main(args: list[str]) -> int:
         return 1
 
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

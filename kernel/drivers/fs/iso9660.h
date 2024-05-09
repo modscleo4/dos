@@ -7,6 +7,7 @@
 
 #define ISO9660_SECTOR_SIZE 2048
 
+#pragma pack(push, 1)
 typedef struct iso9660_date {
     char year[4];
     char month[2];
@@ -16,8 +17,10 @@ typedef struct iso9660_date {
     char second[2];
     char hundredths[2];
     uint8_t timezone;
-} __attribute__((packed)) iso9660_date;
+} iso9660_date;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct iso9660_directory_date {
     uint8_t year;
     uint8_t month;
@@ -26,8 +29,10 @@ typedef struct iso9660_directory_date {
     uint8_t minute;
     uint8_t second;
     uint8_t timezone;
-} __attribute__((packed)) iso9660_directory_date;
+} iso9660_directory_date;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct iso9660_directory_entry {
     uint8_t length;
     uint8_t extended_attribute_length;
@@ -43,15 +48,27 @@ typedef struct iso9660_directory_entry {
     uint16_t volume_sequence_number_be;
     uint8_t name_length;
     char name[1];
-} __attribute__((packed)) iso9660_directory_entry;
+} iso9660_directory_entry;
+#pragma pack(pop)
 
+enum ISO9660DirectoryEntryFlags {
+    ISO9660_DIRECTORY_ENTRY_FLAG_HIDDEN = 1 << 0,
+    ISO9660_DIRECTORY_ENTRY_FLAG_DIRECTORY = 1 << 1,
+    ISO9660_DIRECTORY_ENTRY_FLAG_ASSOCIATED = 1 << 2,
+    ISO9660_DIRECTORY_ENTRY_FLAG_EXTENDED = 1 << 3,
+    ISO9660_DIRECTORY_ENTRY_FLAG_PERMISSIONS = 1 << 4,
+    ISO9660_DIRECTORY_ENTRY_FLAG_NOT_FINAL = 1 << 7,
+};
+
+#pragma pack(push, 1)
 typedef struct iso9660_path_table_entry {
     uint8_t length;
     uint8_t extended_attribute_length;
     uint32_t extent_lba;
     uint16_t parent_directory_number;
     char name[0];
-} __attribute__((packed)) iso9660_path_table_entry;
+} iso9660_path_table_entry;
+#pragma pack(pop)
 
 enum ISO9660VolumeDescriptorType {
     ISO9660_VOLUME_DESCRIPTOR_BOOT_RECORD = 0,
@@ -61,18 +78,23 @@ enum ISO9660VolumeDescriptorType {
     ISO9660_VOLUME_DESCRIPTOR_TERMINATOR = 255,
 };
 
+#pragma pack(push, 1)
 typedef struct iso9660_volume_descriptor {
     uint8_t type;
     char id[5];
     uint8_t version;
-} __attribute__((packed)) iso9660_volume_descriptor;
+} iso9660_volume_descriptor;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct iso9660_boot_record {
     iso9660_volume_descriptor volume_descriptor;
     char system_id[32];
     char id[32];
-} __attribute__((packed)) iso9660_boot_record;
+} iso9660_boot_record;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct iso9660_primary {
     iso9660_volume_descriptor volume_descriptor;
     uint8_t unused1;
@@ -110,17 +132,20 @@ typedef struct iso9660_primary {
     uint8_t unused4;
     uint8_t application_data[512];
     uint8_t unused5[653];
-} __attribute__((packed)) iso9660_primary;
+} iso9660_primary;
+#pragma pack(pop)
 
 void iso9660_init(iodriver *driver, filesystem *fs);
 
-size_t iso9660_get_file_size(filesystem *fs, const void *_f);
+int iso9660_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st);
 
-iso9660_directory_entry *iso9660_search_file(iodriver *driver, filesystem *fs, const char *filename);
+void *iso9660_load_file(iodriver *driver, filesystem *fs, const struct stat *st);
 
-void *iso9660_load_file(iodriver *driver, filesystem *fs, const void *_f);
+int iso9660_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
 
-void *iso9660_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *addr);
+int iso9660_write(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
+
+int iso9660_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t index, char *name, struct stat *out_st);
 
 void iso9660_list_files(iodriver *driver, filesystem *fs);
 

@@ -29,38 +29,40 @@ typedef struct ide_device {
     uint8_t model[41];
 } ide_device;
 
+#pragma pack(push, 1)
 typedef struct prd_table {
     uint32_t addr;
     uint16_t size;
     uint16_t reserved: 15;
     bool last: 1;
-} __attribute__((packed)) prd_table;
+} prd_table;
+#pragma pack(pop)
 
 iodriver *ide_init(pci_device *device);
 
 int ide_reset(iodriver *driver);
 
-unsigned char ide_read(unsigned char channel, unsigned char reg);
+uint8_t ide_read(uint8_t channel, uint8_t reg);
 
-void ide_write(unsigned char channel, unsigned char reg, unsigned char data);
+void ide_write(uint8_t channel, uint8_t reg, uint8_t data);
 
-void ide_read_buffer(unsigned char channel, unsigned char reg, unsigned int *buffer, unsigned int quads);
+void ide_read_buffer(uint8_t channel, uint8_t reg, uint16_t *buffer, uint16_t quads);
 
-int ide_send_atapi_command(unsigned char device, uint16_t length, uint8_t command[12]);
+int ide_send_atapi_command(uint8_t device, uint16_t length, uint8_t command[12]);
 
-unsigned char ide_polling(unsigned char channel, unsigned int advanced_check);
+uint8_t ide_polling(uint8_t channel, uint16_t advanced_check);
 
-unsigned char ide_print_error(iodriver *driver, unsigned char err);
+uint8_t ide_print_error(iodriver *driver, uint8_t err);
 
 void ide_motor_on(iodriver *driver);
 
 void ide_motor_off(iodriver *driver);
 
-int ide_do_sector(IOOperation direction, iodriver *driver, unsigned long int lba, unsigned int number_of_sectors, uint8_t *buffer, bool keepOn);
+int ide_do_sector(IOOperation direction, iodriver *driver, uint32_t lba, uint16_t number_of_sectors, uint8_t *buffer, bool keepOn);
 
-int ide_sector_read(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn);
+int ide_sector_read(iodriver *driver, uint32_t lba, uint8_t *buffer, bool keepOn);
 
-int ide_sector_write(iodriver *driver, unsigned long int lba, uint8_t *buffer, bool keepOn);
+int ide_sector_write(iodriver *driver, uint32_t lba, uint8_t *buffer, bool keepOn);
 
 int ide_search_for_drive(int boot_drive);
 

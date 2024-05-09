@@ -5,6 +5,12 @@
 #include <stdint.h>
 #include "cpuid.h"
 
+enum FPUControlWord {
+    FPU_CTRL_NO_EXCEPTIONS = 0x37F,
+    FPU_CTRL_INVALID_OP = 0x37E,
+    FPU_CTRL_DIV_ZERO = 0x37A,
+};
+
 enum CR0 {
     CR0_MP = 1UL << 1UL,
     CR0_EM = 1UL << 2UL,

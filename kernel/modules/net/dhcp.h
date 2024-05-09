@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "../../drivers/ethernet.h"
 
+#pragma pack(push, 1)
 typedef struct dhcp_packet {
     uint8_t op;
     uint8_t htype;
@@ -21,7 +22,8 @@ typedef struct dhcp_packet {
     uint8_t file[128];
     uint32_t magic_cookie;
     uint8_t options[312];
-} __attribute__((packed)) dhcp_packet;
+} dhcp_packet;
+#pragma pack(pop)
 
 enum DHCPBootOperation {
     DHCP_BOOT_OP_REQUEST = 0x01,

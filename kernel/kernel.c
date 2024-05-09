@@ -3,6 +3,7 @@
 #define DEBUG 1
 #define DEBUG_SERIAL 0
 
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -34,6 +35,7 @@
 #include "drivers/video/framebuffer.h"
 #include "modules/bitmap.h"
 #include "modules/timer.h"
+#include "modules/vfs.h"
 #include "modules/multiboot2.h"
 #include "modules/process.h"
 #include "modules/spinlock.h"
@@ -82,10 +84,105 @@ static void iodriver_init(unsigned int boot_drive) {
     }
 }
 
-static void fs_init(int drive, int partition) {
-    if (drive >= 0xE0 && drive < 0xF0) {
-        partition = 0;
+static void validate_cmdline_root(const char *cmdline) {
+    // format: root=fdxpy, root=hdxpy, root=cdxpy
+    if (strstr(cmdline, "root=")) { // check if root device is specified
+        char *tmp = strstr(cmdline, "root=") + 5;
+        if (strncmp(tmp, "fd", 2) == 0) { // floppy disk
+            tmp += 2;
+        } else if (strncmp(tmp, "hd", 2) == 0) {
+            tmp += 2;
+        } else if (strncmp(tmp, "cd", 2) == 0) {
+            tmp += 2;
+        } else {
+            goto error;
+        }
+
+        char *start_disk = tmp;
+        if (!isdigit(*start_disk)) { // check if the disk number start with a digit
+            goto error;
+        }
+
+        char *end_disk = start_disk;
+        while (*end_disk && isdigit(*end_disk)) {
+            end_disk++;
+        }
+
+        if (*end_disk != 'p') { // check if there is a partition number
+            goto error;
+        }
+
+        char *start_partition = end_disk + 1;
+        if (!isdigit(*start_partition)) { // check if the partition number start with a digit
+            goto error;
+        }
+
+        char *end_partition = start_partition;
+        while (*end_partition && isdigit(*end_partition)) {
+            end_partition++;
+        }
+
+        // check if there is anything after the partition number that is not a whitespace
+        if (*end_partition != 0 && !isspace(*end_partition)) {
+            goto error;
+        }
+
+        return;
     }
+
+error:
+    panic("Invalid root device specified");
+}
+
+static void parse_cmdline_root(const char *cmdline, int *drive, int *partition) {
+    validate_cmdline_root(cmdline);
+
+    char *tmp = strstr(cmdline, "root=");
+    if (tmp) {
+        tmp += 5;
+        // format: root=fdxpy, root=hdxpy, root=cdxpy
+        if (strncmp(tmp, "fd", 2) == 0) {
+            *drive = 0;
+            tmp += 2;
+        } else if (strncmp(tmp, "hd", 2) == 0) {
+            *drive = 0x80;
+            tmp += 2;
+        } else if (strncmp(tmp, "cd", 2) == 0) {
+            *drive = 0xE0;
+            tmp += 2;
+        }
+
+        char *end = tmp;
+        while (*end && *end != 'p') {
+            end++;
+        }
+
+        char tmp2 = tmp[end - tmp];
+        tmp[end - tmp] = 0;
+        *drive += strtol(tmp, NULL, 10);
+        tmp[end - tmp] = tmp2;
+
+        tmp = end + 1;
+
+        end = tmp;
+        while (*end && !isspace(*end)) {
+            end++;
+        }
+
+        tmp2 = tmp[end - tmp];
+        tmp[end - tmp] = 0;
+        *partition = strtol(tmp, NULL, 10);
+        tmp[end - tmp] = tmp2;
+    }
+}
+
+static void fs_init(const char *boot_cmdline) {
+    int drive = -1;
+    int partition = -1;
+    parse_cmdline_root(boot_cmdline, &drive, &partition);
+    dbgprint("Root device: %x:%x\n", drive, partition);
+
+    iodriver_init(drive);
 
     filesystem *_tmpfs = mbr_init(&rootfs_io, partition);
     if (!_tmpfs) {
@@ -109,6 +206,70 @@ static void check_multiboot2(uint32_t magic, uint32_t addr) {
 
 static int cmp(const void *a, const void *b) {
     return *(int *)b - *(int *)a;
+}
+
+static void alloctest(void) {
+    dbgprint("Testing malloc...\n");
+    int *arr = malloc(sizeof(int) * 10);
+    if (!arr) {
+        panic("malloc failed");
+    }
+
+    for (int i = 0; i < 10; i++) {
+        arr[i] = i + 1;
+    }
+
+    char buf[100];
+    memset(buf, 0, 100);
+    for (int i = 0; i < 10; i++) {
+        sprintf(buf + strlen(buf), "%d%c", arr[i], i == 9 ? '\n' : ' ');
+    }
+    dbgprint(buf);
+
+    dbgprint("Testing qsort...\n");
+    qsort(arr, 10, sizeof(int), cmp);
+    memset(buf, 0, 100);
+    for (int i = 0; i < 10; i++) {
+        sprintf(buf + strlen(buf), "%d%c", arr[i], i == 9 ? '\n' : ' ');
+    }
+    dbgprint(buf);
+
+    free(arr);
+}
+
+static void memtest(void) {
+    dbgprint("Requesting all available memory...\n");
+    size_t max_pages = bitmap_total_pages();
+    uintptr_t *pages = calloc(max_pages, sizeof(uintptr_t));
+    if (!pages) {
+        panic("malloc failed");
+    }
+
+    for (size_t i = 0; i < max_pages; i++) {
+        pages[i] = (uintptr_t)bitmap_alloc_page();
+        if (!pages[i]) {
+            break;
+        }
+    }
+
+    dbgprint("Freeing all allocated memory...\n");
+    for (size_t i = 0; i < max_pages; i++) {
+        if (!pages[i]) {
+            continue;
+        }
+
+        bitmap_free_pages((void *)pages[i], 1);
+    }
+
+    free(pages);
+}
+
+void kernel_int_wait(void) {
+    //dbgprint("Waiting for interrupts...\n");
+    interrupts_reenable();
+    while (true) {
+        asm volatile("hlt");
+    }
 }
 
 void kernel_main(uint32_t magic, uint32_t addr) {
@@ -222,33 +383,7 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     pic_remap(32, 40);
     dbgprint("GDT, IDT, ISR, IRQ and PIC initialized\n");
 
-    dbgprint("Testing malloc...\n");
-    int *arr = malloc(sizeof(int) * 10);
-    if (!arr) {
-        panic("malloc failed");
-    }
-
-    for (int i = 0; i < 10; i++) {
-        arr[i] = i + 1;
-    }
-
-    char buf[100];
-    memset(buf, 0, 100);
-    for (int i = 0; i < 10; i++) {
-        sprintf(buf + strlen(buf), "%d%c", arr[i], i == 9 ? '\n' : ' ');
-    }
-    dbgprint(buf);
-
-    dbgprint("Testing qsort...\n");
-    qsort(arr, 10, sizeof(int), cmp);
-    memset(buf, 0, 100);
-    for (int i = 0; i < 10; i++) {
-        sprintf(buf + strlen(buf), "%d%c", arr[i], i == 9 ? '\n' : ' ');
-    }
-    dbgprint(buf);
-
-    free(arr);
-
+    alloctest();
     syscall_init();
     timer_init();
     keyboard_init();
@@ -260,16 +395,15 @@ void kernel_main(uint32_t magic, uint32_t addr) {
         dbgprint("ACPI not available\n");
     }
 
+    //memtest();
     process_init();
     udp_init();
     tcp_init();
     dns_init();
     pci_init();
-    iodriver_init(boot_drive);
     dbgprint("Reading Master Boot Record...\n");
-    fs_init(boot_drive, boot_partition);
-    dbgprint("Reading Root Directory...\n");
-    rootfs.list_files(&rootfs_io, &rootfs);
+    fs_init(boot_cmdline);
+    vfs_init();
 
     if (eth[0] && (eth[0]->ipv4.dns[0] || eth[0]->ipv4.dns[1] || eth[0]->ipv4.dns[2] || eth[0]->ipv4.dns[3])) {
         uint8_t ip[4];
@@ -279,9 +413,7 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     }
 
     dbgprint("Starting INIT\n");
-    if (system("init.elf")) {
+    if (system("/bin/init.elf")) {
         panic("init.elf failed to load");
     }
-
-    panic("INIT returned");
 }

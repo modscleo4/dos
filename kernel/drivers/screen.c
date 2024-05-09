@@ -8,6 +8,13 @@ void screen_init(enum ScreenMode mode) {
     screen_mode = mode;
 }
 
+void screen_caret(void) {
+    switch (screen_mode) {
+        case SCREEN_MODE_FRAMEBUFFER:
+            framebuffer_caret();
+    }
+}
+
 unsigned char screen_getcolor(void) {
     switch (screen_mode) {
         case SCREEN_MODE_FRAMEBUFFER:

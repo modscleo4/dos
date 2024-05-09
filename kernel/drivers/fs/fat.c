@@ -3,6 +3,7 @@
 #define DEBUG 1
 #define DEBUG_SERIAL 1
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +11,7 @@
 #include "../../cpu/panic.h"
 #include "../../modules/bitmap.h"
 
-static uint16_t fat12_next_cluster(unsigned int cluster, const uint8_t *buffer, unsigned int ent_offset) {
+static uint16_t fat12_next_cluster(uint32_t cluster, const uint8_t *buffer, uint32_t ent_offset) {
     uint16_t table_value = *(uint16_t *)&buffer[ent_offset];
 
     if (cluster & 0x0001) {
@@ -22,41 +23,13 @@ static uint16_t fat12_next_cluster(unsigned int cluster, const uint8_t *buffer, 
     return table_value;
 }
 
-static uint16_t fat16_next_cluster(unsigned int cluster, const uint8_t *buffer, unsigned int ent_offset) {
+static uint16_t fat16_next_cluster(uint32_t cluster, const uint8_t *buffer, uint32_t ent_offset) {
     uint16_t table_value = *(uint16_t *)&buffer[ent_offset];
 
     return table_value;
 }
 
-void fat_init(iodriver *driver, filesystem *fs) {
-    dbgprint("Reading File Allocation Table (sector %x)...\n", fs->start_lba);
-
-    bios_params *params = malloc(sizeof(bios_params));
-    driver->read_sector(driver, fs->start_lba + 0, driver->io_buffer, true);
-    memcpy(params, &driver->io_buffer[11], sizeof(bios_params));
-
-    fs->params = params;
-
-    char volume_label[12];
-    char filesystem[9];
-    strncpy(volume_label, params->volume_label, 11);
-    strncpy(filesystem, params->filesystem, 8);
-
-    printf("Volume label is %s\n", volume_label);
-    printf("File system is %s\n", filesystem);
-    printf("Serial number is %X\n", params->serial_number);
-}
-
-size_t fat_get_file_size(filesystem *fs, const void *_f) {
-    fat_entry *f = (fat_entry *)_f;
-    if (!f) {
-        return 0;
-    }
-
-    return f->size;
-}
-
-const char *dos83toStr(const char *name, const char *ext) {
+static const char *dos83toStr(const char *name, const char *ext) {
     static char ret[13];
 
     strncpy(ret, name, 8);
@@ -78,80 +51,185 @@ const char *dos83toStr(const char *name, const char *ext) {
     return ret;
 }
 
-fat_entry *fat_search_file(iodriver *driver, filesystem *fs, const char *filename) {
+void fat_init(iodriver *driver, filesystem *fs) {
+    dbgprint("Reading File Allocation Table (sector %x)...\n", fs->start_lba);
+
+    bios_params *params = malloc(sizeof(bios_params));
+    driver->read_sector(driver, fs->start_lba + 0, driver->io_buffer, true);
+    memcpy(params, &driver->io_buffer[11], sizeof(bios_params));
+
+    fs->params = params;
+
+    char volume_label[12];
+    char filesystem[9];
+    strncpy(volume_label, params->volume_label, 11);
+    strncpy(filesystem, params->filesystem, 8);
+
+    printf("Volume label is %s\n", volume_label);
+    printf("File system is %s\n", filesystem);
+    printf("Serial number is %X\n", params->serial_number);
+}
+
+static void fat_stat_fill(iodriver *driver, filesystem *fs, const fat_entry *f, struct stat *st) {
+    if (!f) {
+        return;
+    }
+
+    st->st_dev = driver->device;
+    st->st_ino = 0;
+    st->st_mode = (f->attributes.read_only ? S_IRUSR | S_IRGRP | S_IROTH : S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWGRP) | S_IXUSR | S_IXGRP | S_IXOTH;
+    if (f->attributes.directory) {
+        st->st_mode |= S_IFDIR;
+    } else if (f->attributes.device) {
+        st->st_mode |= S_IFBLK;
+    } else if (f->attributes.archive) {
+        st->st_mode |= S_IFREG;
+    }
+
+    st->st_nlink = 1;
+    st->st_uid = 0;
+    st->st_gid = 0;
+    st->st_rdev = 0;
+    st->st_size = f->size;
+    st->st_blocks = f->size / 512 + (f->size % 512 ? 1 : 0);
+    st->st_blksize = 512;
+    st->st_atime = 0;
+    st->st_mtime = 0;
+    st->st_ctime = 0;
+    st->st_private = (void *)f;
+}
+
+int fat_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st) {
+    if (path[0] != '/') {
+        // The path should be absolute
+        return -EINVAL;
+    }
+
     bios_params *params = (bios_params *)fs->params;
     fat_entry *f = malloc(sizeof(fat_entry));
-
-    char *cmp_filename = malloc(strlen(filename) + 1);
-    strcpy(cmp_filename, filename);
-    strupr(cmp_filename);
+    memset(f, 0, sizeof(fat_entry));
+    f->attributes.directory = true;
+    f->cluster = 2;
+    f->size = 0;
 
     int rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
     int last_sector = params->rootdir_entries * sizeof(fat_entry);
 
-    for (int i = 0; i < last_sector; i += sizeof(fat_entry)) {
-        if (i % 512 == 0) {
-            driver->read_sector(driver, rootdir_sector++, driver->io_buffer, i != last_sector);
+    char *fn = malloc(strlen(path) + 1);
+    strcpy(fn, path);
+    char *filename = strtok(fn + 1, "/");
+    bool foundDir = true;
+    while (filename && *filename) {
+        dbgprint("Looking for %s\n", filename);
+        if (!foundDir) {
+            // Not a directory
+            free(f);
+            free(fn);
+            return -ENOTDIR;
         }
 
-        if (driver->io_buffer[i % 512] == 0) {
-            continue;
+        strupr(filename);
+
+        for (int i = 0; i < last_sector; i += sizeof(fat_entry)) {
+            if (i % 512 == 0) {
+                dbgprint("Reading sector %d\n", rootdir_sector);
+                if (driver->read_sector(driver, rootdir_sector++, driver->io_buffer, i != last_sector)) {
+                    return -EIO;
+                }
+            }
+
+            if (driver->io_buffer[i % 512] == 0) {
+                continue;
+            }
+
+            memcpy(f, &driver->io_buffer[i % 512], sizeof(fat_entry));
+
+            if (f->attributes.volume) { // Skip volume label
+                continue;
+            }
+
+            if (strcmp(dos83toStr(f->name, f->ext), filename) == 0) {
+                foundDir = f->attributes.directory;
+                if (foundDir) {
+                    rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
+                    rootdir_sector += (f->cluster - 2) * params->sectors_per_cluster + (params->rootdir_entries * sizeof(fat_entry) / params->bytes_per_sector);
+                }
+
+                goto next;
+            }
         }
 
-        memcpy(f, &driver->io_buffer[i % 512], sizeof(fat_entry));
+        // Not found
+        free(f);
+        free(fn);
+        return -ENOENT;
 
-        if (f->attributes.volume) { // Skip volume label
-            continue;
-        }
-
-        if (strcmp(dos83toStr(f->name, f->ext), cmp_filename) == 0) {
-            dbgprint("Found file %s at sector %d\n", filename, rootdir_sector - 1);
-            return f;
-        }
+    next:
+        filename = strtok(NULL, "/");
     }
 
-    free(f);
-    return NULL;
+    fat_stat_fill(driver, fs, f, st);
+
+    return 0;
 }
 
-void *fat_load_file(iodriver *driver, filesystem *fs, const void *_f) {
-    fat_entry *f = (fat_entry *)_f;
+void *fat_load_file(iodriver *driver, filesystem *fs, const struct stat *st) {
+    fat_entry *f = (fat_entry *)st->st_private;
     if (!f) {
         return NULL;
     }
 
     void *addr = malloc_align(f->size, BITMAP_PAGE_SIZE);
-    return fat_load_file_at(driver, fs, f, addr);
-}
-
-void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *addr) {
-    bios_params *params = (bios_params *)fs->params;
-    fat_entry *f = (fat_entry *)_f;
-    if (!f) {
+    //fat_load_file_at(driver, fs, st, addr);
+    int read_ret = 0;
+    if ((read_ret = fat_read(driver, fs, st, addr, f->size, 0)) < 0) {
+        dbgprint("Failed to read file: %d\n", read_ret);
+        free(addr);
         return NULL;
     }
 
-    unsigned short int cluster = f->cluster;
-    unsigned int first_fat_sector = fs->start_lba + params->reserved_sectors;
+    return addr;
+}
 
-    unsigned int cl = 0;
-    unsigned int last_fat_sector = 0;
+int fat_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset) {
+    bios_params *params = (bios_params *)fs->params;
+    fat_entry *f = (fat_entry *)st->st_private;
+    if (!f) {
+        return -EBADFD;
+    }
 
-    uint8_t *fat_buffer = (uint8_t *) malloc(2 * params->bytes_per_sector);
+    if (offset >= f->size) {
+        // Offset is beyond the file size
+        return 0;
+    }
 
-    unsigned int rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
+    if (offset + count > f->size) {
+        // Read only up to the file size
+        count = f->size - offset;
+    }
 
-    unsigned int invalid = 0xFFFF;
+    uint16_t cluster = f->cluster;
+    uint32_t first_fat_sector = fs->start_lba + params->reserved_sectors;
+
+    size_t bytes_read = 0;
+    uint32_t last_fat_sector = 0;
+
+    uint8_t *fat_buffer = (uint8_t *)malloc(2 * params->bytes_per_sector);
+
+    uint32_t rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
+
+    uint32_t invalid = 0xFFFF;
     if (fs->type == FS_FAT12) {
         invalid = 0xFF8;
     } else if (fs->type == FS_FAT16) {
         invalid = 0xFFF8;
     }
 
-    while (cluster < invalid) {
-        unsigned int fat_offset;
-        unsigned int fat_sector;
-        unsigned int ent_offset;
+    // Skip clusters until we reach the offset
+    while (offset >= params->bytes_per_sector && cluster < invalid) {
+        uint32_t fat_offset;
+        uint32_t fat_sector;
+        uint32_t ent_offset;
 
         if (fs->type == FS_FAT12) {
             fat_offset = cluster + (cluster / 2);
@@ -161,22 +239,80 @@ void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *a
 
         fat_sector = first_fat_sector + (fat_offset / params->bytes_per_sector);
         ent_offset = fat_offset % params->bytes_per_sector;
-        dbgprint("fat_sector = %d\n", fat_sector);
-        dbgprint("ent_offset = %d\n", ent_offset);
-
-        unsigned int sector = (cluster - 2) * params->sectors_per_cluster + rootdir_sector + (params->rootdir_entries * sizeof(fat_entry) / params->bytes_per_sector);
+        dbgprint("fat_sector = %uld, ent_offset = %uld\n", ent_offset);
 
         if (!last_fat_sector || last_fat_sector != fat_sector) {
-            driver->read_sector(driver, fat_sector, fat_buffer, true);
+            if (driver->read_sector(driver, fat_sector, driver->io_buffer, true)) {
+                free(fat_buffer);
+                return -EIO;
+            }
+
+            memcpy(fat_buffer, driver->io_buffer, params->bytes_per_sector);
             if (fs->type == FS_FAT12) {
-                driver->read_sector(driver, fat_sector + 1, fat_buffer + params->bytes_per_sector, true);
+                if (driver->read_sector(driver, fat_sector + 1, driver->io_buffer, true)) {
+                    free(fat_buffer);
+                    return -EIO;
+                }
+
+                memcpy(fat_buffer + params->bytes_per_sector, driver->io_buffer, params->bytes_per_sector);
             }
         }
 
-        driver->read_sector(driver, sector, driver->io_buffer, true);
+        offset -= params->bytes_per_sector;
+        if (fs->type == FS_FAT12) {
+            cluster = fat12_next_cluster(cluster, fat_buffer, ent_offset);
+        } else if (fs->type == FS_FAT16) {
+            cluster = fat16_next_cluster(cluster, fat_buffer, ent_offset);
+        }
+    }
 
-        memcpy(addr + cl, driver->io_buffer, params->bytes_per_sector);
-        cl += params->bytes_per_sector;
+    while (cluster < invalid && count) {
+        size_t to_read = count > params->bytes_per_sector ? params->bytes_per_sector : count;
+        uint32_t fat_offset;
+        uint32_t fat_sector;
+        uint32_t ent_offset;
+
+        if (fs->type == FS_FAT12) {
+            fat_offset = cluster + (cluster / 2);
+        } else if (fs->type == FS_FAT16) {
+            fat_offset = cluster * 2;
+        }
+
+        fat_sector = first_fat_sector + (fat_offset / params->bytes_per_sector);
+        ent_offset = fat_offset % params->bytes_per_sector;
+        dbgprint("fat_sector = %d, ent_offset = %d\n", ent_offset);
+
+        uint32_t sector = (cluster - 2) * params->sectors_per_cluster + rootdir_sector + (params->rootdir_entries * sizeof(fat_entry) / params->bytes_per_sector);
+
+        if (!last_fat_sector || last_fat_sector != fat_sector) {
+            if (driver->read_sector(driver, fat_sector, driver->io_buffer, true)) {
+                free(fat_buffer);
+                return -EIO;
+            }
+
+            memcpy(fat_buffer, driver->io_buffer, params->bytes_per_sector);
+            if (fs->type == FS_FAT12) {
+                if (driver->read_sector(driver, fat_sector + 1, driver->io_buffer, true)) {
+                    free(fat_buffer);
+                    return -EIO;
+                }
+
+                memcpy(fat_buffer + params->bytes_per_sector, driver->io_buffer, params->bytes_per_sector);
+            }
+        }
+
+        if (driver->read_sector(driver, sector, driver->io_buffer, true)) {
+            free(fat_buffer);
+            return -EIO;
+        }
+
+        size_t off = offset % params->bytes_per_sector;
+        size_t len = off < to_read ? to_read - off : to_read;
+
+        memcpy((uint8_t *)buf + bytes_read, driver->io_buffer + off, len);
+        memcpy((uint8_t *)buf + bytes_read + len, driver->io_buffer + off + len, to_read - len);
+
+        bytes_read += to_read;
 
         last_fat_sector = fat_sector;
 
@@ -187,141 +323,63 @@ void *fat_load_file_at(iodriver *driver, filesystem *fs, const void *_f, void *a
         }
 
         dbgprint("Next cluster: %d\n", cluster);
+        count -= to_read;
     }
 
     free(fat_buffer);
 
-    driver->stop(driver);
-
-    return addr;
+    return bytes_read;
 }
 
-void fat_describe_file(filesystem *fs, fat_entry *f, int rootdir_sector, int level) {
-    bios_params *params = (bios_params *)fs->params;
-    if (f->attributes.volume) { // Skip volume label
-        return;
-    }
-
-    char fname[9];
-    char fext[4];
-    strncpy(fname, f->name, 8);
-    strncpy(fext, f->ext, 3);
-    for (int i = 0; i < 8; i++) {
-        if (fname[i] == ' ') {
-            fname[i] = 0;
-            break;
-        }
-    }
-
-    for (int i = 0; i < 3; i++) {
-        if (fext[i] == ' ') {
-            fext[i] = 0;
-            break;
-        }
-    }
-
-    unsigned int file_sector = (f->cluster - 2) * params->sectors_per_cluster + rootdir_sector + (params->rootdir_entries * sizeof(fat_entry) / params->bytes_per_sector);
-
-    for (int i = 0; i < level; i++) {
-        printf("  ");
-    }
-
-    if (f->attributes.directory) {
-        printf("%-8s", fname);
-        printf("    <DIR>     ");
-    } else {
-        printf("%-8s %-4s % 8d", fname, fext, f->size);
-    }
-    printf("  %04u-%02u-%02u", (f->created_date.year) + 1980, f->created_date.month, f->created_date.day);
-    printf("  %02u:%02u:%02u", f->created_time.hour, f->created_time.minute, f->created_time.second);
-
-    if (*(unsigned char *)&f->attributes != 0) {
-        printf(" ");
-    }
-
-    if (f->attributes.read_only) {
-        printf(" R");
-    }
-
-    if (f->attributes.hidden) {
-        printf(" H");
-    }
-
-    if (f->attributes.system) {
-        printf(" S");
-    }
-
-    if (f->attributes.archive) {
-        printf(" A");
-    }
-
-    if (f->attributes.device) {
-        printf(" D");
-    }
-
-    printf(" &%X", file_sector * params->bytes_per_sector);
-
-    printf("\n");
+int fat_write(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset) {
+    // Read-only filesystem
+    return -EROFS;
 }
 
-void fat_list_files(iodriver *driver, filesystem *fs) {
+int fat_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t index, char *name, struct stat *out_st) {
     bios_params *params = (bios_params *)fs->params;
-    printf("Files on disk: \n");
+    fat_entry *f = (fat_entry *)st->st_private;
+    if (!f) {
+        return -EBADFD;
+    }
 
-    fat_entry f;
+    if (!f->attributes.directory) {
+        return -ENOTDIR;
+    }
 
     int rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
     int last_sector = params->rootdir_entries * sizeof(fat_entry);
 
-    int sector = rootdir_sector;
+    fat_entry *dir = malloc(sizeof(fat_entry));
+    int dir_sector = (f->cluster - 2) * params->sectors_per_cluster + rootdir_sector + (f->name[0] == 0 ? 0 : params->rootdir_entries * sizeof(fat_entry) / params->bytes_per_sector);
 
-    dbgprint("rootdir_sector: %d\n", rootdir_sector);
-    dbgprint("last_sector: %d\n", last_sector);
-
-    for (int i = 0; i < last_sector; i += sizeof(fat_entry)) {
-        if (i % 512 == 0) {
-            driver->read_sector(driver, sector++, driver->io_buffer, i != last_sector);
+    int i = 0;
+    for (int j = 0; j < 512; j += sizeof(fat_entry)) {
+        if (j % 512 == 0) {
+            if (driver->read_sector(driver, dir_sector++, driver->io_buffer, j != last_sector)) {
+                free(dir);
+                return -EIO;
+            }
         }
 
-        if (driver->io_buffer[i % 512] == 0) {
+        if (driver->io_buffer[j % 512] == 0) {
             continue;
         }
 
-        memcpy(&f, &driver->io_buffer[i % 512], sizeof(fat_entry));
+        memcpy(dir, &driver->io_buffer[j % 512], sizeof(fat_entry));
 
-        fat_describe_file(fs, &f, rootdir_sector, 0);
-
-        if (f.attributes.directory) {
-            fat_list_files_in_dir(driver, fs, &f, 1);
-            driver->read_sector(driver, sector - 1, driver->io_buffer, i != last_sector);
-        }
-    }
-}
-
-void fat_list_files_in_dir(iodriver *driver, filesystem *fs, fat_entry *d, int level) {
-    bios_params *params = (bios_params *)fs->params;
-    fat_entry f;
-
-    int rootdir_sector = fs->start_lba + params->reserved_sectors + params->number_of_fat * params->sectors_per_fat;
-    int last_sector = params->rootdir_entries * sizeof(fat_entry);
-
-    unsigned int dir_sector = (d->cluster - 2) * params->sectors_per_cluster + rootdir_sector + (params->rootdir_entries * sizeof(fat_entry) / params->bytes_per_sector);
-
-    for (int i = 0; i < 512; i += sizeof(fat_entry)) {
-        if (i % 512 == 0) {
-            driver->read_sector(driver, dir_sector++, driver->io_buffer, i != last_sector);
-        }
-
-        if (driver->io_buffer[i % 512] == 0) {
+        if (dir->attributes.volume) { // Skip volume label
             continue;
         }
 
-        memcpy(&f, &driver->io_buffer[i % 512], sizeof(fat_entry));
-
-        fat_describe_file(fs, &f, rootdir_sector, level);
-
-        if (f.attributes.directory && i >= 2 * sizeof(fat_entry)) {
-            fat_list_files_in_dir(driver, fs, &f, level + 1);
+        if (i == index) {
+            strncpy(name, dos83toStr(dir->name, dir->ext), 13);
+            fat_stat_fill(driver, fs, dir, out_st);
+            return 0;
         }
+
+        i++;
     }
+
+    return -ENOENT;
 }

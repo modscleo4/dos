@@ -5,9 +5,11 @@
 #include <stdint.h>
 #include "../../drivers/ethernet.h"
 
+#pragma pack(push, 1)
 typedef struct dns_header {
     uint16_t id;
     union {
+#pragma pack(push, 1)
         struct {
             uint8_t rcode : 4;
             uint8_t z : 3;
@@ -17,26 +19,32 @@ typedef struct dns_header {
             bool aa : 1;
             uint8_t opcode : 4;
             bool qr : 1;
-        } __attribute__((packed));
+        };
+#pragma pack(pop)
         uint16_t raw;
     } flags;
     uint16_t questions;
     uint16_t answers;
     uint16_t authority;
     uint16_t additional;
-} __attribute__((packed)) dns_header;
+} dns_header;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct dns_query {
     uint16_t type;
     uint16_t class;
-} __attribute__((packed)) dns_query;
+} dns_query;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct dns_answer {
     uint16_t type;
     uint16_t class;
     uint32_t ttl;
     uint16_t data_length;
-} __attribute__((packed)) dns_answer;
+} dns_answer;
+#pragma pack(pop)
 
 enum DNSMessage {
     DNS_MESSAGE_QUERY = 0,

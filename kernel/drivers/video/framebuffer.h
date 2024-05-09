@@ -27,6 +27,8 @@ void framebuffer_setup(framebuffer_config *config);
 
 void framebuffer_init(void);
 
+void framebuffer_caret(void);
+
 unsigned char framebuffer_getcolor(void);
 
 void framebuffer_setcolor(unsigned char c);

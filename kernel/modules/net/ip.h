@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "../../drivers/ethernet.h"
 
+#pragma pack(push, 1)
 typedef struct ipv4_packet {
     uint8_t ihl: 4;
     uint8_t version: 4;
@@ -19,15 +20,18 @@ typedef struct ipv4_packet {
     uint16_t header_checksum;
     uint8_t source_ip[4];
     uint8_t destination_ip[4];
-} __attribute__((packed)) ipv4_packet;
+} ipv4_packet;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct ipv4_pseudo_header {
     uint8_t source_ip[4];
     uint8_t destination_ip[4];
     uint8_t zero;
     uint8_t protocol;
     uint16_t length;
-} __attribute__((packed)) ipv4_pseudo_header;
+} ipv4_pseudo_header;
+#pragma pack(pop)
 
 enum IPProtocol {
     IP_PROTOCOL_HOPOPT = 0x00,
@@ -177,7 +181,7 @@ enum IPProtocol {
     IP_PROTOCOL_ETHERNET = 0x8F,
 };
 
-bool ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], uint8_t protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size);
+bool ipv4_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint8_t destination_ip[4], enum IPProtocol protocol, void *protocol_packet, size_t protocol_size, void *data, size_t data_size);
 
 void ipv4_receive_packet(ethernet_driver *driver, ipv4_packet *packet, void *data, size_t data_size);
 

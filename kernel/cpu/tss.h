@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#pragma pack(push, 1)
 typedef struct tss_entry {
     uint32_t prev_tss;
     uint32_t esp0;
@@ -31,7 +32,8 @@ typedef struct tss_entry {
     uint32_t ldt;
     uint16_t trap;
     uint16_t iomap_base;
-} __attribute__((packed)) tss_entry;
+} tss_entry;
+#pragma pack(pop)
 
 extern void tss_flush(void);
 

@@ -169,6 +169,21 @@ static void framebuffer_move_cursor_caret(void) {
     }
 }
 
+static bool draw_caret = true;
+void framebuffer_caret(void) {
+    if (fb->type == FRAMEBUFFER_TYPE_TEXT) {
+        return;
+    } else if (fb->type == FRAMEBUFFER_TYPE_RGB) {
+        if (draw_caret) {
+            framebuffer_draw_char(curr_cursor_pos_x, curr_cursor_pos_y, '_', vgacolor);
+        } else {
+            framebuffer_draw_char(curr_cursor_pos_x, curr_cursor_pos_y, ' ', vgacolor);
+        }
+
+        draw_caret = !draw_caret;
+    }
+}
+
 static void framebuffer_flush(void) {
     switch (fb->type) {
         case FRAMEBUFFER_TYPE_RGB: {

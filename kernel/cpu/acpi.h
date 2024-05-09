@@ -4,15 +4,18 @@
 #include <stdint.h>
 
 // Root System Description Pointer
+#pragma pack(push, 1)
 typedef struct acpi_rsdp {
     char signature[8];
     uint8_t checksum;
     char oem_id[6];
     uint8_t revision;
     uint32_t rsdt_address;
-} __attribute__((packed)) acpi_rsdp;
+} acpi_rsdp;
+#pragma pack(pop)
 
 // Root System Description Table
+#pragma pack(push, 1)
 typedef struct acpi_rsdt {
     char signature[4];
     uint32_t length;
@@ -24,15 +27,19 @@ typedef struct acpi_rsdt {
     uint32_t creator_id;
     uint32_t creator_revision;
     //uint32_t *entries;
-} __attribute__((packed)) acpi_rsdt;
+} acpi_rsdt;
+#pragma pack(pop)
 
+// Generic Address Structure
+#pragma pack(push, 1)
 typedef struct acpi_generic_address_structure {
     uint8_t address_space_id;
     uint8_t register_bit_width;
     uint8_t register_bit_offset;
     uint8_t reserved;
     uint64_t address;
-} __attribute__((packed)) acpi_generic_address_structure;
+} acpi_generic_address_structure;
+#pragma pack(pop)
 
 enum ACPIAddressSpaceID {
     ACPI_ADDRESS_SPACE_SYSTEM_MEMORY = 0,
@@ -49,6 +56,7 @@ enum ACPIAddressSpaceID {
 };
 
 // Fixed ACPI Description Table
+#pragma pack(push, 1)
 typedef struct acpi_fadt {
     acpi_rsdt header;
     uint32_t firmware_ctrl;
@@ -98,13 +106,16 @@ typedef struct acpi_fadt {
 
     uint8_t reset_value;
     uint8_t reserved3[3];
-} __attribute__((packed)) acpi_fadt;
+} acpi_fadt;
+#pragma pack(pop)
 
 // Differentiated System Description Table
+#pragma pack(push, 1)
 typedef struct acpi_dsdt {
     acpi_rsdt header;
     uint8_t definition_block[0];
-} __attribute__((packed)) acpi_dsdt;
+} acpi_dsdt;
+#pragma pack(pop)
 
 enum ACPIPM1AControlRegisters {
     ACPI_PM1A_CONTROL_SCI_EN = 1 << 0,

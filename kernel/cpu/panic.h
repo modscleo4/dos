@@ -4,7 +4,9 @@
 #include <stdarg.h>
 #include "system.h"
 
-void panic(const char *msg, ...);
+#define panic(msg, ...) _panic(__FILE__, __LINE__, msg, ##__VA_ARGS__)
+
+void _panic(const char *file, const int line, const char *msg, ...);
 
 void panic_handler(registers *r, const char *msg, ...);
 

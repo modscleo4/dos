@@ -55,8 +55,6 @@ extern void irq14(void);
 
 extern void irq15(void);
 
-void irq_remap(void);
-
 void irq_install_handler(int irq, void (*handler)(registers *, uint32_t));
 
 void irq_uninstall_handler(int irq);
@@ -64,5 +62,9 @@ void irq_uninstall_handler(int irq);
 void irq_init(void);
 
 void irq_handler(registers *r);
+
+void irq_mask(uint8_t irq);
+
+void irq_unmask(uint8_t irq);
 
 #endif //KERNEL_IRQ_H

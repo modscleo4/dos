@@ -5,19 +5,38 @@
 #include <unistd.h>
 #include <stdbool.h>
 
-int in_buf_pos = 0;
-char in_buf[1024] = {0};
-
-int out_buf_pos = 0;
-char out_buf[1024] = {0};
-
 FILE *stdin = NULL;
 FILE *stdout = NULL;
 FILE *stderr = NULL;
 
 void _init_stdio(void) {
-    in_buf_pos = 0;
-    out_buf_pos = 0;
+    char *stdin_buf = malloc(1024);
+    char *stdout_buf = malloc(1024);
+    char *stderr_buf = malloc(1024);
+
+    stdin = malloc(sizeof(FILE));
+    stdin->file = STDIN_FILENO;
+    stdin->flag = _IOREAD;
+    stdin->bufsiz = 1024;
+    stdin->base = stdin_buf;
+    stdin->ptr = stdin_buf;
+    stdin->cnt = 0;
+
+    stdout = malloc(sizeof(FILE));
+    stdout->file = STDOUT_FILENO;
+    stdout->flag = _IOWRT;
+    stdout->bufsiz = 1024;
+    stdout->base = stdout_buf;
+    stdout->ptr = stdout_buf;
+    stdout->cnt = 0;
+
+    stderr = malloc(sizeof(FILE));
+    stderr->file = STDERR_FILENO;
+    stderr->flag = _IOWRT;
+    stderr->bufsiz = 1024;
+    stderr->base = stderr_buf;
+    stderr->ptr = stderr_buf;
+    stderr->cnt = 0;
 }
 
 int fclose(FILE *stream) {
@@ -37,12 +56,14 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
 }
 
 int _getchar(void) {
-    in_buf_pos = syscall(3, STDIN_FILENO, in_buf, 1);
-    if (in_buf_pos != 1) {
+    int read_ret = read(STDIN_FILENO, stdin->ptr, 1);
+    if (read_ret != 1) {
         return EOF;
     }
 
-    return in_buf[in_buf_pos = 0];
+    stdin->ptr += read_ret;
+
+    return stdin->base[stdin->cnt];
 }
 
 int getchar(void) {
@@ -55,21 +76,21 @@ int getchar(void) {
 }
 
 static int _flush(void) {
-    if (out_buf_pos == 0) {
+    if (stdout->cnt == 0) {
         return 0;
     }
 
-    int ret = syscall(4, STDOUT_FILENO, out_buf, out_buf_pos);
-    out_buf_pos = 0;
+    int ret = write(STDOUT_FILENO, stdout->ptr, stdout->cnt);
+    stdout->cnt = 0;
     return ret;
 }
 
 static int _putchar(char c) {
-    if (out_buf_pos == 1024) {
+    if (stdout->cnt == 1024) {
         _flush();
     }
 
-    out_buf[out_buf_pos++] = c;
+    stdout->ptr[stdout->cnt++] = c;
     return 0;
 }
 
@@ -98,7 +119,17 @@ int puts(const char *str) {
 }
 
 char *gets(char *str) {
-    int pos = syscall(3, 0, str, 1024);
+    int pos = read(0, str, 1024);
+    if (pos == 0) {
+        return NULL;
+    }
+    str[pos] = 0;
+
+    return str;
+}
+
+char *fgets(char *str, int n, FILE *stream) {
+    int pos = read(stream->file, str, n);
     if (pos == 0) {
         return NULL;
     }
@@ -130,19 +161,23 @@ int printf(const char *format, ...) {
 }
 
 int vsprintf(char *str, const char *format, va_list args) {
-    char buf[1024] = {0};
+    char buf[1024] = "";
 
-    int modifier = 0;
-    char curr_mod = 0;
-    bool padding = false;
-    char padding_char = 0;
-    int width = 0;
-    int buf_len;
-    bool precision_toggle = false;
-    int precision = 0;
-    bool left_align = false;
+    int    modifier         = 0;
+    char   curr_mod         = 0;
+    bool   padding          = false;
+    char   padding_char     = 0;
+    int    width            = 0;
+    size_t buf_len          = 0;
+    bool   precision_toggle = false;
+    int    precision        = 0;
+    bool   left_align       = false;
+
+    int ret = 0;
 
     while (*format) {
+        char *old_str = str;
+
         if (modifier || padding || curr_mod || *format == '%') {
             format++;
 
@@ -198,6 +233,10 @@ int vsprintf(char *str, const char *format, va_list args) {
                     precision_toggle = true;
                     continue;
 
+                case '*':
+                    curr_mod = *format;
+                    continue;
+
                 case 'l':
                     modifier++;
                     continue;
@@ -212,23 +251,39 @@ int vsprintf(char *str, const char *format, va_list args) {
                     break;
 
                 case 's':
-                    strcpy(buf, va_arg(args, char *));
+                    if (precision_toggle) {
+                        if (curr_mod == '*') {
+                            buf_len = va_arg(args, int);
+                        } else {
+                            buf_len = precision;
+                        }
 
-                    buf_len = strlen(buf);
+                        strncpy(buf, va_arg(args, char *), buf_len);
+                        for (int i = 0; i < buf_len; i++) {
+                            if (buf[i] == 0) {
+                                buf[i] = ' ';
+                            }
+                        }
+                    } else {
+                        strcpy(buf, va_arg(args, char *));
+                        buf_len = strlen(buf);
+                    }
+
                     if (width > buf_len) {
                         if (left_align) {
                             for (int i = buf_len; i < width; i++) {
                                 buf[i] = ' ';
                             }
                             buf[width] = 0;
+                            buf_len = width;
                         } else {
                             memmove(buf + width - buf_len, buf, buf_len + 1);
                             memset(buf, ' ', width - buf_len);
                         }
                     }
 
-                    str = strcat(str, buf);
-                    str += strlen(buf);
+                    str = strncat(str, buf, buf_len);
+                    str += buf_len;
                     break;
 
                 case 'u':
@@ -291,11 +346,11 @@ int vsprintf(char *str, const char *format, va_list args) {
 
                 case 'b':
                     if (modifier == 1) {
-                        ltoa(va_arg(args, long int), buf, 2);
+                        lutoa(va_arg(args, unsigned long int), buf, 2);
                     } else if (modifier == 0) {
-                        itoa(va_arg(args, int), buf, 2);
+                        utoa(va_arg(args, unsigned int), buf, 2);
                     } else if (modifier == -1) {
-                        htoa((short int)va_arg(args, int), buf, 2);
+                        hutoa((unsigned short int)va_arg(args, unsigned int), buf, 2);
                     }
 
                     buf_len = strlen(buf);
@@ -308,13 +363,18 @@ int vsprintf(char *str, const char *format, va_list args) {
                     str += strlen(buf);
                     break;
 
+                case 'p':
+                    modifier = 1;
+                    padding = true;
+                    width = 8;
+                    padding_char = '0';
                 case 'x':
                     if (modifier == 1) {
-                        ltoa(va_arg(args, long int), buf, 16);
+                        lutoa(va_arg(args, unsigned long int), buf, 16);
                     } else if (modifier == 0) {
-                        itoa(va_arg(args, int), buf, 16);
+                        utoa(va_arg(args, unsigned int), buf, 16);
                     } else if (modifier == -1) {
-                        htoa((short int)va_arg(args, int), buf, 16);
+                        hutoa((unsigned short int)va_arg(args, unsigned int), buf, 16);
                     }
 
                     buf_len = strlen(buf);
@@ -365,21 +425,23 @@ int vsprintf(char *str, const char *format, va_list args) {
                     break;
             }
 
-            curr_mod = 0;
-            modifier = 0;
-            padding = false;
-            width = 0;
+            curr_mod         = 0;
+            modifier         = 0;
+            padding          = false;
+            width            = 0;
             precision_toggle = false;
-            precision = 0;
+            precision        = 0;
         } else {
             *str = *format;
             str++;
         }
 
+        ret += str - old_str;
+
         format++;
     }
 
-    return 0;
+    return ret;
 }
 
 int scanf(const char *format, ...) {

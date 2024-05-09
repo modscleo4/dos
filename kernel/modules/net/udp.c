@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include "../../debug.h"
 #include "../../bits.h"
 
@@ -57,9 +58,9 @@ bool udp_send_packet(ethernet_driver *driver, uint8_t source_ip[4], uint16_t sou
     dbgprint("udp_send_packet\n");
     udp_packet packet;
     memset(&packet, 0, sizeof(udp_packet));
-    packet.source_port = switch_endian_16(source_port);
-    packet.destination_port = switch_endian_16(destination_port);
-    packet.length = switch_endian_16(data_size + sizeof(udp_packet));
+    packet.source_port = htons(source_port);
+    packet.destination_port = htons(destination_port);
+    packet.length = htons(data_size + sizeof(udp_packet));
     packet.checksum = udp_calculate_checksum(&packet, source_ip, destination_ip, data, data_size);
 
     return ipv4_send_packet(driver, source_ip, destination_ip, IP_PROTOCOL_UDP, &packet, sizeof(udp_packet), data, data_size);
@@ -84,11 +85,11 @@ void udp_receive_packet(ethernet_driver *driver, ipv4_packet *ipv4_packet, udp_p
     }
 
     dbgprint("udp_receive_packet\n");
-    uint16_t port = switch_endian_16(packet->destination_port);
+    uint16_t port = ntohs(packet->destination_port);
     uint16_t checksum = packet->checksum;
 
     packet->checksum = 0;
-    if (checksum != udp_calculate_checksum(packet, ipv4_packet->source_ip, ipv4_packet->destination_ip, data, switch_endian_16(packet->length) - sizeof(udp_packet))) {
+    if (checksum != udp_calculate_checksum(packet, ipv4_packet->source_ip, ipv4_packet->destination_ip, data, ntohs(packet->length) - sizeof(udp_packet))) {
         dbgprint("udp_receive_packet: checksum failed\n");
         return;
     }
@@ -96,6 +97,6 @@ void udp_receive_packet(ethernet_driver *driver, ipv4_packet *ipv4_packet, udp_p
 
     if (udp_listeners[port]) {
         udp_listener listener = udp_listeners[port];
-        listener(driver, data, switch_endian_16(packet->length) - sizeof(udp_packet));
+        listener(driver, data, ntohs(packet->length) - sizeof(udp_packet));
     }
 }

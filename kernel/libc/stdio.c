@@ -1,8 +1,10 @@
-#include <stdbool.h>
 #include <stdio.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "../bits.h"
 #include "../drivers/keyboard.h"
 #include "../drivers/screen.h"
@@ -40,57 +42,86 @@ int putchar(char c) {
     return screen_write(c);
 }
 
-int read(int fd, void *buf, int size) {
-    if (fd != STDIN_FILENO) {
-        return -1;
+int read(file_descriptor *fd, void *buf, int size) {
+    if (!fd->access.read) {
+        return -EACCES;
     }
 
-    char *_buf = (char *)buf;
+    if (!fd->used) {
+        return -EBADFD;
+    }
 
-    int i;
-    for (i = 0; i < size;) {
-        _buf[i] = getchar();
-        if (_buf[i] == EOF) {
-            break;
-        }
+    if (fd->type == S_IFCHR && fd->tty && fd->tty_canon) {
+        char *_buf = (char *)buf;
 
-        if (_buf[i] == '\b') {
-            if (i > 0) {
-                putchar(_buf[i]);
-                i--;
+        int i;
+        for (i = 0; i < size;) {
+            _buf[i] = getchar();
+            if (_buf[i] == EOF) {
+                break;
             }
 
-            continue;
+            if (_buf[i] == '\b') {
+                if (i > 0) {
+                    putchar(_buf[i]);
+                    i--;
+                }
+
+                continue;
+            }
+
+            putchar(_buf[i]);
+
+            if (_buf[i] == '\n') {
+                _buf[i] = 0;
+                break;
+            }
+
+            i++;
         }
 
-        putchar(_buf[i]);
-
-        if (_buf[i] == '\n') {
-            _buf[i] = 0;
-            break;
+        return i;
+    } else if (fd->type == S_IFREG) {
+        int ret = fd->fs->read(fd->io, fd->fs, &fd->st, buf, size, fd->offset);
+        if (ret > 0) {
+            fd->offset += ret;
         }
 
-        i++;
+        return ret;
+    } else if (fd->type == S_IFDIR) {
+        return -EISDIR;
     }
 
-    return i;
+    return -EBADFD;
 }
 
-int write(int fd, const void *buf, int size) {
-    if (fd != STDOUT_FILENO) {
-        return -1;
+int write(file_descriptor *fd, const void *buf, int size) {
+    if (!fd->access.write) {
+        return -EACCES;
     }
 
-    char *_buf = (char *)buf;
+    if (!fd->used) {
+        return -EBADFD;
+    }
 
-    int i;
-    for (i = 0; i < size; i++) {
-        if (putchar(_buf[i]) == EOF) {
-            break;
+    if (fd->type == S_IFCHR && fd->tty) {
+        char *_buf = (char *)buf;
+
+        int i;
+        for (i = 0; i < size; i++) {
+            if (putchar(_buf[i]) == EOF) {
+                break;
+            }
         }
+
+        return i;
+    } else if (fd->type == S_IFREG) {
+        return fd->fs->write(fd->io, fd->fs, &fd->st, (void *)buf, size, fd->offset);
+    } else if (fd->type == S_IFDIR) {
+        return -EISDIR;
     }
 
-    return i;
+    return -EBADFD;
 }
 
 static int _puts(const char *str) {

@@ -5,12 +5,14 @@
 #include "../cpu/panic.h"
 #include "../debug.h"
 
-static spinlock locks[16];
+#define MAX_SPINLOCK 16
+
+static spinlock locks[MAX_SPINLOCK];
 static volatile int lock_index = 0;
 
 spinlock *spinlock_init(void) {
-    if (lock_index >= 16) {
-        panic("spinlock_init: too many locks");
+    if (lock_index >= MAX_SPINLOCK) {
+        panic("too many locks");
     }
 
     spinlock *lock = &locks[lock_index++];

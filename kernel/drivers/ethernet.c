@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include "eth/e1000.h"
 #include "eth/ne2k.h"
 #include "../bits.h"
@@ -17,6 +18,7 @@
 ethernet_driver *eth[2];
 
 static void ethernet_handler(registers *r, uint32_t int_no) {
+    dbgprint("ethernet_handler: %d\n", int_no);
     for (int i = 0; i < 2; i++) {
         if (!eth[i]) {
             continue;
@@ -87,19 +89,19 @@ void ethernet_init(pci_device *device, pci_header *header, uint8_t bus, uint8_t 
     dhcp_init(driver);
 }
 
-void ethernet_send_packet(ethernet_driver *driver, uint8_t destination_mac[6], uint16_t ethertype, void *data, size_t data_size) {
+void ethernet_send_packet(ethernet_driver *driver, uint8_t destination_mac[6], enum EtherType ethertype, void *data, size_t data_size) {
     ethernet_packet eth_packet;
     memcpy(eth_packet.header.source_mac, driver->mac, 6);
     memcpy(eth_packet.header.destination_mac, destination_mac, 6);
-    eth_packet.header.ethertype = switch_endian_16(ethertype);
+    eth_packet.header.ethertype = htons(ethertype);
     eth_packet.data = data;
 
     driver->write(driver, &eth_packet, data_size);
 }
 
 void ethernet_process_packet(ethernet_driver *driver, ethernet_packet *packet, size_t data_size) {
-    dbgprint("ethernet_process_packet: %db\n", data_size);
-    switch (switch_endian_16(packet->header.ethertype)) {
+    dbgprint("ethernet_process_packet: %dB, %x\n", data_size, ntohs(packet->header.ethertype));
+    switch (ntohs(packet->header.ethertype)) {
         case ETHERTYPE_ARP:
             arp_receive_packet(driver, (arp_packet *) packet->data);
             break;

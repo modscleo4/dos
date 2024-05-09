@@ -114,6 +114,30 @@ void *heap_alloc(heap *this, size_t size) {
     return NULL;
 }
 
+size_t heap_allocated_size(heap *this, void *addr) {
+    if (!addr) {
+        return 0;
+    }
+
+    uint32_t x = 0;
+    heap_block *hb;
+
+    for (hb = this->first_block; hb; hb = hb->next) {
+        if ((uintptr_t)addr > (uintptr_t)hb && (uintptr_t)addr < (uintptr_t)hb + sizeof(heap_block) + hb->size) {
+            /* found block */
+            x = (uintptr_t)addr - (uintptr_t)&hb[1]; /* get offset to get block */
+            x = x / hb->block_size;                  /* block offset in BM */
+            x = x * hb->block_size;                  /* block offset in bytes */
+            x += (uintptr_t)&hb[1];                  /* add block offset to block start */
+            x = (uintptr_t)addr - x;                 /* get offset from block start */
+            x = hb->block_size - x;                  /* get bytes left in block */
+            return x;
+        }
+    }
+
+    return 0;
+}
+
 bool heap_free(heap *this, void *addr) {
     heap_block *hb;
     uintptr_t pointer_offset;

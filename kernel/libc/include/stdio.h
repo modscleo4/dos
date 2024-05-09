@@ -2,6 +2,7 @@
 #define STDIO_H
 
 #include <stdarg.h>
+#include "../../modules/fd.h"
 
 #define EOF (-1)
 
@@ -39,9 +40,9 @@ int getchar(void);
 
 int putchar(char c);
 
-int read(int fd, void *buf, int size);
+int read(file_descriptor *fd, void *buf, int size);
 
-int write(int fd, const void *buf, int size);
+int write(file_descriptor *fd, const void *buf, int size);
 
 int puts(const char *str);
 

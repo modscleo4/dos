@@ -12,6 +12,8 @@ extern char kernel_end_real_addr[];
 
 extern void restore_segment_selector(void);
 
+void kernel_int_wait(void);
+
 void kernel_main(uint32_t magic, uint32_t addr);
 
 #endif //KERNEL_H

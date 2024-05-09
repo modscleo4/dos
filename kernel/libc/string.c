@@ -4,6 +4,7 @@
 #define DEBUG_SERIAL 1
 
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include "../bits.h"
 #include "../debug.h"
@@ -15,7 +16,7 @@ void *memcpy(void *restrict destination, const void *restrict source, size_t n) 
 
     if (ISSET_BIT_INT(cpuinfo.edx, CPUID_FEAT_EDX_SSE)) {
         for (i = 0; i < n / 16; i++) {
-            asm volatile (
+            asm volatile(
                 "movdqu (%0), %%xmm0;"
                 "movdqu %%xmm0, (%1);"
                 :
@@ -32,7 +33,7 @@ void *memcpy(void *restrict destination, const void *restrict source, size_t n) 
 
     if (ISSET_BIT_INT(cpuinfo.edx, CPUID_FEAT_EDX_MMX)) {
         for (i = 0; i < n / 8; i++) {
-            asm volatile (
+            asm volatile(
                 "movq (%0), %%mm0;"
                 "movq %%mm0, (%1);"
                 :
@@ -77,11 +78,19 @@ void *memcpy(void *restrict destination, const void *restrict source, size_t n) 
 
 char *strcpy(char *destination, const char *source) {
     size_t len = strlen(source);
-    return strncpy(destination, source, len);
+    memcpy(destination, source, len);
+    destination[len] = 0;
+
+    return destination;
 }
 
 char *strncpy(char *destination, const char *source, size_t n) {
-    memcpy(destination, source, n);
+    size_t len = strlen(source);
+    memcpy(destination, source, len < n ? len : n);
+
+    for (size_t i = len; i < n; i++) {
+        destination[i] = 0;
+    }
 
     destination[n] = 0;
 
@@ -177,7 +186,7 @@ int strncmp(const char *str1, const char *str2, size_t num) {
     return memcmp(str1, str2, num);
 }
 
-void *memchr(void *ptr, int value, size_t num) {
+const void *memchr(const void *ptr, int value, size_t num) {
     unsigned char *ptr_c = (unsigned char *)ptr;
 
     for (int i = 0; i < num; i++) {
@@ -189,8 +198,127 @@ void *memchr(void *ptr, int value, size_t num) {
     return NULL;
 }
 
-char *strchr(char *str, int character) {
+const char *strchr(const char *str, int character) {
     return memchr(str, character, strlen(str) + 1);
+}
+
+size_t strcspn(const char *str1, const char *str2) {
+    size_t i = 0;
+    for (i = 0; str1[i]; i++) {
+        int j = 0;
+        for (j = 0; str2[j]; j++) {
+            if (str1[i] == str2[j]) {
+                break;
+            }
+        }
+
+        if (str2[j]) {
+            break;
+        }
+    }
+
+    return i;
+}
+
+char *strpbrk(const char *str1, const char *str2) {
+    size_t i = 0;
+    for (i = 0; str1[i]; i++) {
+        int j = 0;
+        for (j = 0; str2[j]; j++) {
+            if (str1[i] == str2[j]) {
+                return (char *)&str1[i];
+            }
+        }
+    }
+
+    return NULL;
+}
+
+char *strrchr(const char *str, int character) {
+    size_t i = 0;
+    for (i = strlen(str) - 1; i >= 0; i--) {
+        if (str[i] == character) {
+            return (char *)&str[i];
+        }
+    }
+
+    return NULL;
+}
+
+size_t strspn(const char *str1, const char *str2) {
+    size_t i = 0;
+    for (i = 0; str1[i]; i++) {
+        int j = 0;
+        for (j = 0; str2[j]; j++) {
+            if (str1[i] == str2[j]) {
+                break;
+            }
+        }
+
+        if (!str2[j]) {
+            break;
+        }
+    }
+
+    return i;
+}
+
+char *strstr(const char *str1, const char *str2) {
+    size_t i = 0;
+    for (i = 0; str1[i]; i++) {
+        if (str1[i] == str2[0]) {
+            size_t j = 0;
+            bool found = true;
+            for (j = 0; str2[j]; j++) {
+                if (str1[i + j] != str2[j]) {
+                    found = false;
+                    break;
+                }
+            }
+
+            if (found) {
+                return (char *)&str1[i];
+            }
+        }
+    }
+
+    return NULL;
+}
+
+char *strtok(char *str, const char *delimiters) {
+    static char *last = NULL;
+
+    if (!str) {
+        str = last;
+    }
+
+    if (!str) {
+        return NULL;
+    }
+
+    size_t i = 0;
+    for (i = 0; str[i]; i++) {
+        int j = 0;
+        for (j = 0; delimiters[j]; j++) {
+            if (str[i] == delimiters[j]) {
+                break;
+            }
+        }
+
+        if (delimiters[j]) {
+            break;
+        }
+    }
+
+    if (!str[i]) {
+        last = NULL;
+        return str;
+    }
+
+    str[i] = 0;
+    last = &str[i + 1];
+
+    return str;
 }
 
 size_t strlen(const char *str) {
@@ -206,7 +334,7 @@ void *memset(void *ptr, int value, size_t num) {
     int d0;
     int d1;
 
-    asm volatile (
+    asm volatile(
         "rep stosb"
         : "=&c" (d0), "=&D" (d1)
         : "a" ((uint8_t) value), "1" (ptr), "0" (num)

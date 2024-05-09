@@ -43,6 +43,8 @@ int puts(const char *);
 
 char *gets(char *);
 
+char *fgets(char *, int, FILE *);
+
 int vprintf(const char *, va_list);
 
 int printf(const char *, ...);

@@ -6,6 +6,7 @@
 #include "ip.h"
 #include "../../drivers/ethernet.h"
 
+#pragma pack(push, 1)
 typedef struct tcp_packet {
     uint16_t source_port;
     uint16_t destination_port;
@@ -23,11 +24,12 @@ typedef struct tcp_packet {
         bool urg: 1;
         bool ece: 1;
         bool cwr: 1;
-    } __attribute__((packed)) flags;
+    } flags;
     uint16_t window_size;
     uint16_t checksum;
     uint16_t urgent_pointer;
-} __attribute__((packed)) tcp_packet;
+} tcp_packet;
+#pragma pack(pop)
 
 typedef bool (*tcp_listener)(ethernet_driver *, void *, size_t);
 

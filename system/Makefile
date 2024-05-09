@@ -1,13 +1,18 @@
 BUILD_DIR=../build/system
 
-all: dir sys_init
+all: dir libc bin
 
 dir:
 	mkdir -p $(BUILD_DIR)
-	mkdir -p $(BUILD_DIR)/libc
 
-sys_init:
-	make -C init
+.PHONY: libc bin
+
+libc:
+	make -C libc
+
+bin:
+	make -C bin
 
 clean:
-	make -C init clean
+	make -C libc clean
+	make -C bin clean

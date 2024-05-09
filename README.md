@@ -19,9 +19,15 @@ The Kernel supports Ext2. It can read files and directories. The Kernel cannot w
 
 ### Syscalls
 The Kernel supports syscalls via the `int 0x80` instruction. Currently the following syscalls are supported:
+- `sys_write`
+- `sys_read`
+- `sys_open`
+- `sys_close`
+- `sys_stat`
+- `sys_getpid`
+- `sys_fork`
+- `sys_execve`
 - `sys_exit`
-- `sys_write`: Only supports stdout
-- `sys_read`: Only supports stdin
 
 ### ELF parsing
 The Kernel can parse ELF files and execute them. It can also load debug symbols from itself.
@@ -50,9 +56,10 @@ The Kernel is built on top of a primitive libc. It is located in `kernel/libc`. 
 - [x] ISO9660
 - [ ] x86_64
 - [x] Syscalls
-- [ ] Multitasking
+- [x] Multitasking
 - [x] Virtual Memory
 - [x] ELF parsing
+- [] Dynamic Linking
 - [x] Kernel Modules
 - [x] ACPI
 - [ ] ACPICA
