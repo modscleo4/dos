@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 int main(int argc, char *argv[]) {
     open("/dev/tty1", O_RDONLY); // stdin
@@ -53,8 +54,8 @@ int main(int argc, char *argv[]) {
         printf("I am the child, my PID is %ld\n", pid);
 
         char *exe = "/bin/sh.elf";
-        char *argv[] = {"/bin/sh.elf", NULL};
-        char *envp[] = {NULL};
+        char *argv[] = {"sh.elf", NULL};
+        char *envp[] = {"PATH=/bin", NULL};
 
         printf("executing %s\n", exe);
 
@@ -65,10 +66,10 @@ int main(int argc, char *argv[]) {
         }
     } else {
         printf("I am the parent, child PID is %ld\n", pid);
-
-        while (true) {
-            //
-        }
+        printf("waiting for child to exit\n");
+        int status;
+        waitpid(pid, &status, 0);
+        printf("child exited with status %d\n", status);
     }
 
     return 0;

@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "../bits.h"
 #include "../debug.h"
 #include "../cpu/cpuid.h"
@@ -186,6 +187,42 @@ int strncmp(const char *str1, const char *str2, size_t num) {
     return memcmp(str1, str2, num);
 }
 
+int stricmp(const char *str1, const char *str2) {
+    if (!*str1) {
+        return *str2;
+    }
+
+    if (!*str2) {
+        return -*str1;
+    }
+
+    size_t len_1 = strlen(str1);
+    size_t len_2 = strlen(str2);
+
+    return strincmp(str1, str2, len_1 < len_2 ? len_1 : len_2) || (len_1 < len_2 ? str1[len_1] - str2[len_1] : str1[len_2] - str2[len_2]);
+}
+
+int strincmp(const char *str1, const char *str2, size_t num) {
+    if (!*str1) {
+        return *str2;
+    }
+
+    if (!*str2) {
+        return -*str1;
+    }
+
+    while (num-- > 0) {
+        if (toupper(*str1) != toupper(*str2)) {
+            return *str1 - *str2;
+        }
+
+        str1++;
+        str2++;
+    }
+
+    return 0;
+}
+
 const void *memchr(const void *ptr, int value, size_t num) {
     unsigned char *ptr_c = (unsigned char *)ptr;
 
@@ -342,4 +379,31 @@ void *memset(void *ptr, int value, size_t num) {
     );
 
     return ptr;
+}
+
+void *memsetw(void *ptr, int value, size_t num) {
+    int d0;
+    int d1;
+
+    asm volatile(
+        "rep stosw"
+        : "=&c" (d0), "=&D" (d1)
+        : "a" ((uint16_t) value), "1" (ptr), "0" (num)
+        : "memory"
+    );
+
+    return ptr;
+}
+
+char *strdup(const char *str) {
+    size_t len = strlen(str);
+    char *ret = (char *)malloc(len + 1);
+    if (!ret) {
+        return NULL;
+    }
+
+    memcpy(ret, str, len);
+    ret[len] = 0;
+
+    return ret;
 }

@@ -16,8 +16,9 @@
 #include "../rootfs.h"
 #include "../drivers/filesystem.h"
 #include "../drivers/keyboard.h"
-#include "../drivers/screen.h"
 #include "../drivers/serial.h"
+#include "../drivers/tty.h"
+#include "../drivers/video/framebuffer.h"
 #include "../modules/timer.h"
 #include "../modules/process.h"
 
@@ -38,13 +39,15 @@ static int serial_write_fn(const char *str, ...) {
     return 0;
 }
 
-static void register_dump(int (*write)(const char *format, ...), registers *r) {
+static void register_dump(int (*write)(const char *format, ...), registers *r, process_t *p) {
+    bool user = r->cs & 3;
+
     write("eax: %08lx    ebx: %08lx    ecx: %08lx    edx: %08lx\n", r->eax, r->ebx, r->ecx, r->edx);
     write("esi: %08lx    edi: %08lx    ebp: %08lx    esp: %08lx\n", r->esi, r->edi, r->ebp, r->esp);
     write("eip: %08lx    useresp: %08lx\n", r->eip, r->useresp);
     //write("cr0: %08lx    cr2: %08lx    cr3: %08lx    cr4: %08lx\n", r->cr0, r->cr2, r->cr3, r->cr4);
     write("%-79s\n", "");
-    hexdump(write, (void *)r->esp, 0x40);
+    hexdump(write, user ? (void *)mmu_get_physical_address_pdt(r->useresp, p->pdt) : (void *)r->esp, 0x40);
     write("SEG sltr(index|cd|dpl)     base    limit G D\n");
     write("cs: %04hx", r->cs); read_gdt_segment(write, r->cs);
     write("ds: %04hx", r->ds); read_gdt_segment(write, r->ds);
@@ -93,6 +96,9 @@ static void register_dump(int (*write)(const char *format, ...), registers *r) {
 }
 
 static void panic_handler_varargs(registers *r, const char *file, const int line, const char *msg, va_list args) {
+    process_t *p = process_current();
+    process_disable();
+
     serial_write_fn("\n=================================== PANIC ===================================\n");
     serial_write_str_varargs(SERIAL_COM1, msg, args);
     if (file) {
@@ -100,13 +106,9 @@ static void panic_handler_varargs(registers *r, const char *file, const int line
     }
     if (r) {
         serial_write_fn("\n\n");
-        register_dump(serial_write_fn, r);
+        register_dump(serial_write_fn, r, p);
     }
     serial_write_fn("=============================================================================\n");
-
-    process *p = process_current();
-
-    process_disable();
 
     for (int i = 0; i <= 15; i++) {
         if (i == IRQ_KEYBOARD || i == IRQ_ATA_PRIMARY || i == IRQ_ATA_SECONDARY || i == IRQ_FLOPPY || i == IRQ_PIT) {
@@ -122,26 +124,26 @@ static void panic_handler_varargs(registers *r, const char *file, const int line
 
     char c = r ? 'R' : 'S';
     do {
-        screen_clear();
-        screen_setcolor(COLOR_RED << 4 | COLOR_WHITE);
+        tty_clear(NULL);
+        tty_setcolor(NULL, COLOR_RED << 4 | COLOR_WHITE);
         printf("                                  MVLIRA05 OS                                   \n");
-        screen_setcolor(COLOR_BLACK << 4 | COLOR_WHITE);
+        tty_setcolor(NULL, COLOR_BLACK << 4 | COLOR_WHITE);
         printf("PANIC!\n");
         vprintf(msg, args);
         if (file) {
             printf("\n at %s:%d\n", file, line);
         }
         printf("\n");
-        screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+        tty_setcolor(NULL, COLOR_BLACK << 4 | COLOR_GRAY);
 
         switch (c) {
             default:
             case 'R':
                 if (r) {
-                    screen_gotoxy(0, 4);
+                    tty_gotoxy(NULL, 0, 4);
                     printf("%-79s\n", "");
                     // Print the registers before halting
-                    register_dump(printf, r);
+                    register_dump(printf, r, p);
 
                     break;
                 }
@@ -162,10 +164,10 @@ static void panic_handler_varargs(registers *r, const char *file, const int line
         }
 
         if (interrupts_was_enabled()) {
-            screen_gotoxy(0, -1);
-            screen_setcolor(COLOR_BLUE << 4 | COLOR_WHITE);
+            tty_gotoxy(NULL, 0, -1);
+            tty_setcolor(NULL, COLOR_BLUE << 4 | COLOR_WHITE);
             printf("%-80s", r ? "<R> Registers | <S> Call Stack | <Q> Restart | <P> Power Off." : "<S> Call Stack | <Q> Restart | <P> Power Off.");
-            screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
+            tty_setcolor(NULL, COLOR_BLACK << 4 | COLOR_GRAY);
         }
 
         do {

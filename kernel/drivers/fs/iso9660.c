@@ -10,8 +10,9 @@
 #include "../../bits.h"
 #include "../../debug.h"
 #include "../../modules/bitmap.h"
+#include "../../cpu/panic.h"
 
-static bool iso9660_read_block(iodriver *driver, filesystem *fs, uint32_t lba, uint8_t *buffer, size_t size) {
+static bool iso9660_read_block(iodriver *driver, filesystem *fs, uint32_t lba, uint8_t *buffer) {
     for (size_t i = 0; i < ISO9660_SECTOR_SIZE; i += driver->sector_size) {
         const int MAX_TRIES = 3;
 
@@ -26,65 +27,13 @@ static bool iso9660_read_block(iodriver *driver, filesystem *fs, uint32_t lba, u
                 continue;
             }
 
-            memcpy(buffer + i, driver->io_buffer, size < driver->sector_size ? size : driver->sector_size);
             break;
         }
+
+        memcpy(buffer + i, driver->io_buffer, driver->sector_size);
     }
 
     return true;
-}
-
-void iso9660_init(iodriver *driver, filesystem *fs) {
-    uint8_t *buffer = malloc(ISO9660_SECTOR_SIZE);
-
-    uint32_t sector = 0x10;
-    for (int i = 0; i < 10; i++, sector++) {
-        iso9660_read_block(driver, fs, sector, buffer, ISO9660_SECTOR_SIZE);
-
-        iso9660_volume_descriptor *vol = (iso9660_volume_descriptor *) buffer;
-        switch (vol->type) {
-            case ISO9660_VOLUME_DESCRIPTOR_BOOT_RECORD: {
-                iso9660_boot_record *boot = (iso9660_boot_record *) buffer;
-                dbgprint("Boot record\n");
-
-                dbgprint("\tSystem identifier: %.32s\n", boot->system_id);
-                dbgprint("\tVolume identifier: %.32s\n", boot->id);
-                break;
-            }
-            case ISO9660_VOLUME_DESCRIPTOR_PRIMARY: {
-                iso9660_primary *primary = (iso9660_primary *) buffer;
-                dbgprint("Primary volume descriptor\n");
-
-                dbgprint("\tSystem identifier: %.32s\n", primary->system_id);
-                dbgprint("\tVolume identifier: %.32s\n", primary->volume_id);
-                dbgprint("\tVolume space size: %d\n", primary->volume_space_size);
-                dbgprint("\tVolume set size: %d\n", primary->volume_set_size);
-                dbgprint("\tVolume sequence number: %d\n", primary->volume_sequence_number);
-                dbgprint("\tLogical block size: %d\n", primary->logical_block_size);
-                dbgprint("\tPath table size: %d\n", primary->path_table_size);
-                dbgprint("\tType L path table location: %d\n", primary->type_l_path_table);
-
-                fs->params = malloc(sizeof(iso9660_directory_entry));
-                memcpy(fs->params, &primary->root_directory, sizeof(iso9660_directory_entry));
-                break;
-            }
-            case ISO9660_VOLUME_DESCRIPTOR_SUPPLEMENTARY:
-                dbgprint("Supplementary volume descriptor\n");
-                break;
-            case ISO9660_VOLUME_DESCRIPTOR_PARTITION:
-                dbgprint("Partition volume descriptor\n");
-                break;
-            case ISO9660_VOLUME_DESCRIPTOR_TERMINATOR:
-                dbgprint("Volume descriptor set terminator\n");
-                goto stop;
-            default:
-                dbgprint("Unknown volume descriptor type: %d\n", vol->type);
-                break;
-        }
-    }
-
-stop:
-    free(buffer);
 }
 
 static void iso9660_stat_fill(iodriver *driver, filesystem *fs, const iso9660_directory_entry *f, struct stat *st) {
@@ -114,125 +63,121 @@ static void iso9660_stat_fill(iodriver *driver, filesystem *fs, const iso9660_di
     st->st_private = (void *)f;
 }
 
-int iso9660_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st) {
-    if (path[0] != '/') {
-        // The path should be absolute
-        return -EINVAL;
+void iso9660_init(iodriver *driver, filesystem *fs) {
+    if (!driver || !fs) {
+        return;
     }
 
-    iso9660_directory_entry *dir_entry = (iso9660_directory_entry *)fs->params;
-    iso9660_directory_entry *entry = dir_entry;
-    char *cmp_filename = calloc(256, 1);
+    if (ISO9660_SECTOR_SIZE < driver->sector_size) {
+        panic("Sector size (%d) is too small for drive (%d)\n", ISO9660_SECTOR_SIZE, driver->sector_size);
+    } else if (ISO9660_SECTOR_SIZE % driver->sector_size) {
+        panic("Sector size (%d) is not a multiple of drive sector size (%d)\n", ISO9660_SECTOR_SIZE, driver->sector_size);
+    }
 
-    uint8_t *dir = malloc(ISO9660_SECTOR_SIZE);
+    fs->case_sensitive = true;
 
-    char *fn = malloc(strlen(path) + 1);
-    strcpy(fn, path);
+    uint8_t *buffer = malloc(ISO9660_SECTOR_SIZE);
+
+    uint32_t sector = 0x10;
+    for (int i = 0; i < 10; i++, sector++) {
+        iso9660_read_block(driver, fs, sector, buffer);
+
+        iso9660_volume_descriptor *vol = (iso9660_volume_descriptor *) buffer;
+        switch (vol->type) {
+            case ISO9660_VOLUME_DESCRIPTOR_BOOT_RECORD: {
+                iso9660_boot_record *boot = (iso9660_boot_record *) buffer;
+                dbgprint("Boot record\n");
+
+                dbgprint("\tSystem identifier: %.32s\n", boot->system_id);
+                dbgprint("\tVolume identifier: %.32s\n", boot->id);
+                break;
+            }
+            case ISO9660_VOLUME_DESCRIPTOR_PRIMARY: {
+                iso9660_primary *primary = (iso9660_primary *) buffer;
+                dbgprint("Primary volume descriptor\n");
+
+                dbgprint("\tSystem identifier: %.32s\n", primary->system_id);
+                dbgprint("\tVolume identifier: %.32s\n", primary->volume_id);
+                dbgprint("\tVolume space size: %d\n", primary->volume_space_size);
+                dbgprint("\tVolume set size: %d\n", primary->volume_set_size);
+                dbgprint("\tVolume sequence number: %d\n", primary->volume_sequence_number);
+                dbgprint("\tLogical block size: %d\n", primary->logical_block_size);
+                dbgprint("\tPath table size: %d\n", primary->path_table_size);
+                dbgprint("\tType L path table location: %d\n", primary->type_l_path_table);
+
+                fs->params = malloc(sizeof(iso9660_directory_entry));
+                memcpy(fs->params, &primary->root_directory, sizeof(iso9660_directory_entry));
+
+                struct stat *st = calloc(1, sizeof(struct stat));
+                iso9660_stat_fill(driver, fs, (iso9660_directory_entry *)fs->params, st);
+                st->st_ino = 2;
+                fs->rootdir = st;
+
+                break;
+            }
+            case ISO9660_VOLUME_DESCRIPTOR_SUPPLEMENTARY:
+                dbgprint("Supplementary volume descriptor\n");
+                break;
+            case ISO9660_VOLUME_DESCRIPTOR_PARTITION:
+                dbgprint("Partition volume descriptor\n");
+                break;
+            case ISO9660_VOLUME_DESCRIPTOR_TERMINATOR:
+                dbgprint("Volume descriptor set terminator\n");
+                goto stop;
+            default:
+                dbgprint("Unknown volume descriptor type: %d\n", vol->type);
+                break;
+        }
+    }
+
+stop:
+    free(buffer);
+}
+
+int iso9660_stat(iodriver *driver, filesystem *fs, const struct stat *st, const char *path, struct stat *out_st) {
+    iso9660_directory_entry *dir_entry = (iso9660_directory_entry *)st->st_private;
+    struct stat dir = *st;
+
+    if (!strcmp(path, "/")) {
+        if (out_st) {
+            memcpy(out_st, fs->rootdir, sizeof(struct stat));
+        }
+
+        return 0;
+    }
+
+    char *fn = strdup(path);
     char *filename = strtok(fn + 1, "/");
-    bool foundDir = true;
     while (filename && *filename) {
-        dbgprint("Looking for %s\n", filename);
-        if (!foundDir) {
+        dbgprint("Looking for \"%s\"\n", filename);
+        if (!ISSET_BIT_INT(dir.st_mode, S_IFDIR)) {
             // Not a directory
-            free(cmp_filename);
             free(fn);
-            free(dir);
             return -ENOTDIR;
         }
 
-        if (!iso9660_read_block(driver, fs, dir_entry->extent_lba, dir, ISO9660_SECTOR_SIZE)) {
-            free(cmp_filename);
-            free(fn);
-            free(dir);
-            return -EIO;
-        }
-
-        entry = (iso9660_directory_entry *)dir;
-        if (strcmp(filename, ".") == 0) {
-            filename = strtok(NULL, "/");
-            foundDir = ISSET_BIT_INT(entry->flags, ISO9660_DIRECTORY_ENTRY_FLAG_DIRECTORY);
-            if (foundDir) {
-                dir_entry = entry;
+        char name[256];
+        for (size_t i = 0;; i++) {
+            if (iso9660_readdir(driver, fs, &dir, i, name, out_st) < 0) {
+                break;
             }
 
-            goto next;
-        } else if (strcmp(filename, "..") == 0) {
-            // Skip the entry (".")
-            entry = (iso9660_directory_entry *)((uint8_t *)entry + entry->length);
-            foundDir = ISSET_BIT_INT(entry->flags, ISO9660_DIRECTORY_ENTRY_FLAG_DIRECTORY);
-            if (foundDir) {
-                dir_entry = entry;
-            }
-
-            goto next;
-        }
-
-        // Skip the first two entries (".", "..")
-        entry = (iso9660_directory_entry *)((uint8_t *)entry + entry->length);
-        entry = (iso9660_directory_entry *)((uint8_t *)entry + entry->length);
-        while (entry->length != 0) {
-            strcpy(cmp_filename, filename);
-            if (!strstr(filename, ".")) {
-                // Append a dot if there is no extension
-                strcat(cmp_filename, ".");
-            }
-
-            if (!ISSET_BIT_INT(entry->flags, ISO9660_DIRECTORY_ENTRY_FLAG_DIRECTORY)) {
-                // Append a version number if it's a file
-                strcat(cmp_filename, ";1");
-            }
-
-            if (strncmp(entry->name, cmp_filename, entry->name_length) == 0) {
-                foundDir = ISSET_BIT_INT(entry->flags, ISO9660_DIRECTORY_ENTRY_FLAG_DIRECTORY);
-                if (foundDir) {
-                    dir_entry = entry;
-                }
+            if (strcmp(name, filename) == 0) {
+                dir = *out_st;
 
                 goto next;
             }
-
-            entry = (iso9660_directory_entry *)((uint8_t *)entry + entry->length);
         }
 
         // Not found
-        free(cmp_filename);
         free(fn);
-        free(dir);
         return -ENOENT;
 
     next:
         filename = strtok(NULL, "/");
     }
 
-    free(cmp_filename);
-    free(fn);
-
-    iso9660_directory_entry *ret = malloc(sizeof(iso9660_directory_entry));
-    memcpy(ret, entry, sizeof(iso9660_directory_entry));
-
-    free(dir);
-
-    iso9660_stat_fill(driver, fs, ret, st);
-
     return 0;
-}
-
-void *iso9660_load_file(iodriver *driver, filesystem *fs, const struct stat *st) {
-    const iso9660_directory_entry *f = (iso9660_directory_entry *)st->st_private;
-    if (!f) {
-        return NULL;
-    }
-
-    void *addr = malloc_align(f->extent_size, BITMAP_PAGE_SIZE);
-    // iso9660_load_file_at(driver, fs, f, addr);
-    int read_ret = 0;
-    if ((read_ret = iso9660_read(driver, fs, st, addr, f->extent_size, 0)) < 0) {
-        dbgprint("Failed to read file: %d\n", read_ret);
-        free(addr);
-        return NULL;
-    }
-
-    return addr;
 }
 
 int iso9660_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset) {
@@ -258,7 +203,7 @@ int iso9660_read(iodriver *driver, filesystem *fs, const struct stat *st, void *
         size_t to_read = count < ISO9660_SECTOR_SIZE ? count : ISO9660_SECTOR_SIZE;
         dbgprint("Reading %d bytes at offset %d\n", to_read, offset + i);
 
-        if (!iso9660_read_block(driver, fs, f->extent_lba + ((offset + i) / ISO9660_SECTOR_SIZE), buffer, ISO9660_SECTOR_SIZE)) {
+        if (!iso9660_read_block(driver, fs, f->extent_lba + ((offset + i) / ISO9660_SECTOR_SIZE), buffer)) {
             free(buffer);
             return -EIO;
         }
@@ -288,7 +233,7 @@ int iso9660_write(iodriver *driver, filesystem *fs, const struct stat *st, void 
 int iso9660_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t index, char *name, struct stat *out_st) {
     iso9660_directory_entry *dir_entry = (iso9660_directory_entry *) st->st_private;
     uint8_t *dir = malloc(ISO9660_SECTOR_SIZE);
-    if (!iso9660_read_block(driver, fs, dir_entry->extent_lba, dir, ISO9660_SECTOR_SIZE)) {
+    if (!iso9660_read_block(driver, fs, dir_entry->extent_lba, dir)) {
         free(dir);
         return -EIO;
     }
@@ -303,15 +248,19 @@ int iso9660_readdir(iodriver *driver, filesystem *fs, const struct stat *st, siz
         entry = (iso9660_directory_entry *)((uint8_t *)entry + entry->length);
     }
 
-    memcpy(name, entry->name, entry->name_length);
-    name[entry->name_length] = '\0';
+    size_t len = entry->name_length;
+    memcpy(name, entry->name, len);
+    name[len] = '\0';
     if (!ISSET_BIT_INT(entry->flags, ISO9660_DIRECTORY_ENTRY_FLAG_DIRECTORY)) {
         // Remove version number
-        name[entry->name_length - 2] = '\0';
-        name[entry->name_length - 1] = '\0';
-    } else if (name[entry->name_length - 1] == '.') {
+        name[len - 2] = '\0';
+        name[len - 1] = '\0';
+        len -= 2;
+    }
+
+    if (name[len - 1] == '.') {
         // Remove trailing dot
-        name[entry->name_length - 1] = '\0';
+        name[len - 1] = '\0';
     }
 
     if (index == 0) {
@@ -326,8 +275,9 @@ int iso9660_readdir(iodriver *driver, filesystem *fs, const struct stat *st, siz
     memcpy(out_entry, entry, sizeof(iso9660_directory_entry));
 
     iso9660_stat_fill(driver, fs, out_entry, out_st);
+    out_st->st_ino = out_entry->extent_lba;
 
     free(dir);
 
-    return 0;
+    return 1;
 }

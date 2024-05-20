@@ -1,9 +1,11 @@
 #ifndef KSTRING_H
 #define KSTRING_H
 
+#include <stddef.h>
+
 typedef struct string_t {
+    size_t len;
     char *str;
-    unsigned int len;
 } string_t;
 
 #endif

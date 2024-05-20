@@ -10,20 +10,19 @@
 #include "../../bits.h"
 #include "../../debug.h"
 #include "../../cpu/panic.h"
+#include "../../drivers/serial.h"
 #include "../../modules/bitmap.h"
 
-static uint8_t *block_buffer;
-
-static bool ext2_read_block(iodriver *driver, filesystem *fs, int block) {
+static bool ext2_read_block(iodriver *driver, filesystem *fs, uint32_t lba, uint8_t *buffer) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
     int block_size = 1024 << superblock->base.log2_block_size;
 
     for (int i = 0; i < block_size; i += driver->sector_size) {
         const int MAX_TRIES = 3;
 
-        for (int try = 1; try <= 3; try++) {
-            if (driver->read_sector(driver, fs->start_lba + block * block_size / driver->sector_size + i / driver->sector_size, block_buffer + i, true)) {
-                dbgprint("Failed to read block %d\n", block);
+        for (int try = 1; try <= MAX_TRIES; try++) {
+            if (driver->read_sector(driver, fs->start_lba + lba * block_size / driver->sector_size + i / driver->sector_size, driver->io_buffer, true)) {
+                dbgprint("Failed to read block %d\n", lba);
 
                 if (try == MAX_TRIES) {
                     return false;
@@ -34,6 +33,8 @@ static bool ext2_read_block(iodriver *driver, filesystem *fs, int block) {
 
             break;
         }
+
+        memcpy(buffer + i, driver->io_buffer, driver->sector_size);
     }
 
     return true;
@@ -44,7 +45,10 @@ static int ext2_read_bgd(iodriver *driver, filesystem *fs, ext2_block_group_desc
     int block_size = 1024 << superblock->base.log2_block_size;
     int bgd_block = block_size == 1024 ? 2 : 1;
 
-    if (!ext2_read_block(driver, fs, bgd_block)) {
+    uint8_t *block_buffer = malloc(block_size);
+
+    if (!ext2_read_block(driver, fs, bgd_block, block_buffer)) {
+        free(block_buffer);
         return -EIO;
     }
 
@@ -56,6 +60,8 @@ static int ext2_read_bgd(iodriver *driver, filesystem *fs, ext2_block_group_desc
     dbgprint("Free blocks: %d\n", bgd->free_blocks);
     dbgprint("Free inodes: %d\n", bgd->free_inodes);
     dbgprint("Directories: %d\n", bgd->directories);
+
+    free(block_buffer);
 
     return 0;
 }
@@ -71,16 +77,20 @@ static int ext2_read_inode(iodriver *driver, filesystem *fs, ext2_inode *inode, 
     ext2_read_bgd(driver, fs, &bgd, block_group);
 
     int block = bgd.inode_table_block + (inode_index * sizeof(ext2_inode)) / block_size;
+    int offset = (inode_index * sizeof(ext2_inode)) % block_size;
     dbgprint("inode: %d\n", index);
     dbgprint("block group: %d\n", block_group);
     dbgprint("inode index: %d\n", inode_index);
     dbgprint("block: %d\n", block);
+    dbgprint("offset: %d\n", offset);
 
-    if (!ext2_read_block(driver, fs, block)) {
+    uint8_t *block_buffer = malloc(block_size);
+    if (!ext2_read_block(driver, fs, block, block_buffer)) {
+        free(block_buffer);
         return -EIO;
     }
 
-    memcpy(inode, block_buffer + (inode_index * sizeof(ext2_inode)), sizeof(ext2_inode));
+    memcpy(inode, block_buffer + offset, sizeof(ext2_inode));
 
     dbgprint("Inode type/permissions: %hx\n", inode->type_permission);
     dbgprint("Inode user ID: %d\n", inode->user_id);
@@ -103,7 +113,30 @@ static int ext2_read_inode(iodriver *driver, filesystem *fs, ext2_inode *inode, 
     dbgprint("Inode size high: %d\n", inode->size_high);
     dbgprint("Inode fragment block address: %d\n", inode->fragment_block_address);
 
+    free(block_buffer);
+
     return 0;
+}
+
+static void ext2_stat_fill(iodriver *driver, filesystem *fs, ext2_inode *f, struct stat *st) {
+    if (!f) {
+        return;
+    }
+
+    st->st_dev = driver->device;
+    st->st_ino = 0;
+    st->st_mode = f->type_permission; // ext2 inode type/permissions are the same as POSIX st_mode
+    st->st_nlink = f->hard_links;
+    st->st_uid = f->user_id;
+    st->st_gid = f->group_id;
+    st->st_rdev = 0;
+    st->st_size = ((!ISSET_BIT_INT(f->type_permission, EXT2_INODE_TYPE_DIRECTORY) ? (uint64_t)f->size_high : 0L) << 32) | f->size;
+    st->st_blksize = 1024 << ((ext2_extended_superblock *)fs->params)->base.log2_block_size;
+    st->st_blocks = f->disk_sectors;
+    st->st_atime = f->last_access_time;
+    st->st_ctime = f->creation_time;
+    st->st_mtime = f->last_modification_time;
+    st->st_private = (void *)f;
 }
 
 void ext2_init(iodriver *driver, filesystem *fs) {
@@ -111,17 +144,29 @@ void ext2_init(iodriver *driver, filesystem *fs) {
 
     ext2_extended_superblock *superblock = malloc(sizeof(ext2_extended_superblock));
 
-    driver->read_sector(driver, fs->start_lba + 2, driver->io_buffer, true);
-    memcpy(superblock, driver->io_buffer, sizeof(ext2_extended_superblock) / 2);
-    driver->read_sector(driver, fs->start_lba + 3, driver->io_buffer, true);
-    memcpy(((uint8_t *)superblock) + sizeof(ext2_extended_superblock) / 2, driver->io_buffer, sizeof(ext2_extended_superblock) / 2);
+    if (driver->sector_size == 512) {
+        driver->read_sector(driver, fs->start_lba + 2, driver->io_buffer, true);
+        memcpy(superblock, driver->io_buffer, sizeof(ext2_extended_superblock) / 2);
+        driver->read_sector(driver, fs->start_lba + 3, driver->io_buffer, true);
+        memcpy(((uint8_t *)superblock) + sizeof(ext2_extended_superblock) / 2, driver->io_buffer, sizeof(ext2_extended_superblock) / 2);
+    } else {
+        driver->read_sector(driver, fs->start_lba + 2, driver->io_buffer, true);
+        memcpy(superblock, driver->io_buffer, sizeof(ext2_extended_superblock));
+    }
 
     if (superblock->base.ext2_signature != EXT2_SIGNATURE) {
         dbgprint("Invalid signature: %x\n", superblock->base.ext2_signature);
         return;
     }
 
+    if ((1024 << superblock->base.log2_block_size) < driver->sector_size) {
+        panic("Sector size (%d) is too small for drive (%d)\n", 1024 << superblock->base.log2_block_size, driver->sector_size);
+    } else if ((1024 << superblock->base.log2_block_size) % driver->sector_size) {
+        panic("Sector size (%d) is not a multiple of block size (%d)\n", 1024 << superblock->base.log2_block_size, driver->sector_size);
+    }
+
     fs->params = superblock;
+    fs->case_sensitive = true;
 
     printf("Volume label is %s\n", superblock->volume_name);
     printf("File system is %s\n", "EXT2");
@@ -139,101 +184,51 @@ void ext2_init(iodriver *driver, filesystem *fs) {
     dbgprint("Blocks per group: %d\n", superblock->base.blocks_per_group);
     dbgprint("Fragments per group: %d\n", superblock->base.fragments_per_group);
     dbgprint("Inodes per group: %d\n", superblock->base.inodes_per_group);
+
+    struct stat *st = calloc(1, sizeof(struct stat));
+    ext2_inode *rootdir_inode = (ext2_inode *)malloc(sizeof(ext2_inode));
+    ext2_read_inode(driver, fs, rootdir_inode, 2);
+    ext2_stat_fill(driver, fs, rootdir_inode, st);
+    st->st_ino = 2;
+    fs->rootdir = st;
 }
 
-static void ext2_stat_fill(iodriver *driver, filesystem *fs, ext2_inode *f, struct stat *st) {
-    if (!f) {
-        return;
-    }
-
-    st->st_dev = driver->device;
-    st->st_ino = 0;
-    st->st_mode = f->type_permission; // ext2 inode type/permissions are the same as POSIX st_mode
-    st->st_nlink = f->hard_links;
-    st->st_uid = f->user_id;
-    st->st_gid = f->group_id;
-    st->st_rdev = 0;
-    st->st_size = ((ISSET_BIT_INT(f->type_permission, EXT2_INODE_TYPE_DIRECTORY) ? (uint64_t)f->size_high : 0L) << 32) | f->size;
-    st->st_blksize = 1024 << ((ext2_extended_superblock *)fs->params)->base.log2_block_size;
-    st->st_blocks = f->disk_sectors;
-    st->st_atime = f->last_access_time;
-    st->st_ctime = f->creation_time;
-    st->st_mtime = f->last_modification_time;
-    st->st_private = (void *)f;
-}
-
-int ext2_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st) {
-    if (path[0] != '/') {
-        // The path should be absolute
-        return -EINVAL;
-    }
-
+int ext2_stat(iodriver *driver, filesystem *fs, const struct stat *st, const char *path, struct stat *out_st) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
-    int block_size = 1024 << superblock->base.log2_block_size;
-    int bgd_block = block_size == 1024 ? 2 : 1;
+    struct stat dir = *st;
 
-    int rootdir_inode_index = 2;
-    uint32_t inode = 0;
+    if (!strcmp(path, "/")) {
+        if (out_st) {
+            memcpy(out_st, fs->rootdir, sizeof(struct stat));
+        }
 
-    ext2_inode rootdir_inode;
-    if (ext2_read_inode(driver, fs, &rootdir_inode, rootdir_inode_index)) {
-        return -EIO;
+        return 0;
     }
 
-    ext2_inode *f = (ext2_inode *)malloc(sizeof(ext2_inode));
-    memcpy(f, &rootdir_inode, sizeof(ext2_inode));
-
-    char *fn = malloc(strlen(path) + 1);
-    strcpy(fn, path);
+    char *fn = strdup(path);
     char *filename = strtok(fn + 1, "/");
     while (filename && *filename) {
         dbgprint("Looking for \"%s\"\n", filename);
-        if (!ISSET_BIT_INT(rootdir_inode.type_permission, EXT2_INODE_TYPE_DIRECTORY)) {
+        if (!ISSET_BIT_INT(dir.st_mode, S_IFDIR)) {
             // Not a directory
-            free(f);
             free(fn);
             return -ENOTDIR;
         }
 
-        for (int i = 0; i < 12 && rootdir_inode.direct_block_pointers[i]; i++) {
-            int data_block = rootdir_inode.direct_block_pointers[0];
-            int offset = 0;
-            ext2_directory_entry entry;
+        char name[256];
+        for (size_t i = 0;; i++) {
+            if (ext2_readdir(driver, fs, &dir, i, name, out_st) < 0) {
+                break;
+            }
 
-            while (offset < block_size) {
-                if (!ext2_read_block(driver, fs, data_block)) {
-                    free(f);
-                    free(fn);
-                    return -EIO;
-                }
+            if (strcmp(name, filename) == 0) {
+                dir = *out_st;
 
-                memcpy(&entry, &block_buffer[offset], sizeof(ext2_directory_entry));
-
-                char name[256];
-                memcpy(name, entry.name, entry.name_length);
-                name[entry.name_length] = 0;
-
-                if (!strcmp(name, filename)) {
-                    inode = entry.inode;
-                    if (ext2_read_inode(driver, fs, f, entry.inode)) {
-                        free(f);
-                        free(fn);
-                        return -EIO;
-                    }
-
-                    if (ISSET_BIT_INT(f->type_permission, EXT2_INODE_TYPE_DIRECTORY)) {
-                        rootdir_inode = *f;
-                    }
-
-                    goto next;
-                }
-
-                offset += entry.size;
+                goto next;
             }
         }
 
         // Not found
-        free(f);
         free(fn);
         return -ENOENT;
 
@@ -241,29 +236,23 @@ int ext2_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *s
         filename = strtok(NULL, "/");
     }
 
-    free(fn);
-
-    ext2_stat_fill(driver, fs, f, st);
-    st->st_ino = inode;
-
     return 0;
 }
 
-static size_t ext2_read_singly_indirect_block_pointer(iodriver *driver, filesystem *fs, int block_pointer, void *addr, size_t count, size_t offset) {
+static int ext2_read_singly_indirect_block_pointer(iodriver *driver, filesystem *fs, int block_pointer, void *addr, size_t count, size_t offset) {
     ext2_extended_superblock *superblock = (ext2_extended_superblock *)fs->params;
     int block_size = 1024 << superblock->base.log2_block_size;
 
     dbgprint("Reading %ld bytes starting from %ld of singly indirect block pointer %d\n", count, offset, block_pointer);
 
     uint32_t *singly_indirect_block = (uint32_t *)malloc(block_size);
-    if (!ext2_read_block(driver, fs, block_pointer)) {
+    if (!ext2_read_block(driver, fs, block_pointer, (uint8_t *)singly_indirect_block)) {
         free(singly_indirect_block);
-        return -1;
+        return -EIO;
     }
 
-    memcpy(singly_indirect_block, block_buffer, block_size);
-
     size_t bytes_read = 0;
+    uint8_t *block_buffer = malloc(block_size);
     for (int i = offset / block_size / sizeof(uint32_t); i < block_size / sizeof(uint32_t) && count; i++) {
         size_t to_read = count < block_size ? count : block_size;
 
@@ -273,9 +262,10 @@ static size_t ext2_read_singly_indirect_block_pointer(iodriver *driver, filesyst
         }
 
         dbgprint("Reading %ld bytes starting from %ld of data block %d\n", to_read, offset, data_block);
-        if (!ext2_read_block(driver, fs, data_block)) {
+        if (!ext2_read_block(driver, fs, data_block, block_buffer)) {
+            free(block_buffer);
             free(singly_indirect_block);
-            return -1;
+            return -EIO;
         }
 
         size_t off = offset % block_size;
@@ -288,27 +278,21 @@ static size_t ext2_read_singly_indirect_block_pointer(iodriver *driver, filesyst
         count -= to_read;
     }
 
+    free(block_buffer);
     free(singly_indirect_block);
+
+    dbgprint("Read %ld bytes\n", bytes_read);
 
     return bytes_read;
 }
 
-void *ext2_load_file(iodriver *driver, filesystem *fs, const struct stat *st) {
-    ext2_inode *f = (ext2_inode *)st->st_private;
-    if (!f) {
-        return NULL;
-    }
+static int serial_write_fn(const char *str, ...) {
+    va_list args;
+    va_start(args, str);
+    serial_write_str_varargs(SERIAL_COM1, str, args);
+    va_end(args);
 
-    void *addr = malloc_align(f->size, BITMAP_PAGE_SIZE);
-    // ext2_load_file_at(driver, fs, f, addr);
-    int read_ret = 0;
-    if ((read_ret = ext2_read(driver, fs, st, addr, f->size, 0)) < 0) {
-        dbgprint("Failed to read file: %d\n", read_ret);
-        free(addr);
-        return NULL;
-    }
-
-    return addr;
+    return 0;
 }
 
 int ext2_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset) {
@@ -330,11 +314,13 @@ int ext2_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf
     }
 
     size_t bytes_read = 0;
+    uint8_t *block_buffer = malloc(block_size);
     for (int i = offset / block_size; i < 12 && f->direct_block_pointers[i] && count; i++) {
         size_t to_read = count < block_size ? count : block_size;
 
         int data_block = f->direct_block_pointers[i];
-        if (!ext2_read_block(driver, fs, data_block)) {
+        if (!ext2_read_block(driver, fs, data_block, block_buffer)) {
+            free(block_buffer);
             return -EIO;
         }
 
@@ -348,23 +334,28 @@ int ext2_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf
         count -= to_read;
     }
 
-    if (count && f->singly_indirect_block_pointer) {
-        int singly_indirect_block_pointer = f->singly_indirect_block_pointer;
+    free(block_buffer);
 
-        bytes_read += ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, (uint8_t *)buf + bytes_read, count, offset < bytes_read ? 0 : offset - bytes_read);
-        count -= bytes_read;
+    if (count && f->singly_indirect_block_pointer) {
+        uint32_t singly_indirect_block_pointer = f->singly_indirect_block_pointer;
+
+        int r = ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, (uint8_t *)buf + bytes_read, count, offset < bytes_read ? 0 : offset - bytes_read);
+        if (r < 0) {
+            return r;
+        }
+
+        bytes_read += r;
+        count -= r;
     }
 
     if (count && f->doubly_indirect_block_pointer) {
-        int doubly_indirect_block_pointer = f->doubly_indirect_block_pointer;
+        uint32_t doubly_indirect_block_pointer = f->doubly_indirect_block_pointer;
 
         uint32_t *doubly_indirect_block = (uint32_t *)malloc(block_size);
-        if (!ext2_read_block(driver, fs, doubly_indirect_block_pointer)) {
+        if (!ext2_read_block(driver, fs, doubly_indirect_block_pointer, (uint8_t *)doubly_indirect_block)) {
             free(doubly_indirect_block);
             return -EIO;
         }
-
-        memcpy(doubly_indirect_block, block_buffer, block_size);
 
         for (int i = 0; i < block_size / sizeof(uint32_t) && count; i++) {
             uint32_t singly_indirect_block_pointer = doubly_indirect_block[i];
@@ -372,23 +363,27 @@ int ext2_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf
                 break;
             }
 
-            bytes_read += ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, (uint8_t *)buf + bytes_read, count, offset < bytes_read ? 0 : offset - bytes_read);
-            count -= bytes_read;
+            int r = ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, (uint8_t *)buf + bytes_read, count, offset < bytes_read ? 0 : offset - bytes_read);
+            if (r < 0) {
+                free(doubly_indirect_block);
+                return r;
+            }
+
+            bytes_read += r;
+            count -= r;
         }
 
         free(doubly_indirect_block);
     }
 
     if (count && f->triply_indirect_block_pointer) {
-        int triply_indirect_block_pointer = f->triply_indirect_block_pointer;
+        uint32_t triply_indirect_block_pointer = f->triply_indirect_block_pointer;
 
         uint32_t *triply_indirect_block = (uint32_t *)malloc(block_size);
-        if (!ext2_read_block(driver, fs, triply_indirect_block_pointer)) {
+        if (!ext2_read_block(driver, fs, triply_indirect_block_pointer, (uint8_t *)triply_indirect_block)) {
             free(triply_indirect_block);
             return -EIO;
         }
-
-        memcpy(triply_indirect_block, block_buffer, block_size);
 
         for (int i = 0; i < block_size / sizeof(uint32_t) && count; i++) {
             uint32_t doubly_indirect_block_pointer = triply_indirect_block[i];
@@ -397,12 +392,11 @@ int ext2_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf
             }
 
             uint32_t *doubly_indirect_block = (uint32_t *)malloc(block_size);
-            if (!ext2_read_block(driver, fs, doubly_indirect_block_pointer)) {
+            if (!ext2_read_block(driver, fs, doubly_indirect_block_pointer, (uint8_t *)doubly_indirect_block)) {
                 free(doubly_indirect_block);
+                free(triply_indirect_block);
                 return -EIO;
             }
-
-            memcpy(doubly_indirect_block, block_buffer, block_size);
 
             for (int j = 0; j < block_size / sizeof(uint32_t) && count; j++) {
                 uint32_t singly_indirect_block_pointer = doubly_indirect_block[j];
@@ -410,8 +404,15 @@ int ext2_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf
                     break;
                 }
 
-                bytes_read += ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, (uint8_t *)buf + bytes_read, count, offset < bytes_read ? 0 : offset - bytes_read);
-                count -= bytes_read;
+                int r = ext2_read_singly_indirect_block_pointer(driver, fs, singly_indirect_block_pointer, (uint8_t *)buf + bytes_read, count, offset < bytes_read ? 0 : offset - bytes_read);
+                if (r < 0) {
+                    free(doubly_indirect_block);
+                    free(triply_indirect_block);
+                    return r;
+                }
+
+                bytes_read += r;
+                count -= r;
             }
 
             free(doubly_indirect_block);
@@ -440,36 +441,48 @@ int ext2_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t
         return -ENOTDIR;
     }
 
-    int data_block = f->direct_block_pointers[0];
-    int offset = 0;
-    int j = 0;
-    ext2_directory_entry entry;
+    size_t i = 0;
+    size_t j = 0;
+    uint8_t *block_buffer = calloc(2, block_size);
+    while (ext2_read(driver, fs, st, block_buffer, 2 * block_size, i) > 0) {
+        int offset = 0;
+        ext2_directory_entry entry;
 
-    while (offset < block_size) {
-        if (!ext2_read_block(driver, fs, data_block)) {
-            return -EIO;
-        }
+        while (offset < block_size) {
+            memcpy(&entry, block_buffer + offset, sizeof(ext2_directory_entry));
 
-        memcpy(&entry, &block_buffer[offset], sizeof(ext2_directory_entry));
-
-        if (j == index) {
-            strncpy(name, entry.name, entry.name_length);
-
-            ext2_inode *inode = (ext2_inode *)malloc(sizeof(ext2_inode));
-            if (ext2_read_inode(driver, fs, inode, entry.inode)) {
-                free(inode);
-                return -EIO;
+            if (entry.inode == 0) {
+                free(block_buffer);
+                return -ENOENT;
             }
 
-            ext2_stat_fill(driver, fs, inode, out_st);
-            out_st->st_ino = entry.inode;
+            if (j == index) {
+                strncpy(name, entry.name, entry.name_length);
 
-            return 0;
+                ext2_inode *inode = (ext2_inode *)malloc(sizeof(ext2_inode));
+                if (ext2_read_inode(driver, fs, inode, entry.inode)) {
+                    free(inode);
+                    free(block_buffer);
+                    return -EIO;
+                }
+
+                ext2_stat_fill(driver, fs, inode, out_st);
+                out_st->st_ino = entry.inode;
+
+                free(block_buffer);
+
+                return 1;
+            }
+
+            offset += entry.size;
+            j++;
         }
 
-        offset += entry.size;
-        j++;
+        i += block_size;
+        memset(block_buffer, 0, 2 * block_size);
     }
+
+    free(block_buffer);
 
     return -ENOENT;
 }

@@ -58,6 +58,7 @@ void *heap_alloc(heap *this, size_t size) {
 
     /* iterate blocks */
     for (hb = this->first_block; hb; hb = hb->next) {
+        dbgprint("Checking heap block %p\n", hb);
         /* check if block has enough room */
         if (hb->size - (hb->used * hb->block_size) >= size) {
             block_count = hb->size / hb->block_size;
@@ -69,10 +70,17 @@ void *heap_alloc(heap *this, size_t size) {
             dbgprint("  blocks_needed: %d\n", blocks_needed);
             dbgprint("  x: %d, lfb = %d\n", (hb->lfb + 1 >= block_count ? 0 : hb->lfb + 1), hb->lfb);
 
+            bool wrapped = false;
             for (x = (hb->lfb + 1 >= block_count ? 0 : hb->lfb + 1); x != hb->lfb; x++) {
                 /* just wrap around */
                 if (x >= block_count) {
+                    if (wrapped) {
+                        // we have wrapped around twice, no more room
+                        break;
+                    }
+
                     x = 0;
+                    wrapped = true;
                 }
 
                 dbgprint("  bitmap[%d]: %d\n", x, bitmap[x]);

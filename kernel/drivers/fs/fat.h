@@ -96,16 +96,12 @@ typedef struct fat_entry {
 
 void fat_init(iodriver *driver, filesystem *fs);
 
-int fat_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st);
-
-void *fat_load_file(iodriver *driver, filesystem *fs, const struct stat *st);
+int fat_stat(iodriver *driver, filesystem *fs, const struct stat *st, const char *path, struct stat *out_st);
 
 int fat_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
 
 int fat_write(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
 
 int fat_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t index, char *name, struct stat *out_st);
-
-void fat_list_files(iodriver *driver, filesystem *fs);
 
 #endif //FAT_H

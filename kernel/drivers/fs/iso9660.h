@@ -137,9 +137,7 @@ typedef struct iso9660_primary {
 
 void iso9660_init(iodriver *driver, filesystem *fs);
 
-int iso9660_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st);
-
-void *iso9660_load_file(iodriver *driver, filesystem *fs, const struct stat *st);
+int iso9660_stat(iodriver *driver, filesystem *fs, const struct stat *st, const char *path, struct stat *out_st);
 
 int iso9660_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
 

@@ -4,7 +4,7 @@ STATIC_LIB=$(LIB_DIR)/libc.a
 DYNAMIC_LIB=$(LIB_DIR)/libc.so
 
 CC=gcc
-CFLAGS=-ffreestanding -m32 -I ./include -nostdlib -nolibc -nodefaultlibs -Wl,--stack,0x4000 -Wno-packed-bitfield-compat -fno-common -fpic
+CFLAGS=-ffreestanding -m32 -I ./include -nostdlib -nolibc -nodefaultlibs -Wl,--stack,0x4000 -Wno-packed-bitfield-compat -fno-common -fpic -fms-extensions
 LDFLAGS=-m elf_i386 -shared -fpic
 
 ASM_SRCS = $(wildcard *.asm)

@@ -24,6 +24,12 @@ extern FILE *stdin;
 extern FILE *stdout;
 extern FILE *stderr;
 
+enum SeekWhence {
+    SEEK_SET,
+    SEEK_CUR,
+    SEEK_END
+};
+
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2

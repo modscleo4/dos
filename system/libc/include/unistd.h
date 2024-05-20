@@ -13,6 +13,7 @@ int syscall(int, ...);
 ssize_t read(int fd, void *buf, size_t count);
 ssize_t write(int fd, void *buf, size_t count);
 int close(int fd);
+off_t lseek(int fd, off_t offset, int whence);
 pid_t getpid(void);
 pid_t getppid(void);
 pid_t fork(void);

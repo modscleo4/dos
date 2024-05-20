@@ -4,10 +4,8 @@ section .text
 syscall_handler:
     extern run_syscall
     extern __syscall_ret
-    extern mmu_load_kernel_pdt
     extern process_unload
     extern process_reload
-    extern process_switch
 
     cli
     push byte 1
@@ -35,17 +33,12 @@ syscall_handler:
     mov gs, ax
 
     push esp
-    ;call mmu_load_kernel_pdt
     call process_unload; save current process state
     call run_syscall
 
     mov [__syscall_ret], eax
 
     call process_reload; reload new process state
-
-    ;push 0; PID
-    ;call process_switch
-    ;add esp, 4
 
     add esp, 4
 

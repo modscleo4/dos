@@ -9,8 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ring3.h"
 #include "bits.h"
+#include "cmdline.h"
+#include "ring3.h"
 #include "rootfs.h"
 #include "cpu/acpi.h"
 #include "cpu/cpuid.h"
@@ -30,10 +31,11 @@
 #include "drivers/mbr.h"
 #include "drivers/keyboard.h"
 #include "drivers/pci.h"
-#include "drivers/screen.h"
 #include "drivers/serial.h"
+#include "drivers/tty.h"
 #include "drivers/video/framebuffer.h"
 #include "modules/bitmap.h"
+#include "modules/task.h"
 #include "modules/timer.h"
 #include "modules/vfs.h"
 #include "modules/multiboot2.h"
@@ -46,6 +48,9 @@
 #include "modules/net/icmp.h"
 #include "modules/net/tcp.h"
 #include "modules/net/udp.h"
+#include "modules/vfs/dev.h"
+#include "modules/vfs/proc.h"
+#include "modules/vfs/tmp.h"
 
 uint32_t _esp;
 
@@ -81,98 +86,6 @@ static void iodriver_init(unsigned int boot_drive) {
 
     if (rootfs_io.reset && rootfs_io.reset(&rootfs_io)) {
         panic("Failed to reset device");
-    }
-}
-
-static void validate_cmdline_root(const char *cmdline) {
-    // format: root=fdxpy, root=hdxpy, root=cdxpy
-    if (strstr(cmdline, "root=")) { // check if root device is specified
-        char *tmp = strstr(cmdline, "root=") + 5;
-        if (strncmp(tmp, "fd", 2) == 0) { // floppy disk
-            tmp += 2;
-        } else if (strncmp(tmp, "hd", 2) == 0) {
-            tmp += 2;
-        } else if (strncmp(tmp, "cd", 2) == 0) {
-            tmp += 2;
-        } else {
-            goto error;
-        }
-
-        char *start_disk = tmp;
-        if (!isdigit(*start_disk)) { // check if the disk number start with a digit
-            goto error;
-        }
-
-        char *end_disk = start_disk;
-        while (*end_disk && isdigit(*end_disk)) {
-            end_disk++;
-        }
-
-        if (*end_disk != 'p') { // check if there is a partition number
-            goto error;
-        }
-
-        char *start_partition = end_disk + 1;
-        if (!isdigit(*start_partition)) { // check if the partition number start with a digit
-            goto error;
-        }
-
-        char *end_partition = start_partition;
-        while (*end_partition && isdigit(*end_partition)) {
-            end_partition++;
-        }
-
-        // check if there is anything after the partition number that is not a whitespace
-        if (*end_partition != 0 && !isspace(*end_partition)) {
-            goto error;
-        }
-
-        return;
-    }
-
-error:
-    panic("Invalid root device specified");
-}
-
-static void parse_cmdline_root(const char *cmdline, int *drive, int *partition) {
-    validate_cmdline_root(cmdline);
-
-    char *tmp = strstr(cmdline, "root=");
-    if (tmp) {
-        tmp += 5;
-        // format: root=fdxpy, root=hdxpy, root=cdxpy
-        if (strncmp(tmp, "fd", 2) == 0) {
-            *drive = 0;
-            tmp += 2;
-        } else if (strncmp(tmp, "hd", 2) == 0) {
-            *drive = 0x80;
-            tmp += 2;
-        } else if (strncmp(tmp, "cd", 2) == 0) {
-            *drive = 0xE0;
-            tmp += 2;
-        }
-
-        char *end = tmp;
-        while (*end && *end != 'p') {
-            end++;
-        }
-
-        char tmp2 = tmp[end - tmp];
-        tmp[end - tmp] = 0;
-        *drive += strtol(tmp, NULL, 10);
-        tmp[end - tmp] = tmp2;
-
-        tmp = end + 1;
-
-        end = tmp;
-        while (*end && !isspace(*end)) {
-            end++;
-        }
-
-        tmp2 = tmp[end - tmp];
-        tmp[end - tmp] = 0;
-        *partition = strtol(tmp, NULL, 10);
-        tmp[end - tmp] = tmp2;
     }
 }
 
@@ -237,7 +150,11 @@ static void alloctest(void) {
     free(arr);
 }
 
-static void memtest(void) {
+static void memtest(const char *boot_cmdline) {
+    if (!parse_cmdline_memtest(boot_cmdline)) {
+        return;
+    }
+
     dbgprint("Requesting all available memory...\n");
     size_t max_pages = bitmap_total_pages();
     uintptr_t *pages = calloc(max_pages, sizeof(uintptr_t));
@@ -250,7 +167,11 @@ static void memtest(void) {
         if (!pages[i]) {
             break;
         }
+
+        dbgprint_noinfo(".");
     }
+
+    dbgprint_noinfo("\n");
 
     dbgprint("Freeing all allocated memory...\n");
     for (size_t i = 0; i < max_pages; i++) {
@@ -259,28 +180,39 @@ static void memtest(void) {
         }
 
         bitmap_free_pages((void *)pages[i], 1);
+
+        dbgprint_noinfo(".");
     }
+
+    dbgprint_noinfo("\n");
 
     free(pages);
 }
 
 void kernel_int_wait(void) {
-    //dbgprint("Waiting for interrupts...\n");
+    // dbgprint("Waiting for interrupts...\n");
     interrupts_reenable();
     while (true) {
+        process_t *init = process_by_pid(1);
+        if (!init || init->state == PROCESS_ZOMBIE) {
+            process_disable();
+            panic("init process died");
+        }
+
+        task_t *task = task_pop();
+        if (!task) {
+            goto next;
+        }
+
+        task_execute(task);
+        free(task);
+
+    next:
         asm volatile("hlt");
     }
 }
 
 void kernel_main(uint32_t magic, uint32_t addr) {
-    framebuffer_config fb = {
-        .addr = 0xB8000,
-        .pitch = 160,
-        .width = 80,
-        .height = 25,
-        .bpp = 16,
-        .type = FRAMEBUFFER_TYPE_TEXT,
-    };
     size_t max_ram = 0;
     char *boot_cmdline = "";
     void *acpi_rsdp_addr = NULL;
@@ -316,12 +248,12 @@ void kernel_main(uint32_t magic, uint32_t addr) {
 
             case MULTIBOOT_TAG_TYPE_FRAMEBUFFER: {
                 struct multiboot_tag_framebuffer *fbtag = (struct multiboot_tag_framebuffer *)tag;
-                fb.addr = fbtag->common.framebuffer_addr;
-                fb.pitch = fbtag->common.framebuffer_pitch;
-                fb.width = fbtag->common.framebuffer_width;
-                fb.height = fbtag->common.framebuffer_height;
-                fb.bpp = fbtag->common.framebuffer_bpp;
-                fb.type = fbtag->common.framebuffer_type;
+                fb0.addr   = (void *)fbtag->common.framebuffer_addr;
+                fb0.pitch  = fbtag->common.framebuffer_pitch;
+                fb0.width  = fbtag->common.framebuffer_width;
+                fb0.height = fbtag->common.framebuffer_height;
+                fb0.bpp    = fbtag->common.framebuffer_bpp;
+                fb0.type   = fbtag->common.framebuffer_type;
                 break;
             }
 
@@ -329,7 +261,7 @@ void kernel_main(uint32_t magic, uint32_t addr) {
                 if (!acpi_rsdp_addr) {
                     struct multiboot_tag_old_acpi *acpi = (struct multiboot_tag_old_acpi *)tag;
                     acpi_rsdp_addr = (void *)acpi->rsdp;
-                    dbgprint("ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
+                    serial_write_str(SERIAL_COM1, "ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
                 }
                 break;
             }
@@ -337,7 +269,7 @@ void kernel_main(uint32_t magic, uint32_t addr) {
             case MULTIBOOT_TAG_TYPE_ACPI_NEW: {
                 struct multiboot_tag_new_acpi *acpi = (struct multiboot_tag_new_acpi *)tag;
                 acpi_rsdp_addr = (void *)acpi->rsdp;
-                dbgprint("ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
+                serial_write_str(SERIAL_COM1, "ACPI RSDP: 0x%x\n", acpi_rsdp_addr);
                 break;
             }
         }
@@ -347,13 +279,12 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     kernel_malloc_init();
 
     // ID Map the framebuffer
-    mmu_map_pages(current_pdt, fb.addr, fb.addr, (fb.width * fb.height * fb.bpp) / 8 / BITMAP_PAGE_SIZE + 1, true, false, true);
+    mmu_map_pages(current_pdt, (uintptr_t)fb0.addr, (uintptr_t)fb0.addr, (fb0.width * fb0.height * fb0.bpp) / 8 / BITMAP_PAGE_SIZE + 1, true, false, true);
 
-    serial_write_str(SERIAL_COM1, "Framebuffer: #%d %dx%dx%d %d @ 0x%x\n", fb.type, fb.width, fb.height, fb.bpp, fb.pitch, fb.addr);
-    screen_init(SCREEN_MODE_FRAMEBUFFER);
-    framebuffer_setup(&fb);
-    framebuffer_init();
-    screen_clear();
+    serial_write_str(SERIAL_COM1, "Framebuffer 0: #%d %dx%dx%d %d @ 0x%x\n", fb0.type, fb0.width, fb0.height, fb0.bpp, fb0.pitch, fb0.addr);
+    framebuffer_setup(&fb0);
+    framebuffer_init(&fb0);
+    tty_init(&fb0);
 
     dbgprint("Boot device: %x:%x\n", boot_drive, boot_partition);
     dbgprint("Available RAM: %d MiB\n", max_ram / 1024);
@@ -395,7 +326,10 @@ void kernel_main(uint32_t magic, uint32_t addr) {
         dbgprint("ACPI not available\n");
     }
 
-    //memtest();
+    memtest(boot_cmdline);
+    dev_init();
+    proc_init();
+    tmp_init();
     process_init();
     udp_init();
     tcp_init();
@@ -404,13 +338,19 @@ void kernel_main(uint32_t magic, uint32_t addr) {
     dbgprint("Reading Master Boot Record...\n");
     fs_init(boot_cmdline);
     vfs_init();
+    vfs_mount(devfs_driver, devfs, "/dev");
+    vfs_mount(procfs_driver, procfs, "/proc");
+    vfs_mount(tmpfs_driver, tmpfs, "/tmp");
+    vfs_describe_file(root_mount, &root_mount->rootdir, 0, true);
 
+#if 0
     if (eth[0] && (eth[0]->ipv4.dns[0] || eth[0]->ipv4.dns[1] || eth[0]->ipv4.dns[2] || eth[0]->ipv4.dns[3])) {
         uint8_t ip[4];
         if (dns_query_ipv4(eth[0], eth[0]->ipv4.dns, "modscleo4.dev.br", ip, 1000)) {
             http_send_request(eth[0], ip, 80, "GET", "/", "modscleo4.dev.br");
         }
     }
+#endif
 
     dbgprint("Starting INIT\n");
     if (system("/bin/init.elf")) {

@@ -80,4 +80,24 @@ page_directory_table *mmu_clone_pdt(page_directory_table *pdt);
 
 void mmu_load_kernel_pdt(void);
 
+void mmu_writeb(page_directory_table *pdt, uintptr_t virt_addr, uint8_t data);
+
+void mmu_writew(page_directory_table *pdt, uintptr_t virt_addr, uint16_t data);
+
+void mmu_writel(page_directory_table *pdt, uintptr_t virt_addr, uint32_t data);
+
+uint8_t mmu_readb(page_directory_table *pdt, uintptr_t virt_addr);
+
+uint16_t mmu_readw(page_directory_table *pdt, uintptr_t virt_addr);
+
+uint32_t mmu_readl(page_directory_table *pdt, uintptr_t virt_addr);
+
+size_t mmu_strlen(page_directory_table *pdt, uintptr_t virt_addr);
+
+void *mmu_memcpy(page_directory_table *pdt, uintptr_t virt_addr, void *dest, size_t n);
+
+char *mmu_strcpy(page_directory_table *pdt, uintptr_t virt_addr, char *dest);
+
+char *mmu_strncpy(page_directory_table *pdt, uintptr_t virt_addr, char *dest, size_t n);
+
 #endif // KERNEL_MMU_H

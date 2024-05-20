@@ -4,6 +4,7 @@
 #define DEBUG_SERIAL 1
 
 #include <string.h>
+#include "tty.h"
 #include "../bits.h"
 #include "../debug.h"
 #include "../cpu/irq.h"
@@ -29,6 +30,8 @@ void keyboard_handler(registers *r, uint32_t int_no) {
 
     if (!ISSET_BIT_INT(scancode, 0x80)) {
         pressed[scancode] = true;
+
+        tty_read_char(NULL, scancode);
     } else {
         pressed[DISABLE_BIT_INT(scancode, 0x80)] = false;
     }

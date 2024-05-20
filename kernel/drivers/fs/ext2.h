@@ -6,6 +6,7 @@
 #include "../iodriver.h"
 #include "../../modules/uuid.h"
 
+#pragma pack(push, 1)
 typedef struct ext2_base_superblock {
     uint32_t inodes;
     uint32_t blocks;
@@ -33,7 +34,9 @@ typedef struct ext2_base_superblock {
     uint16_t user_id;
     uint16_t group_id;
 } ext2_base_superblock;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct ext2_extended_superblock {
     ext2_base_superblock base;
     uint32_t first_non_reserved_inode;
@@ -55,7 +58,9 @@ typedef struct ext2_extended_superblock {
     uint32_t orphan_inode_list;
     uint8_t unused2[788];
 } ext2_extended_superblock;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct ext2_block_group_descriptor {
     uint32_t block_usage_bitmap;
     uint32_t inode_usage_bitmap;
@@ -65,7 +70,9 @@ typedef struct ext2_block_group_descriptor {
     uint16_t directories;
     uint8_t unused[14];
 } ext2_block_group_descriptor;
+#pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct ext2_inode {
     uint16_t type_permission;
     uint16_t user_id;
@@ -89,6 +96,7 @@ typedef struct ext2_inode {
     uint32_t fragment_block_address;
     uint8_t os_specific[12];
 } ext2_inode;
+#pragma pack(pop)
 
 typedef struct ext2_directory_entry {
     uint32_t inode;
@@ -171,9 +179,7 @@ enum Ext2DirectoryEntryType {
 
 void ext2_init(iodriver *driver, filesystem *fs);
 
-int ext2_stat(iodriver *driver, filesystem *fs, const char *path, struct stat *st);
-
-void *ext2_load_file(iodriver *driver, filesystem *fs, const struct stat *st);
+int ext2_stat(iodriver *driver, filesystem *fs, const struct stat *st, const char *path, struct stat *out_st);
 
 int ext2_read(iodriver *driver, filesystem *fs, const struct stat *st, void *buf, size_t count, size_t offset);
 

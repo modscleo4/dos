@@ -2,10 +2,8 @@ BUILD_DIR=build
 BOOTLOADER=$(BUILD_DIR)/bootloader/bootloader
 BIOSPARAMS=$(BUILD_DIR)/bootloader/biosparams
 KERNEL=$(BUILD_DIR)/kernel/kernel.elf
-SYSTEM_LIBC=$(BUILD_DIR)/system/lib/libc.a
-SYSTEM_LIBC_DYN=$(BUILD_DIR)/system/lib/libc.so
-SYSTEM_BIN_INIT=$(BUILD_DIR)/system/bin/init/init.elf
-SYSTEM_BIN_SH=$(BUILD_DIR)/system/bin/sh/sh.elf
+SYSTEM_LIB=$(BUILD_DIR)/system/lib/*.a $(BUILD_DIR)/system/lib/*.so
+SYSTEM_BIN=$(BUILD_DIR)/system/bin/*/*.elf
 FLOPPY_DISK_IMG=floppy_disk.img
 ATA_DISK_IMG=ata_disk.img
 ATA_DISK_EXT2_IMG=ata_disk_ext2.img
@@ -66,12 +64,13 @@ rootfs: kernel system
 	mkdir -p rootfs/lib
 	mkdir -p rootfs/proc
 	mkdir -p rootfs/run
+	mkdir -p rootfs/sys
+	mkdir -p rootfs/tmp
 	mkdir -p rootfs/usr
+	mkdir -p rootfs/var
 	cp $(KERNEL) rootfs
-	cp $(SYSTEM_BIN_INIT) rootfs/bin
-	cp $(SYSTEM_BIN_SH) rootfs/bin
-	cp $(SYSTEM_LIBC) rootfs/lib
-	cp $(SYSTEM_LIBC_DYN) rootfs/lib
+	cp $(SYSTEM_BIN) rootfs/bin
+	cp $(SYSTEM_LIB) rootfs/lib
 	cp -f grub.cfg.example rootfs/boot/grub/grub.cfg
 	cp -f fstab.example rootfs/etc/fstab
 
@@ -119,8 +118,8 @@ ataext2: bootloader_ata_ext2 rootfs grub2_ata
 	dd if=/dev/zero of=$(ATA_DISK_EXT2_IMG) bs=512 count=32256
 	sed -i 's/<rootdevice>/hd0p1/g' rootfs/boot/grub/grub.cfg
 	sed -i 's/<rootdevice>/hd0p1/g' rootfs/etc/fstab
-	mkfs.ext2 -L MARCOSLIRA05 -r 0 -b 4096 $(ATA_DISK_EXT2_IMG)
-	genext2fs -x $(ATA_DISK_EXT2_IMG) -b 4032 -B 4096 -d rootfs -v $(ATA_DISK_EXT2_IMG)
+	mkfs.ext2 -L MARCOSLIRA05 -r 0 -b 2048 $(ATA_DISK_EXT2_IMG)
+	genext2fs -x $(ATA_DISK_EXT2_IMG) -B 2048 -d rootfs -v $(ATA_DISK_EXT2_IMG)
 	dd conv=notrunc if=$(ATA_DISK_EXT2_IMG) of=$(ATA_DISK_IMG) bs=512 count=32256 seek=513
 
 iso9660: rootfs

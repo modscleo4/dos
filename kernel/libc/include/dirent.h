@@ -5,7 +5,9 @@
 
 #define NAME_MAX 256
 
-typedef struct DIR DIR;
+typedef struct DIR {
+    int fd;
+} DIR;
 
 struct dirent {
     ino_t d_ino;             /* Inode number */

@@ -59,7 +59,7 @@ The Kernel is built on top of a primitive libc. It is located in `kernel/libc`. 
 - [x] Multitasking
 - [x] Virtual Memory
 - [x] ELF parsing
-- [] Dynamic Linking
+- [ ] Dynamic Linking
 - [x] Kernel Modules
 - [x] ACPI
 - [ ] ACPICA
@@ -67,7 +67,7 @@ The Kernel is built on top of a primitive libc. It is located in `kernel/libc`. 
 - [x] ATA
 - [x] ATAPI
 - [x] Networking
-- [ ] Virtual File System
+- [x] Virtual File System
 - [ ] Init System
 - [ ] Shell
 - [x] Libc

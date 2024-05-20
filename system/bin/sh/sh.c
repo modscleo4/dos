@@ -1,15 +1,33 @@
 #include "sh.h"
 
+#include <ctype.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+#define MAX_ARGS 10
+
+void sig_handler(int sig) {
+    printf("Signal %x received\n", sig);
+}
 
 int main(int argc, char *argv[]) {
     printf("sh started with %d arguments, UID=%ld, GID=%ld\n", argc, getuid(), getgid());
     for (int i = 0; i < argc; i++) {
-        printf("arg %d: %s\n", i, argv[i]);
+        printf("arg %d: %p=%s\n", i, argv[i], argv[i]);
+    }
+
+    for (int i = 0; i < 32; i++) {
+        if (signal(i, sig_handler) > 0) {
+            printf("Registered signal handler for signal %d\n", i);
+        }
     }
 
     char str[1024];
@@ -17,15 +35,14 @@ int main(int argc, char *argv[]) {
         printf("> ");
         fgets(str, 1024, stdin);
 
-        if (strlen(str) == 0) {
+        if (strlen(str) == 1) {
             continue;
         }
 
-        char *cmd = str;
+        // Remove newline
+        str[strlen(str) - 1] = '\0';
 
-        if (strcmp(str, "ls") == 0) {
-            printf("not implemented\n");
-        } else if (strcmp(str, "exit") == 0) {
+        if (strcmp(str, "exit") == 0) {
             break;
         } else if (strcmp(str, "div0") == 0) {
             printf("%f\n", 0.0F / .0F);
@@ -42,28 +59,37 @@ int main(int argc, char *argv[]) {
                 i++;
             }
         } else if (strncmp(str, "nyx", 3) == 0) {
-            printf("The moment man devoured the fruit of knowledge, he sealed his fate...\n");
-            printf("Entrusting his future to the cards, he clings to a dim hope.\n");
-            printf("Yes, \n");
-            printf("\n");
-            printf("The arcana is the means by which all is revealed... Attaining one's dream requires a stern will and unfailing determination.\n");
-            printf("The arcana is the means by which all is revealed... The silent voice within one's heart whispers the most profound wisdom.\n");
-            printf("The arcana is the means by which all is revealed... Celebrate life's grandeur... its brilliance... its magnificence...\n");
-            printf("The arcana is the means by which all is revealed... Only Courage in the face of doubt can lead one to the answer...\n");
-            printf("The arcana is the means by which all is revealed... It is indeed a precious gift to understand the forces that guides oneself...\n");
-            printf("The arcana is the means by which all is revealed... There is both joy and wonder in coming to understand another...\n");
-            printf("The arcana is the means by which all is revealed... One of life's greatest blessings is the freedom to pursue one's goals...\n");
-            printf("The arcana is the means by which all is revealed... To find the one true path, one must seek guidance amidst uncertainty...\n");
-            printf("The arcana is the means by which all is revealed... It requires great courage to look at oneself honestly, and forge one's own path...\n");
-            printf("The arcana is the means by which all is revealed... Alongside time exists fate, the bearer of cruelty.\n");
-            printf("The arcana is the means by which all is revealed... Only with Strength can one endure suffering and torment.\n");
-            printf("The arcana is the means by which all is revealed... In the face of disaster lies the opportunity for renewal.\n");
-            printf("\n");
-            printf("The moment man devoured the fruit of knowledge, he sealed his fate...\n");
-            printf("Entrusting his future to the cards, he clings to a dim hope.\n");
-            printf("Yet, The arcana is the means by which all is revealed...\n");
-            printf("Beyond the beaten path lies the absolute end.\n");
-            printf("It matters not who you are... Death awaits you.\n");
+            int fd = open("/etc/nyx.txt", O_RDONLY);
+            if (fd < 0) {
+                printf("open failed: %d\n", fd);
+                continue;
+            }
+
+            struct stat st;
+            if (fstat(fd, &st) < 0) {
+                printf("fstat failed\n");
+                close(fd);
+                continue;
+            }
+
+            char *buf = malloc(st.st_blksize);
+            if (buf == NULL) {
+                printf("malloc failed\n");
+                close(fd);
+                continue;
+            }
+
+            int r;
+            while ((r = read(fd, buf, st.st_blksize)) > 0) {
+                write(1, buf, r);
+            }
+
+            if (r < 0) {
+                printf("read failed: %d\n", r);
+            }
+
+            close(fd);
+            free(buf);
         } else if (strncmp(str, "fork", 4) == 0) {
             pid_t pid = fork();
             if (pid == 0) {
@@ -80,8 +106,64 @@ int main(int argc, char *argv[]) {
             if ((r = execve(exe, argv, envp))) {
                 printf("exec failed: %d\n", r);
             }
+        } else if (strncmp(str, "signal ", 7) == 0) {
+            int pid = atoi(str + 7);
+            int sig = 9;
+            int r;
+            printf("Sending signal %d to PID %d\n", sig, pid);
+            if ((r = kill(pid, sig))) {
+                printf("kill failed: %d\n", r);
+            }
         } else {
-            printf("%s: unknown command\n", cmd);
+            char exe[256] = "";
+            // Copy command to exe up to first space
+            int i = 0;
+            while (str[i] != ' ' && str[i] != '\0' && i < 255) {
+                exe[i] = str[i];
+                i++;
+            }
+
+            char tmp[1024] = "";
+            if (exe[0] != '/') {
+                sprintf(tmp, "/bin/%s.elf", exe);
+            } else {
+                sprintf(tmp, "%s.elf", exe);
+            }
+
+            printf("tmp: %s\n", tmp);
+
+            int ret;
+            if ((ret = stat(tmp, NULL)) == 0) {
+                char *argv[MAX_ARGS] = {NULL};
+                char *envp[] = {"PATH=/bin", NULL};
+
+                char *token = strtok(str, " ");
+                int i = 0;
+                while (token != NULL && i < MAX_ARGS) {
+                    if (!strlen(token)) {
+                        goto next;
+                    }
+
+                    argv[i++] = token;
+                    printf("argv[%d]: %s\n", i - 1, token);
+                next:
+                    token = strtok(NULL, " ");
+                }
+
+                pid_t pid = fork();
+                if (pid == 0) {
+                    int r;
+                    if ((r = execve(tmp, argv, envp))) {
+                        printf("exec failed: %d\n", r);
+                    }
+                } else {
+                    int status;
+                    waitpid(pid, &status, 0);
+                    printf("child exited with status %d\n", status);
+                }
+            } else {
+                printf("%s: unknown command (%d)\n", exe, ret);
+            }
         }
     }
 

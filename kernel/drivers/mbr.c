@@ -34,8 +34,8 @@ filesystem *mbr_init(iodriver *driver, unsigned int partition) {
 
         dbgprint("\tStart: %d (%d %d %d)\n", partitions[i].start_lba, partitions[i].start_cylinder, partitions[i].start_head, partitions[i].start_sector);
         dbgprint("\tEnd: %d (%d %d %d)\n", partitions[i].start_lba + partitions[i].size, partitions[i].end_cylinder, partitions[i].end_head, partitions[i].end_sector);
-        dbgprint("\tType: %d\n", partitions[i].type);
-        dbgprint("\tBootable: %d\n", ISSET_BIT_INT(partitions[i].bootable, 0x80));
+        dbgprint("\tType: %X\n", partitions[i].type);
+        dbgprint("\tBootable: %c\n", ISSET_BIT_INT(partitions[i].bootable, 0x80) ? 'Y' : 'N');
     }
 
     return mbr_get_fs(driver, partition);
@@ -50,10 +50,10 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
             return NULL;
         case 0x01: {
             fs->type = FS_FAT12;
+            fs->name = "fat12";
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &fat_init;
             fs->stat = &fat_stat;
-            fs->load_file = &fat_load_file;
             fs->read = &fat_read;
             fs->write = &fat_write;
             fs->readdir = &fat_readdir;
@@ -62,10 +62,10 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
         case 0x04:
         case 0x06: {
             fs->type = FS_FAT16;
+            fs->name = "fat16";
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &fat_init;
             fs->stat = &fat_stat;
-            fs->load_file = &fat_load_file;
             fs->read = &fat_read;
             fs->write = &fat_write;
             fs->readdir = &fat_readdir;
@@ -73,10 +73,10 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
         }
         case 0x83: {
             fs->type = FS_EXT2;
+            fs->name = "ext2";
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &ext2_init;
             fs->stat = &ext2_stat;
-            fs->load_file = &ext2_load_file;
             fs->read = &ext2_read;
             fs->write = &ext2_write;
             fs->readdir = &ext2_readdir;
@@ -85,10 +85,10 @@ filesystem *mbr_get_fs(iodriver *driver, int partition) {
         case 0x96:
         case 0xCD:
             fs->type = FS_ISO9660;
+            fs->name = "iso9660";
             fs->start_lba = partitions[partition].start_lba;
             fs->init = &iso9660_init;
             fs->stat = &iso9660_stat;
-            fs->load_file = &iso9660_load_file;
             fs->read = &iso9660_read;
             fs->write = &iso9660_write;
             fs->readdir = &iso9660_readdir;

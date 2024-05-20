@@ -17,9 +17,11 @@
 #endif
 
 #define dbgprint(...) _dbgprint(__FILE__, __LINE__, __VA_ARGS__)
+#define dbgprint_noinfo(...) _dbgprint(NULL, 0, __VA_ARGS__)
 #define dbgwait() _dbgwait()
 #else
 #define dbgprint(...)
+#define dbgprint_noinfo(...)
 #define dbgwait()
 #endif
 
@@ -38,6 +40,6 @@ void _dbgwait(void);
 
 void hexdump(int(*write)(const char *format, ...), void *ptr, size_t n);
 
-void callstack(uint32_t ebp, process *p);
+void callstack(uint32_t ebp, process_t *p);
 
 #endif // DEBUG_H

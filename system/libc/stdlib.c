@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include <ctype.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -9,18 +10,28 @@
 extern void _init_stdio(void);
 extern int main(int argc, char *argv[]);
 
-volatile void _start(int argc, char *argv[]) {
+volatile void _start(int argc, char *argv[], char *envp[]) {
     _init_stdio();
 
     exit(main(argc, argv));
 }
 
+static int min(int a, int b) {
+    return a < b ? a : b;
+}
+
+static int max(int a, int b) {
+    return a > b ? a : b;
+}
+
+static const char numbase[] = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz";
+
 float atof(const char *str) {
-    return 0.0F;
+    return (float)strtod(str, NULL);
 }
 
 int atoi(const char *str) {
-    return 0;
+    return (int)atol(str);
 }
 
 char *htoa(short int value, char *str, int base) {
@@ -43,14 +54,18 @@ char *ltoa(long int value, char *str, int base) {
 
     rc = ptr = str;
 
-    if (value < 0 && base == 10) {
-        *ptr++ = '-';
+    if (value < 0) {
+        if (base == 10) {
+            *ptr++ = '-';
+        } else {
+            value = -value;
+        }
     }
 
     low = ptr;
 
     do {
-        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + value % base];
+        *ptr++ = numbase[35 + value % base];
         value /= base;
     } while (value);
 
@@ -88,7 +103,7 @@ char *lutoa(unsigned long int value, char *str, int base) {
     low = ptr;
 
     do {
-        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + value % base];
+        *ptr++ = numbase[35 + value % base];
         value /= base;
     } while (value);
 
@@ -155,7 +170,7 @@ char *lftoa(double value, char *str, int precision) {
 }
 
 long int atol(const char *str) {
-    return 0;
+    return strtol(str, NULL, 10);
 }
 
 double strtod(const char *str, char **endptr) {
@@ -163,7 +178,74 @@ double strtod(const char *str, char **endptr) {
 }
 
 long int strtol(const char *str, char **endptr, int base) {
-    return 0;
+    if (base < 0 || base == 1 || base > 36) {
+        if (endptr) {
+            *endptr = (char *)str;
+        }
+
+        return 0;
+    }
+
+    while (isspace(*str)) {
+        str++;
+    }
+
+    int sign = 1;
+    if (*str == '-') {
+        sign = -1;
+        str++;
+    } else if (*str == '+') {
+        str++;
+    }
+
+    if (base == 0) {
+        if (*str == '0') {
+            if (str[1] == 'x' || str[1] == 'X') {
+                base = 16;
+                str += 2;
+            } else {
+                base = 8;
+                str++;
+            }
+        } else {
+            base = 10;
+        }
+    } else if (base == 16) {
+        if (*str == '0' && (str[1] == 'x' || str[1] == 'X')) {
+            str += 2;
+        }
+    }
+
+    if (!*str) {
+        return 0;
+    }
+
+    long int value = 0;
+    while (*str) {
+        int digit = 0;
+        if (*str >= '0' && *str <= '9') {
+            digit = *str - '0';
+        } else if (*str >= 'a' && *str <= 'z') {
+            digit = *str - 'a' + 10;
+        } else if (*str >= 'A' && *str <= 'Z') {
+            digit = *str - 'A' + 10;
+        } else {
+            return 0;
+        }
+
+        if (digit >= base) {
+            return 0;
+        }
+
+        value = value * base + digit;
+        str++;
+    }
+
+    if (endptr) {
+        *endptr = (char *)str;
+    }
+
+    return value * sign;
 }
 
 unsigned long int strtoul(const char *str, char **endptr, int base) {
@@ -178,7 +260,7 @@ void free(void *ptr) {
     //
 }
 
-static uintptr_t last_malloc_addr = 0xB00000;
+static uintptr_t last_malloc_addr = 0xC00000;
 void *malloc(size_t size) {
     uintptr_t addr = last_malloc_addr;
     last_malloc_addr += size;

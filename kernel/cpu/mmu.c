@@ -404,3 +404,186 @@ void mmu_restore_pdt(void) {
         old_pdt = NULL;
     }
 }
+
+void mmu_writeb(page_directory_table *pdt, uintptr_t virt_addr, uint8_t data) {
+    uint32_t pd_index = virt_addr >> 22;
+    uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
+    uint32_t offset = virt_addr & 0xFFF;
+
+    page_directory *pd = &pdt->entries[pd_index];
+    if (!pd->present) {
+        return;
+    }
+
+    page_table *pt = (page_table *)(pd->address << 12);
+
+    page *p = &pt->entries[pt_index];
+    if (!p->present) {
+        return;
+    }
+
+    uint8_t *real_addr = (uint8_t *)((p->address << 12) + offset);
+    *real_addr = data;
+}
+
+void mmu_writew(page_directory_table *pdt, uintptr_t virt_addr, uint16_t data) {
+    uint32_t pd_index = virt_addr >> 22;
+    uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
+    uint32_t offset = virt_addr & 0xFFF;
+
+    page_directory *pd = &pdt->entries[pd_index];
+    if (!pd->present) {
+        return;
+    }
+
+    page_table *pt = (page_table *)(pd->address << 12);
+
+    page *p = &pt->entries[pt_index];
+    if (!p->present) {
+        return;
+    }
+
+    uint16_t *real_addr = (uint16_t *)((p->address << 12) + offset);
+    *real_addr = data;
+}
+
+void mmu_writel(page_directory_table *pdt, uintptr_t virt_addr, uint32_t data) {
+    uint32_t pd_index = virt_addr >> 22;
+    uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
+    uint32_t offset = virt_addr & 0xFFF;
+
+    page_directory *pd = &pdt->entries[pd_index];
+    if (!pd->present) {
+        return;
+    }
+
+    page_table *pt = (page_table *)(pd->address << 12);
+
+    page *p = &pt->entries[pt_index];
+    if (!p->present) {
+        return;
+    }
+
+    uint32_t *real_addr = (uint32_t *)((p->address << 12) + offset);
+    *real_addr = data;
+}
+
+uint8_t mmu_readb(page_directory_table *pdt, uintptr_t virt_addr) {
+    uint32_t pd_index = virt_addr >> 22;
+    uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
+    uint32_t offset = virt_addr & 0xFFF;
+
+    page_directory *pd = &pdt->entries[pd_index];
+    if (!pd->present) {
+        return 0;
+    }
+
+    page_table *pt = (page_table *)(pd->address << 12);
+
+    page *p = &pt->entries[pt_index];
+    if (!p->present) {
+        return 0;
+    }
+
+    uint8_t *real_addr = (uint8_t *)((p->address << 12) + offset);
+    return *real_addr;
+}
+
+uint16_t mmu_readw(page_directory_table *pdt, uintptr_t virt_addr) {
+    uint32_t pd_index = virt_addr >> 22;
+    uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
+    uint32_t offset = virt_addr & 0xFFF;
+
+    page_directory *pd = &pdt->entries[pd_index];
+    if (!pd->present) {
+        return 0;
+    }
+
+    page_table *pt = (page_table *)(pd->address << 12);
+
+    page *p = &pt->entries[pt_index];
+    if (!p->present) {
+        return 0;
+    }
+
+    uint16_t *real_addr = (uint16_t *)((p->address << 12) + offset);
+    return *real_addr;
+}
+
+uint32_t mmu_readl(page_directory_table *pdt, uintptr_t virt_addr) {
+    uint32_t pd_index = virt_addr >> 22;
+    uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
+    uint32_t offset = virt_addr & 0xFFF;
+
+    page_directory *pd = &pdt->entries[pd_index];
+    if (!pd->present) {
+        return 0;
+    }
+
+    page_table *pt = (page_table *)(pd->address << 12);
+
+    page *p = &pt->entries[pt_index];
+    if (!p->present) {
+        return 0;
+    }
+
+    uint32_t *real_addr = (uint32_t *)((p->address << 12) + offset);
+    return *real_addr;
+}
+
+size_t mmu_strlen(page_directory_table *pdt, uintptr_t virt_addr) {
+    size_t len = 0;
+    while (mmu_readb(pdt, virt_addr + len) != '\0') {
+        len++;
+    }
+    return len;
+}
+
+void *mmu_memcpy(page_directory_table *pdt, uintptr_t virt_addr, void *destination, size_t n) {
+    size_t i = 0;
+
+    for (i = 0; i < n / 4; i++) {
+        *(uint32_t *)destination = mmu_readl(pdt, virt_addr);
+
+        virt_addr += 4;
+        destination += 4;
+    }
+
+    n -= i * 4;
+
+    for (i = 0; i < n / 2; i++) {
+        *(uint16_t *)destination = mmu_readw(pdt, virt_addr);
+
+        virt_addr += 2;
+        destination += 2;
+    }
+
+    n -= i * 2;
+
+    uint8_t *c_dest = (uint8_t *)destination;
+    while (n--) {
+        *c_dest++ = mmu_readb(pdt, virt_addr);
+        virt_addr++;
+    }
+}
+
+char *mmu_strcpy(page_directory_table *pdt, uintptr_t virt_addr, char *destination) {
+    size_t len = mmu_strlen(pdt, virt_addr);
+    mmu_memcpy(pdt, virt_addr, destination, len);
+    destination[len] = 0;
+
+    return destination;
+}
+
+char *mmu_strncpy(page_directory_table *pdt, uintptr_t virt_addr, char *destination, size_t n) {
+    size_t len = mmu_strlen(pdt, virt_addr);
+    mmu_memcpy(pdt, virt_addr, destination, len < n ? len : n);
+
+    for (size_t i = len; i < n; i++) {
+        destination[i] = 0;
+    }
+
+    destination[n] = 0;
+
+    return destination;
+}

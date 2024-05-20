@@ -1,8 +1,32 @@
 #ifndef CTYPE_H
 #define CTYPE_H
 
-int toupper(int);
+int isalnum(int c);
 
-int tolower(int);
+int isalpha(int c);
 
-#endif //CTYPE_H
+int isblank(int c);
+
+int iscntrl(int c);
+
+int isdigit(int c);
+
+int isgraph(int c);
+
+int islower(int c);
+
+int isprint(int c);
+
+int ispunct(int c);
+
+int isspace(int c);
+
+int isupper(int c);
+
+int isxdigit(int c);
+
+int toupper(int c);
+
+int tolower(int c);
+
+#endif // CTYPE_H

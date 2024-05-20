@@ -19,6 +19,12 @@ typedef struct iobuf {
     int bufsiz;
 } FILE;
 
+enum SeekWhence {
+    SEEK_SET,
+    SEEK_CUR,
+    SEEK_END
+};
+
 #define _IOREAD 1
 #define _IOWRT  2
 #define _IORW   0x0080

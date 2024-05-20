@@ -163,15 +163,15 @@ void tcp_receive_packet(ethernet_driver *driver, ipv4_packet *ipv4_pkt, tcp_pack
         return;
     }
 
-    if (tcp_listeners[port]) {
+    if (tcp_listeners[port] && data_len > 0) {
         tcp_listener listener = tcp_listeners[port];
         if (listener(driver, data + ((packet->data_offset - 5) * sizeof(uint32_t)), data_len)) {
             // Send ACK
-            tcp_send_packet(driver, driver->ipv4.ip, port, ipv4_pkt->source_ip, ntohs(packet->source_port), ntohl(packet->acknowledgement_number), ntohl(packet->sequence_number) + 1, false, true, false, false, NULL, 0);
+            tcp_send_packet(driver, driver->ipv4.ip, port, ipv4_pkt->source_ip, ntohs(packet->source_port), ntohl(packet->acknowledgement_number), ntohl(packet->sequence_number) + data_len, false, true, false, false, NULL, 0);
         }
     }
 
-    if (packet->flags.fin) {
+    if (packet->flags.fin && !packet->flags.ack) {
         dbgprint("tcp_receive_packet: FIN\n");
         for (int i = 0; i < curr_tcp_syn; i++) {
             if (tcp_syn_cache[i].port == port) {
@@ -180,5 +180,20 @@ void tcp_receive_packet(ethernet_driver *driver, ipv4_packet *ipv4_pkt, tcp_pack
                 break;
             }
         }
+
+        // Send FIN-ACK
+        tcp_send_packet(driver, driver->ipv4.ip, port, ipv4_pkt->source_ip, ntohs(packet->source_port), ntohl(packet->acknowledgement_number), ntohl(packet->sequence_number) + 1, false, true, true, false, NULL, 0);
+    } else if (packet->flags.fin && packet->flags.ack) {
+        dbgprint("tcp_receive_packet: FIN-ACK\n");
+        for (int i = 0; i < curr_tcp_syn; i++) {
+            if (tcp_syn_cache[i].port == port) {
+                tcp_syn_cache[i].syn = false;
+                tcp_syn_cache[i].ack = 0;
+                break;
+            }
+        }
+
+        // Send ACK
+        tcp_send_packet(driver, driver->ipv4.ip, port, ipv4_pkt->source_ip, ntohs(packet->source_port), ntohl(packet->acknowledgement_number), ntohl(packet->sequence_number) + 1, false, true, false, false, NULL, 0);
     }
 }

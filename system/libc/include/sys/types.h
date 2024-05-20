@@ -28,7 +28,7 @@ typedef long pthread_once_t;
 typedef long pthread_rwlock_t;
 typedef long pthread_rwlockattr_t;
 typedef long pthread_t;
-typedef unsigned long ssize_t;
+typedef long ssize_t;
 typedef long suseconds_t;
 typedef long time_t;
 typedef long timer_t;

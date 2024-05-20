@@ -40,6 +40,10 @@ int close(int fd) {
     return syscall(3, fd);
 }
 
+off_t lseek(int fd, off_t offset, int whence) {
+    return syscall(8, fd, offset, whence);
+}
+
 pid_t getpid(void) {
     return syscall(39);
 }

@@ -223,13 +223,13 @@ void ide_read_buffer(uint8_t channel, uint8_t reg, uint16_t *buffer, uint16_t qu
     }
 
     if (reg < 0x08) {
-        insl(ide_channels[channel].base + reg - 0x00, buffer, quads);
+        insl(ide_channels[channel].base + reg - 0x00, (uint32_t *) buffer, quads);
     } else if (reg < 0x0C) {
-        insl(ide_channels[channel].base + reg - 0x06, buffer, quads);
+        insl(ide_channels[channel].base + reg - 0x06, (uint32_t *) buffer, quads);
     } else if (reg < 0x0E) {
-        insl(ide_channels[channel].ctrl + reg - 0x0A, buffer, quads);
+        insl(ide_channels[channel].ctrl + reg - 0x0A, (uint32_t *) buffer, quads);
     } else if (reg < 0x16) {
-        insl(ide_channels[channel].bmide + reg - 0x0E, buffer, quads);
+        insl(ide_channels[channel].bmide + reg - 0x0E, (uint32_t *) buffer, quads);
     }
 
     if (reg > 0x07 && reg < 0x0C) {

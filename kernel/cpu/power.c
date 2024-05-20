@@ -9,13 +9,13 @@
 #include "../debug.h"
 #include "../rootfs.h"
 #include "../drivers/keyboard.h"
-#include "../drivers/screen.h"
+#include "../drivers/video/framebuffer.h"
 
 static void before_shutdown(void) {
     keyboard_clear_buffer();
 
-    screen_setcolor(COLOR_BLACK << 4 | COLOR_GRAY);
-    screen_clear();
+    tty_setcolor(NULL, COLOR_BLACK << 4 | COLOR_GRAY);
+    tty_clear(NULL);
 
     if (rootfs_io.device != -2) {
         rootfs_io.stop(&rootfs_io);

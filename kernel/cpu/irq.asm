@@ -115,10 +115,8 @@ irq15:
 
 irq_common_stub:
     extern irq_handler
-    extern mmu_load_kernel_pdt
     extern process_unload
     extern process_reload
-    extern process_switch
 
     pushad
     push ds
@@ -142,15 +140,10 @@ irq_common_stub:
     mov gs, ax
 
     push esp
-    ;call mmu_load_kernel_pdt
     call process_unload; save current process state
     call irq_handler
 
     call process_reload; reload current process state
-
-    ;push 0; PID
-    ;call process_switch
-    ;add esp, 4
 
     add esp, 4
 

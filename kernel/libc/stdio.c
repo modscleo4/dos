@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -7,7 +8,7 @@
 #include <string.h>
 #include "../bits.h"
 #include "../drivers/keyboard.h"
-#include "../drivers/screen.h"
+#include "../drivers/tty.h"
 #include "../modules/kblayout/kb.h"
 
 FILE *stdin;
@@ -31,15 +32,22 @@ FILE *freopen(const char *filename, const char *mode, FILE *stream) {
 }
 
 int getchar(void) {
-    char ret;
-    while (ISSET_BIT_INT(ret = keyboard_read(), 0x80)) { asm volatile("hlt"); }
-    ret = kblayout[ret];
+    while (tty_chars_ready(NULL) <= 0) {
+        asm volatile("hlt");
+    }
 
-    return ret;
+    char c;
+    if (tty_read(NULL, &c, 1) <= 0) {
+        return EOF;
+    }
+
+    return c;
 }
 
 int putchar(char c) {
-    return screen_write(c);
+    tty_write(NULL, &c, 1);
+
+    return 0;
 }
 
 int read(file_descriptor *fd, void *buf, int size) {
@@ -51,45 +59,47 @@ int read(file_descriptor *fd, void *buf, int size) {
         return -EBADFD;
     }
 
-    if (fd->type == S_IFCHR && fd->tty && fd->tty_canon) {
-        char *_buf = (char *)buf;
-
-        int i;
-        for (i = 0; i < size;) {
-            _buf[i] = getchar();
-            if (_buf[i] == EOF) {
-                break;
+    if (fd->type == S_IFCHR && fd->tty) {
+        if (fd->tty->canon) {
+            while (!tty_canon_has_eol(fd->tty)) {
+                asm volatile("hlt");
             }
-
-            if (_buf[i] == '\b') {
-                if (i > 0) {
-                    putchar(_buf[i]);
-                    i--;
-                }
-
-                continue;
-            }
-
-            putchar(_buf[i]);
-
-            if (_buf[i] == '\n') {
-                _buf[i] = 0;
-                break;
-            }
-
-            i++;
         }
 
-        return i;
+        int ret = tty_read(fd->tty, buf, size);
+        if (ret > 0) {
+            fd->offset += ret;
+        }
+
+        return ret;
+    } else if (fd->type == S_IFCHR && fd->fb) {
+        int ret = framebuffer_write(fd->fb, buf, size, fd->offset);
+        if (ret > 0) {
+            fd->offset += ret;
+        }
+
+        return ret;
     } else if (fd->type == S_IFREG) {
-        int ret = fd->fs->read(fd->io, fd->fs, &fd->st, buf, size, fd->offset);
+        int ret = fd->mount.fs->read(fd->mount.driver, fd->mount.fs, &fd->st, buf, size, fd->offset);
         if (ret > 0) {
             fd->offset += ret;
         }
 
         return ret;
     } else if (fd->type == S_IFDIR) {
-        return -EISDIR;
+        char name[256];
+        struct stat st;
+        int ret = fd->mount.fs->readdir(fd->mount.driver, fd->mount.fs, &fd->st, fd->offset, name, &st);
+        if (ret >= 0) {
+            fd->offset++;
+            struct dirent *d = (struct dirent *)buf;
+            d->d_ino = st.st_ino;
+            d->d_reclen = sizeof(struct dirent) - sizeof(d->d_name) + strlen(name) + 1;
+            d->d_type = st.st_mode;
+            strcpy(d->d_name, name);
+        }
+
+        return ret;
     }
 
     return -EBADFD;
@@ -105,18 +115,21 @@ int write(file_descriptor *fd, const void *buf, int size) {
     }
 
     if (fd->type == S_IFCHR && fd->tty) {
-        char *_buf = (char *)buf;
-
-        int i;
-        for (i = 0; i < size; i++) {
-            if (putchar(_buf[i]) == EOF) {
-                break;
-            }
+        int ret = tty_write(fd->tty, buf, size);
+        if (ret > 0) {
+            fd->offset += ret;
         }
 
-        return i;
+        return ret;
+    } else if (fd->type == S_IFCHR && fd->fb) {
+        int ret = framebuffer_write(fd->fb, buf, size, fd->offset);
+        if (ret > 0) {
+            fd->offset += ret;
+        }
+
+        return ret;
     } else if (fd->type == S_IFREG) {
-        return fd->fs->write(fd->io, fd->fs, &fd->st, (void *)buf, size, fd->offset);
+        return fd->mount.fs->write(fd->mount.driver, fd->mount.fs, &fd->st, (void *)buf, size, fd->offset);
     } else if (fd->type == S_IFDIR) {
         return -EISDIR;
     }
@@ -124,10 +137,8 @@ int write(file_descriptor *fd, const void *buf, int size) {
     return -EBADFD;
 }
 
-static int _puts(const char *str) {
-    if (screen_write_str(str)) {
-        return EOF;
-    }
+static inline int _puts(const char *str) {
+    tty_write(NULL, str, strlen(str));
 
     return 0;
 }
@@ -163,15 +174,15 @@ int printf(const char *format, ...) {
 int vsprintf(char *str, const char *format, va_list args) {
     char buf[1024] = "";
 
-    int modifier = 0;
-    char curr_mod = 0;
-    bool padding = false;
-    char padding_char = 0;
-    int width = 0;
-    size_t buf_len;
-    bool precision_toggle = false;
-    int precision = 0;
-    bool left_align = false;
+    int    modifier         = 0;
+    char   curr_mod         = 0;
+    bool   padding          = false;
+    char   padding_char     = 0;
+    int    width            = 0;
+    size_t buf_len          = 0;
+    bool   precision_toggle = false;
+    int    precision        = 0;
+    bool   left_align       = false;
 
     int ret = 0;
 
@@ -425,12 +436,12 @@ int vsprintf(char *str, const char *format, va_list args) {
                     break;
             }
 
-            curr_mod = 0;
-            modifier = 0;
-            padding = false;
-            width = 0;
+            curr_mod         = 0;
+            modifier         = 0;
+            padding          = false;
+            width            = 0;
             precision_toggle = false;
-            precision = 0;
+            precision        = 0;
         } else {
             *str = *format;
             str++;

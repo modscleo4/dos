@@ -1,7 +1,6 @@
 #include "timer.h"
 
 #define DEBUG 1
-#define DEBUG_TIMER 1
 
 #include <stdio.h>
 #include "bitmap.h"
@@ -12,7 +11,7 @@
 #include "../cpu/irq.h"
 #include "../cpu/pic.h"
 #include "../cpu/system.h"
-#include "../drivers/screen.h"
+#include "../drivers/video/framebuffer.h"
 
 static time t;
 static date d;
@@ -55,7 +54,7 @@ static void timer_irq_handler(registers *r, uint32_t int_no) {
     timer_ticks += 100;
 
     if (timer_ticks % 2000 == 0) {
-        screen_caret();
+        //tty_caret();
     }
 
     if (display_time && timer_ticks % 1000 == 0) {
@@ -63,28 +62,28 @@ static void timer_irq_handler(registers *r, uint32_t int_no) {
         char color;
         int x;
         int y;
-        color = screen_getcolor();
-        screen_getxy(&x, &y);
+        tty_getcolor(NULL, &color);
+        tty_getxy(NULL, &x, &y);
 
-        screen_gotoxy(0, 0);
-        screen_setcolor(COLOR_GREEN << 4 | COLOR_WHITE);
+        tty_gotoxy(NULL, 0, 0);
+        tty_setcolor(NULL, COLOR_GREEN << 4 | COLOR_WHITE);
         printf("Memory: %ld/%ld MiB", bitmap_allocated_pages() * BITMAP_PAGE_SIZE / 1024 / 1024, bitmap_total_pages() * BITMAP_PAGE_SIZE / 1024 / 1024);
 
-        screen_setcolor(COLOR_GRAY << 4 | COLOR_BLACK);
+        tty_setcolor(NULL, COLOR_GRAY << 4 | COLOR_BLACK);
         printf("Ring %d", r->cs & 0x3);
 
-        screen_setcolor(COLOR_RED << 4 | COLOR_BLACK);
+        tty_setcolor(NULL, COLOR_RED << 4 | COLOR_BLACK);
         printf("%p", r->eip);
 
-        screen_setcolor(COLOR_BLUE << 4 | COLOR_GRAY);
+        tty_setcolor(NULL, COLOR_BLUE << 4 | COLOR_GRAY);
         printf("PID: %ld", process_current()->pid);
 
-        screen_gotoxy(-19, 0);
-        screen_setcolor(COLOR_BLUE << 4 | COLOR_GRAY);
+        tty_gotoxy(NULL, -19, 0);
+        tty_setcolor(NULL, COLOR_BLUE << 4 | COLOR_GRAY);
         printf("%02d/%02d/%04d %02d:%02d:%02d", d.day, d.month, d.year, t.hour, t.minute, t.second);
 
-        screen_gotoxy(x, y);
-        screen_setcolor(color);
+        tty_gotoxy(NULL, x, y);
+        tty_setcolor(NULL, color);
     }
 
     if (timer_ticks % 1000 == 0) {
@@ -100,7 +99,7 @@ void timer_wait(int ms) {
 void timer_init(void) {
     rtc_init();
     timer_phase(100);
-    display_time = true;
+    //display_time = true;
     irq_install_handler(IRQ_PIT, timer_irq_handler);
 }
 

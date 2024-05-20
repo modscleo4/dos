@@ -1,6 +1,6 @@
 set timeout=0
 
 menuentry "MVLIRA" {
-    multiboot2 /kernel.elf root=<rootdevice>
+    multiboot2 /kernel.elf root=<rootdevice> memtest=0
     boot
 }

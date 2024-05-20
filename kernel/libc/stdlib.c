@@ -4,6 +4,7 @@
 #define DEBUG_SERIAL 1
 
 #include <ctype.h>
+#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -21,6 +22,7 @@
 #include "../modules/heap.h"
 #include "../modules/process.h"
 #include "../modules/spinlock.h"
+#include "../modules/vfs.h"
 
 static int min(int a, int b) {
     return a < b ? a : b;
@@ -327,7 +329,20 @@ void *malloc(size_t size) {
 
     void *addr = heap_alloc(&kernel_heap, size);
     if (!addr) {
-        heap_add_block(&kernel_heap, mmu_alloc_pages(256), 256 * BITMAP_PAGE_SIZE, 16);
+        size_t pages = 256;
+        while (pages * BITMAP_PAGE_SIZE < size && pages < 4096) {
+            pages *= 2;
+        }
+
+        if (pages >= 4096) {
+            spinlock_unlock(malloc_lock);
+            dbgprint("malloc: could not allocate %d bytes\n", size);
+            return NULL;
+        }
+
+        void *block_addr = mmu_alloc_pages(pages);
+
+        heap_add_block(&kernel_heap, block_addr, pages * BITMAP_PAGE_SIZE, 16);
         addr = heap_alloc(&kernel_heap, size);
     }
 
@@ -385,9 +400,11 @@ char *getenv(const char *name) {
 }
 
 int system(const char *command) {
+    mount_t mount;
     struct stat st;
     int stat_ret = 0;
-    if ((stat_ret = rootfs.stat(&rootfs_io, &rootfs, command, &st))) {
+    if ((stat_ret = vfs_stat(command, root_mount, &root_mount->rootdir.st, &mount, &st))) {
+        dbgprint("Failed to stat %s\n", command);
         return stat_ret;
     }
 
@@ -395,9 +412,9 @@ int system(const char *command) {
     dbgprint("File size: %d bytes\n", elf_file_size);
 
     void *addr;
-    if (!(addr = rootfs.load_file(&rootfs_io, &rootfs, &st))) {
+    if (!(addr = vfs_load_file(&mount, &st))) {
         dbgprint("Could not allocate or load file.\n");
-        return -2;
+        return -ENOMEM;
     }
 
     dbgprint("%s loaded at address 0x%x\n", command, addr);
@@ -405,7 +422,7 @@ int system(const char *command) {
     elf_header_ident *header = (elf_header_ident *) addr;
     if (memcmp(header->magic, elf_magic, 4)) {
         dbgprint("Not an ELF file\n");
-        return -3;
+        return -ENOEXEC;
     }
 
     if (header->version == ELF_ARCH_X86) {
@@ -431,8 +448,9 @@ int system(const char *command) {
         mmu_map_pages(process_page_directory, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
         mmu_map_pages(current_pdt, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
 
-        void *a = bitmap_alloc_page();
-        mmu_map_pages(process_page_directory, (uintptr_t)a, (uintptr_t)0xb00000, 1, true, true, true);
+        // Map 1024 pages for the heap
+        void *heap = bitmap_alloc_contiguous_pages(1024);
+        mmu_map_pages(process_page_directory, (uintptr_t)heap, (uintptr_t)0xc00000, 1024, true, true, true);
 
         // Map the kernel to 0xc0000000 (higher half)
         mmu_copy_kernel_pages(process_page_directory);
@@ -442,7 +460,9 @@ int system(const char *command) {
         dbgprint("Switching to ring 3...\n");
 
         switch_ring3((page_directory_table *)mmu_get_physical_address((uintptr_t)process_page_directory), (void *)(exec_header->entry), (uintptr_t)(0xc0000000 - 0x4));
-    } else if (header->version == ELF_ARCH_X86_64) {
+    }
+#if defined(__x86_64__)
+    else if (header->version == ELF_ARCH_X86_64) {
         elf64_header *exec_header = (elf64_header *) addr;
 
         dbgprint("x86_64 ELF file\n");
@@ -464,6 +484,10 @@ int system(const char *command) {
         mmu_map_pages(process_page_directory, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
         mmu_map_pages(current_pdt, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
 
+        // Map 1024 pages for the heap
+        void *heap = bitmap_alloc_contiguous_pages(1024);
+        mmu_map_pages(process_page_directory, (uintptr_t)heap, (uintptr_t)0xc00000, 1024, true, true, true);
+
         // Map the kernel to 0xc0000000 (higher half)
         mmu_copy_kernel_pages(process_page_directory);
 
@@ -472,9 +496,11 @@ int system(const char *command) {
         dbgprint("Switching to ring 3...\n");
 
         switch_ring3((page_directory_table *)mmu_get_physical_address((uintptr_t)process_page_directory), (void *)(exec_header->entry), (uintptr_t)(0xc0000000 - 0x8));
-    } else {
+    }
+#endif
+    else {
         dbgprint("Unsupported architecture: %x\n", header->version);
-        return -4;
+        return -ENOEXEC;
     }
 
     return 0;
