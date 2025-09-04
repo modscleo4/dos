@@ -22,22 +22,23 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    char buf[1024];
-    size_t to_read = 64;
-    for (int i = 0; i < 1024; i += to_read) {
-        ssize_t l = read(fd, buf + i, to_read);
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        printf("failed to stat %s: %d\n", argv[1], errno);
+        close(fd);
+        return 1;
+    }
+
+    char buf[1025];
+    for (int i = 0; i < st.st_size; i += 1024) {
+        ssize_t l = read(fd, buf, 1024);
         if (l < 0) {
             printf("failed to read %s: %ld\n", argv[1], l);
             return 1;
         }
 
-        if (l < to_read) {
-            buf[i + l] = '\0';
-            break;
-        }
+        printf("%.*s", (int)l, buf);
     }
-
-    buf[1023] = '\0';
 
     close(fd);
 

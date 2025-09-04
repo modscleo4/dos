@@ -2,7 +2,7 @@ BUILD_DIR=../../../build/system/bin/bmp
 BIN=$(BUILD_DIR)/bmp.elf
 
 CC=gcc
-CFLAGS=-ffreestanding -m32 -I ../../libc/include -nostdlib -nolibc -nodefaultlibs -Wl,--stack,0x4000 -Wno-packed-bitfield-compat -fno-common -fms-extensions
+CFLAGS=--std=gnu11 -ffreestanding -m32 -I ../../libc/include -nostdlib -nolibc -nodefaultlibs -Wl,--stack,0x4000 -Wno-packed-bitfield-compat -fno-common -fms-extensions
 LDFLAGS=-m elf_i386 -Bstatic -L $(shell pwd)/../../../build/system/lib -lc
 
 ASM_SRCS = $(wildcard *.asm)

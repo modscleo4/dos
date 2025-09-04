@@ -2,7 +2,7 @@ BUILD_DIR=../build/kernel
 BIN=$(BUILD_DIR)/kernel.elf
 
 CC=gcc
-CFLAGS=-ffreestanding -O0 -g -m32 -I libc/include -fno-pic -fno-omit-frame-pointer -nostdlib -nolibc -nodefaultlibs -Wl,--stack,0x8000 -Wno-packed-bitfield-compat -march=pentium3 -fno-common -fms-extensions
+CFLAGS=--std=gnu11 -ffreestanding -O0 -g -m32 -I libc/include -fno-pic -fno-omit-frame-pointer -nostdlib -nolibc -nodefaultlibs -Wl,--stack,0x8000 -Wno-packed-bitfield-compat -march=pentium3 -fno-common -fms-extensions
 LDFLAGS=-g -m elf_i386 -T kernel.lds
 
 ASM_SRCS = $(wildcard *.asm cpu/*.asm modules/*.asm)

@@ -283,6 +283,8 @@ void process_round_robin(registers *r) {
 
         node = node->next;
     }
+
+    dbgprint("No other process to switch to, staying in process %d\n", current_process->pid);
 }
 
 process_t *process_by_pid(size_t pid) {

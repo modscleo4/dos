@@ -37,18 +37,18 @@ int main(int argc, char *argv[]) {
     }
 
     printf("File type: %c%c\n", bmfh.bfType[0], bmfh.bfType[1]);
-    printf("File size: %lu\n", bmfh.bfSize);
-    printf("RGBQuad offset: %lu\n", bmfh.bfOffBits);
+    printf("File size: %u\n", bmfh.bfSize);
+    printf("RGBQuad offset: %u\n", bmfh.bfOffBits);
 
     BITMAPINFOHEADER bmih;
     read(bitmap_fd, &bmih, sizeof(BITMAPINFOHEADER));
-    printf("Header size: %lu\n", bmih.biSize);
-    printf("Width: %ld\n", bmih.biWidth);
-    printf("Height: %ld\n", bmih.biHeight);
+    printf("Header size: %u\n", bmih.biSize);
+    printf("Width: %d\n", bmih.biWidth);
+    printf("Height: %d\n", bmih.biHeight);
     printf("Planes: %d\n", bmih.biPlanes);
     printf("Bit count: %d\n", bmih.biBitCount);
-    printf("Compression: %lu\n", bmih.biCompression);
-    printf("Image size: %lu\n", bmih.biSizeImage);
+    printf("Compression: %u\n", bmih.biCompression);
+    printf("Image size: %u\n", bmih.biSizeImage);
 
     // Skip to RGBQuad
     lseek(bitmap_fd, 0, SEEK_SET);

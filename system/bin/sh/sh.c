@@ -130,8 +130,6 @@ int main(int argc, char *argv[]) {
                 sprintf(tmp, "%s.elf", exe);
             }
 
-            printf("tmp: %s\n", tmp);
-
             int ret;
             if ((ret = stat(tmp, NULL)) == 0) {
                 char *argv[MAX_ARGS] = {NULL};
@@ -145,7 +143,6 @@ int main(int argc, char *argv[]) {
                     }
 
                     argv[i++] = token;
-                    printf("argv[%d]: %s\n", i - 1, token);
                 next:
                     token = strtok(NULL, " ");
                 }
@@ -159,7 +156,7 @@ int main(int argc, char *argv[]) {
                 } else {
                     int status;
                     waitpid(pid, &status, 0);
-                    printf("child exited with status %d\n", status);
+                    printf("$%d ", status);
                 }
             } else {
                 printf("%s: unknown command (%d)\n", exe, ret);

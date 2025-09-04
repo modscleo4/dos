@@ -97,7 +97,6 @@ static void register_dump(int (*write)(const char *format, ...), registers *r, p
 
 static void panic_handler_varargs(registers *r, const char *file, const int line, const char *msg, va_list args) {
     process_t *p = process_current();
-    process_disable();
 
     serial_write_fn("\n=================================== PANIC ===================================\n");
     serial_write_str_varargs(SERIAL_COM1, msg, args);
@@ -109,6 +108,17 @@ static void panic_handler_varargs(registers *r, const char *file, const int line
         register_dump(serial_write_fn, r, p);
     }
     serial_write_fn("=============================================================================\n");
+
+    if (r && r->cs & 3) {
+        // We were in usermode, crash the offending process instead of the whole system
+        dbgprint("PANIC in userspace, killing process %d\n", p->pid);
+        process_destroy(p, -r->err_code);
+        process_notify_waitpid(p->pid, -r->err_code);
+        process_idle(r);
+        return;
+    }
+
+    process_disable();
 
     for (int i = 0; i <= 15; i++) {
         if (i == IRQ_KEYBOARD || i == IRQ_ATA_PRIMARY || i == IRQ_ATA_SECONDARY || i == IRQ_FLOPPY || i == IRQ_PIT) {

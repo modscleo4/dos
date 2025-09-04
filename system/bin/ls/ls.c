@@ -15,7 +15,6 @@ int main(int argc, char *argv[]) {
     if (argc == 1) {
         d = opendir(".");
     } else {
-        printf("ls: %d, %s\n", argc, argv[1]);
         d = opendir(argv[1]);
     }
 
