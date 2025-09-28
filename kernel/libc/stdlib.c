@@ -400,110 +400,19 @@ char *getenv(const char *name) {
 }
 
 int system(const char *command) {
-    mount_t mount;
-    struct stat st;
-    int stat_ret = 0;
-    if ((stat_ret = vfs_stat(command, root_mount, &root_mount->rootdir.st, &mount, &st))) {
-        dbgprint("Failed to stat %s\n", command);
-        return stat_ret;
-    }
-
-    size_t elf_file_size = st.st_size;
-    dbgprint("File size: %d bytes\n", elf_file_size);
-
-    void *addr;
-    if (!(addr = vfs_load_file(&mount, &st))) {
-        dbgprint("Could not allocate or load file.\n");
+    page_directory_table *process_page_directory = mmu_new_page_directory();
+    process_t *p = process_create((uintptr_t)0x0, (uintptr_t)0x0, process_page_directory, false);
+    if (!p) {
         return -ENOMEM;
     }
 
-    dbgprint("%s loaded at address 0x%x\n", command, addr);
-
-    elf_header_ident *header = (elf_header_ident *) addr;
-    if (memcmp(header->magic, elf_magic, 4)) {
-        dbgprint("Not an ELF file\n");
-        return -ENOEXEC;
+    int ret;
+    if (ret = process_execve(p, NULL, command, (char *const[]){command, NULL}, (char *const[]){"PATH=/bin", NULL})) {
+        return ret;
     }
 
-    if (header->version == ELF_ARCH_X86) {
-        elf32_header *exec_header = (elf32_header *) addr;
-
-        dbgprint("x86 ELF file (%d bytes)\n", elf_file_size);
-        dbgprint("Entry point: %x\n", exec_header->entry);
-
-        page_directory_table *process_page_directory = mmu_new_page_directory();
-        void *process_stack = bitmap_alloc_page();
-
-        elf32_program_header *program_header = (elf32_program_header *)(((void *)exec_header) + exec_header->program_header_offset);
-        for (int i = 1; i <= exec_header->program_header_count; i++) {
-            dbgprint("Program header %d: type=%d, offset=%x, virtual_address=%x, physical_address=%x, file_size=%d, memory_size=%d\n", i, program_header->type, program_header->offset, program_header->virtual_address, program_header->physical_address, program_header->file_size, program_header->memory_size);
-            if (program_header->type == ELF_PT_LOAD) { // map to virtual address
-                mmu_map_pages(process_page_directory, mmu_get_physical_address((uintptr_t)addr + program_header->offset), program_header->virtual_address, program_header->memory_size / BITMAP_PAGE_SIZE + 1, true, true, true);
-            }
-
-            program_header++;
-        }
-
-        // Map the ELF stack to 8 kiB below the kernel
-        mmu_map_pages(process_page_directory, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
-        mmu_map_pages(current_pdt, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
-
-        // Map 1024 pages for the heap
-        void *heap = bitmap_alloc_contiguous_pages(1024);
-        mmu_map_pages(process_page_directory, (uintptr_t)heap, (uintptr_t)0xc00000, 1024, true, true, true);
-
-        // Map the kernel to 0xc0000000 (higher half)
-        mmu_copy_kernel_pages(process_page_directory);
-
-        process_create((uintptr_t)exec_header->entry, (uintptr_t)(0xc0000000 - 0x4), process_page_directory, false);
-
-        dbgprint("Switching to ring 3...\n");
-
-        switch_ring3((page_directory_table *)mmu_get_physical_address((uintptr_t)process_page_directory), (void *)(exec_header->entry), (uintptr_t)(0xc0000000 - 0x4));
-    }
-#if defined(__x86_64__)
-    else if (header->version == ELF_ARCH_X86_64) {
-        elf64_header *exec_header = (elf64_header *) addr;
-
-        dbgprint("x86_64 ELF file\n");
-        dbgprint("Entry point: %x\n", exec_header->entry);
-
-        page_directory_table *process_page_directory = mmu_new_page_directory();
-        void *process_stack = bitmap_alloc_page();
-
-        elf64_program_header *program_header = (elf64_program_header *)(((void *)exec_header) + exec_header->program_header_offset);
-        for (int i = 1; i <= exec_header->program_header_count; i++) {
-            if (program_header->type == ELF_PT_LOAD) { // map to virtual address
-                mmu_map_pages(process_page_directory, mmu_get_physical_address((uintptr_t)addr + program_header->offset), program_header->virtual_address, program_header->memory_size / BITMAP_PAGE_SIZE + 1, true, true, true);
-            }
-
-            program_header++;
-        }
-
-        // Map the ELF stack to 8 kiB below the kernel
-        mmu_map_pages(process_page_directory, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
-        mmu_map_pages(current_pdt, (uintptr_t)process_stack, (uintptr_t)0xc0000000 - 0x1000, 1, true, true, true);
-
-        // Map 1024 pages for the heap
-        void *heap = bitmap_alloc_contiguous_pages(1024);
-        mmu_map_pages(process_page_directory, (uintptr_t)heap, (uintptr_t)0xc00000, 1024, true, true, true);
-
-        // Map the kernel to 0xc0000000 (higher half)
-        mmu_copy_kernel_pages(process_page_directory);
-
-        process_create((uintptr_t)exec_header->entry, (uintptr_t)(0xc0000000 - 0x8), process_page_directory, false);
-
-        dbgprint("Switching to ring 3...\n");
-
-        switch_ring3((page_directory_table *)mmu_get_physical_address((uintptr_t)process_page_directory), (void *)(exec_header->entry), (uintptr_t)(0xc0000000 - 0x8));
-    }
-#endif
-    else {
-        dbgprint("Unsupported architecture: %x\n", header->version);
-        return -ENOEXEC;
-    }
-
-    return 0;
+    // This function does not return
+    switch_ring3(p->pdt, (void *)p->r.eip, p->r.useresp);
 }
 
 void swap(void *a, void *b, size_t size) {

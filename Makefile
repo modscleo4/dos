@@ -118,7 +118,7 @@ ataext2: bootloader_ata_ext2 rootfs grub2_ata
 	dd if=/dev/zero of=$(ATA_DISK_EXT2_IMG) bs=512 count=32256
 	sed -i 's/<rootdevice>/hd0p1/g' rootfs/boot/grub/grub.cfg
 	sed -i 's/<rootdevice>/hd0p1/g' rootfs/etc/fstab
-	mkfs.ext2 -L MARCOSLIRA05 -r 0 -b 2048 $(ATA_DISK_EXT2_IMG)
+	mkfs.ext2 -L MARCOSLIRA05 -O none -b 2048 -I 128 $(ATA_DISK_EXT2_IMG)
 	genext2fs -x $(ATA_DISK_EXT2_IMG) -B 2048 -d rootfs -v $(ATA_DISK_EXT2_IMG)
 	dd conv=notrunc if=$(ATA_DISK_EXT2_IMG) of=$(ATA_DISK_IMG) bs=512 count=32256 seek=513
 

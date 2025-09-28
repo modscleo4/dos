@@ -119,6 +119,11 @@ process_t *process_create(uintptr_t entry, uintptr_t stack_base, page_directory_
     node->sig_handles = calloc(NSIG, sizeof(sighandler_t));
     process_fill_sig_handlers(node);
 
+    node->r.cs = (3 * 8) | 3;
+    node->r.ds = (4 * 8) | 3;
+    node->r.es = (4 * 8) | 3;
+    node->r.fs = (4 * 8) | 3;
+    node->r.gs = (4 * 8) | 3;
     node->r.eip = entry;
     node->r.useresp = stack_base;
     node->r.ebp = stack_base;
@@ -395,9 +400,17 @@ int process_execve(process_t *p, registers *r, const char *path, char *const arg
 
         elf32_program_header *program_header = (elf32_program_header *)(((uint8_t *)exec_header) + exec_header->program_header_offset);
         for (int i = 1; i <= exec_header->program_header_count; i++) {
-            dbgprint("Program header %d: type=%d, offset=%x, virtual_address=%x, physical_address=%x, file_size=%d, memory_size=%d\n", i, program_header->type, program_header->offset, program_header->virtual_address, program_header->physical_address, program_header->file_size, program_header->memory_size);
+            dbgprint("Program header %d: type=%d, offset=0x%x, virtual_address=0x%x, physical_address=0x%x, file_size=0x%x, memory_size=0x%x\n", i, program_header->type, program_header->offset, program_header->virtual_address, program_header->physical_address, program_header->file_size, program_header->memory_size);
             if (program_header->type == ELF_PT_LOAD) { // map to virtual address
-                mmu_map_pages(process_page_directory, mmu_get_physical_address((uintptr_t)addr + program_header->offset), program_header->virtual_address, program_header->memory_size / BITMAP_PAGE_SIZE + 1, true, true, true);
+                mmu_map_pages(
+                    process_page_directory,
+                    mmu_get_physical_address((uintptr_t)addr + program_header->offset),
+                    program_header->virtual_address,
+                    ((program_header->virtual_address + program_header->memory_size - 1) / BITMAP_PAGE_SIZE) - (program_header->virtual_address / BITMAP_PAGE_SIZE) + 1,
+                    true,
+                    true,
+                    true
+                );
             }
 
             program_header++;
@@ -483,8 +496,17 @@ int process_execve(process_t *p, registers *r, const char *path, char *const arg
 
         elf64_program_header *program_header = (elf64_program_header *)(((uint8_t *)exec_header) + exec_header->program_header_offset);
         for (int i = 1; i <= exec_header->program_header_count; i++) {
+            dbgprint("Program header %d: type=%d, offset=0x%x, virtual_address=0x%x, physical_address=0x%x, file_size=0x%x, memory_size=0x%x\n", i, program_header->type, program_header->offset, program_header->virtual_address, program_header->physical_address, program_header->file_size, program_header->memory_size);
             if (program_header->type == ELF_PT_LOAD) { // map to virtual address
-                mmu_map_pages(process_page_directory, mmu_get_physical_address((uintptr_t)addr + program_header->offset), program_header->virtual_address, program_header->memory_size / BITMAP_PAGE_SIZE + 1, true, true, true);
+                mmu_map_pages(
+                    process_page_directory,
+                    mmu_get_physical_address((uintptr_t)addr + program_header->offset),
+                    program_header->virtual_address,
+                    ((program_header->virtual_address + program_header->memory_size - 1) / BITMAP_PAGE_SIZE) - (program_header->virtual_address / BITMAP_PAGE_SIZE) + 1,
+                    true,
+                    true,
+                    true
+                );
             }
 
             program_header++;

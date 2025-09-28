@@ -66,6 +66,10 @@ static uint32_t fat_calculate_actual_size(filesystem *fs, const fat_entry *f) {
         invalid = 0xFFF8;
     }
 
+    if (cluster == 0) {
+        return params->rootdir_entries * sizeof(fat_entry);
+    }
+
     while (cluster < invalid) {
         uint32_t fat_offset;
         uint32_t ent_offset;
@@ -382,6 +386,20 @@ int fat_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t 
     fat_entry *entry = malloc(sizeof(fat_entry));
     int dir_sector = rootdir_sector;
     if (f->cluster == 0) { // Root directory
+        if (index == 0) {
+            strncpy(name, ".", 1);
+            fat_stat_fill(driver, fs, f, out_st);
+            out_st->st_ino = f->cluster; // Inode is the cluster number
+            return 1;
+        }
+
+        if (index == 1) {
+            strncpy(name, "..", 2);
+            fat_stat_fill(driver, fs, f, out_st);
+            out_st->st_ino = f->cluster; // Inode is the cluster number
+            return 1;
+        }
+
         int i = 0;
         for (int j = 0; j < f->size; j += sizeof(fat_entry)) {
             if (j % params->bytes_per_sector == 0) {
@@ -401,7 +419,7 @@ int fat_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t 
                 continue;
             }
 
-            if (i == index) {
+            if (i == index - 2) {
                 if (entry->attributes.directory) {
                     entry->size = fat_calculate_actual_size(fs, entry);
                 }
@@ -409,7 +427,7 @@ int fat_readdir(iodriver *driver, filesystem *fs, const struct stat *st, size_t 
                 strncpy(name, dos83toStr(entry->name, entry->ext), 13);
                 fat_stat_fill(driver, fs, entry, out_st);
                 out_st->st_ino = entry->cluster; // Inode is the cluster number
-                return 0;
+                return 1;
             }
 
             i++;

@@ -5,6 +5,7 @@
 
 void tmpfs_init(iodriver *driver, filesystem *fs) {
     fs->type = FS_TMPFS;
+    fs->name = "tmpfs";
     fs->start_lba = 0;
     fs->params = NULL;
     fs->init = tmpfs_init;

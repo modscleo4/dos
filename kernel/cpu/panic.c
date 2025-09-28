@@ -98,7 +98,7 @@ static void register_dump(int (*write)(const char *format, ...), registers *r, p
 static void panic_handler_varargs(registers *r, const char *file, const int line, const char *msg, va_list args) {
     process_t *p = process_current();
 
-    serial_write_fn("\n=================================== PANIC ===================================\n");
+    serial_write_fn("\n==================================== PANIC ====================================\n");
     serial_write_str_varargs(SERIAL_COM1, msg, args);
     if (file) {
         serial_write_fn("\n at %s:%d\n", file, line);
@@ -107,7 +107,7 @@ static void panic_handler_varargs(registers *r, const char *file, const int line
         serial_write_fn("\n\n");
         register_dump(serial_write_fn, r, p);
     }
-    serial_write_fn("=============================================================================\n");
+    serial_write_fn("===============================================================================\n");
 
     if (r && r->cs & 3) {
         // We were in usermode, crash the offending process instead of the whole system
